@@ -234,6 +234,46 @@ $kpiData = $kpiResult->fetch_assoc();
         }
     }
 
+    // Data source breakdown (old_system vs new_system)
+    $dataSourceBreakdown = [];
+    $hasDataSourceCol = false;
+    $dsColCheck = $db->query("SHOW COLUMNS FROM donors LIKE 'data_source'");
+    if ($dsColCheck && $dsColCheck->num_rows > 0) {
+        $hasDataSourceCol = true;
+
+        $dsRes = $db->query("
+            SELECT
+                d.data_source,
+                COUNT(DISTINCT d.id) AS donor_count,
+                COALESCE(SUM(d.total_pledged), 0) AS total_pledged,
+                COALESCE(SUM(d.total_paid), 0) AS total_paid,
+                COALESCE(SUM(d.balance), 0) AS total_balance,
+                SUM(CASE WHEN d.total_pledged > 0 AND " . ($hasPaymentStatusCol ? "d.payment_status = 'paying'" : "(d.total_paid > 0 AND d.balance > 0.01)") . " THEN 1 ELSE 0 END) AS donors_paying,
+                SUM(CASE WHEN d.total_pledged > 0 AND " . ($hasPaymentStatusCol ? "d.payment_status = 'completed'" : "d.balance <= 0.01") . " THEN 1 ELSE 0 END) AS donors_completed,
+                SUM(CASE WHEN d.total_pledged > 0 AND " . ($hasPaymentStatusCol ? "d.payment_status = 'not_started'" : "(d.total_paid = 0 AND d.balance > 0.01)") . " THEN 1 ELSE 0 END) AS donors_not_started
+            FROM donors d
+            GROUP BY d.data_source
+            ORDER BY d.data_source ASC
+        ");
+        while ($r = $dsRes->fetch_assoc()) {
+            $src = (string)($r['data_source'] ?? 'new_system');
+            $pledged = (float)($r['total_pledged'] ?? 0);
+            $paid = (float)($r['total_paid'] ?? 0);
+            $dataSourceBreakdown[] = [
+                'source' => $src,
+                'label' => $src === 'old_system' ? 'Old System (Imported)' : 'New System',
+                'donor_count' => (int)($r['donor_count'] ?? 0),
+                'total_pledged' => $pledged,
+                'total_paid' => $paid,
+                'total_balance' => (float)($r['total_balance'] ?? 0),
+                'collection_rate' => $pledged > 0 ? round(($paid / $pledged) * 100, 1) : 0,
+                'donors_paying' => (int)($r['donors_paying'] ?? 0),
+                'donors_completed' => (int)($r['donors_completed'] ?? 0),
+                'donors_not_started' => (int)($r['donors_not_started'] ?? 0),
+            ];
+        }
+    }
+
     $response['pledge_payments'] = [
         'enabled' => $hasPledgePayments,
         'totals' => $pledgeTotals,
@@ -242,6 +282,8 @@ $kpiData = $kpiResult->fetch_assoc();
         'monthly' => array_values($pledgeMonthly),
         'donors_list' => $pledgeDonors,
         'top_outstanding' => $topOutstanding,
+        'data_source_breakdown' => $dataSourceBreakdown,
+        'has_data_source' => $hasDataSourceCol,
     ];
 
 // 2. Monthly Trends (Last 12 Months)

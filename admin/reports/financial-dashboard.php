@@ -422,6 +422,29 @@ $page_title = 'Financial Dashboard';
                             </div>
                         </div>
 
+                        <!-- Data Source Comparison (Old vs New System) -->
+                        <div class="row g-3 mb-3 d-none" id="dataSourceSection">
+                            <div class="col-12">
+                                <div class="card border-0 shadow-sm">
+                                    <div class="card-body">
+                                        <div class="d-flex justify-content-between align-items-center mb-3">
+                                            <h6 class="mb-0"><i class="fas fa-code-branch me-2 text-info"></i>Old System vs New System</h6>
+                                            <span class="badge bg-light text-dark border"><i class="fas fa-database me-1"></i>Data Source Comparison</span>
+                                        </div>
+                                        <div class="row g-3" id="dataSourceCards"></div>
+                                        <div class="row g-3 mt-2">
+                                            <div class="col-xl-6">
+                                                <div id="chartDataSourcePledged" style="height: 280px;"></div>
+                                            </div>
+                                            <div class="col-xl-6">
+                                                <div id="chartDataSourceDonors" style="height: 280px;"></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
                         <div class="row g-3">
                             <div class="col-12">
                                 <div class="card border-0 shadow-sm">
@@ -680,6 +703,12 @@ $page_title = 'Financial Dashboard';
       });
     }
 
+    // --- Data Source Charts ---
+    const pledgeBlockForDS = data && data.pledge_payments ? data.pledge_payments : {};
+    if (pledgeBlockForDS.has_data_source) {
+      buildDataSourceCharts(pledgeBlockForDS);
+    }
+
     // --- Pledge Payments Tab Charts ---
     const pledgeBlock = data && data.pledge_payments ? data.pledge_payments : {};
 
@@ -744,6 +773,127 @@ $page_title = 'Financial Dashboard';
     }
   }
 
+  function renderDataSourceBreakdown(pledgeData) {
+    const section = el('dataSourceSection');
+    const cardsContainer = el('dataSourceCards');
+    if (!section || !cardsContainer) return;
+
+    const breakdown = Array.isArray(pledgeData.data_source_breakdown) ? pledgeData.data_source_breakdown : [];
+    if (!pledgeData.has_data_source || breakdown.length === 0) {
+      section.classList.add('d-none');
+      return;
+    }
+
+    section.classList.remove('d-none');
+
+    const colorMap = {
+      'old_system': { bg: '#fff3cd', border: '#ffc107', icon: 'fas fa-archive', iconBg: '#ffc107', text: '#856404' },
+      'new_system': { bg: '#d1e7dd', border: '#198754', icon: 'fas fa-rocket', iconBg: '#198754', text: '#0f5132' }
+    };
+
+    let cardsHtml = '';
+    breakdown.forEach(src => {
+      const c = colorMap[src.source] || colorMap['new_system'];
+      const pct = Number(src.collection_rate || 0).toFixed(1);
+      const progressWidth = Math.min(100, Number(src.collection_rate || 0));
+
+      cardsHtml += `
+        <div class="col-xl-6 col-md-6">
+          <div class="card h-100" style="border-left: 4px solid ${c.border}; background: ${c.bg};">
+            <div class="card-body p-3">
+              <div class="d-flex align-items-center mb-2">
+                <div class="rounded-circle d-flex align-items-center justify-content-center me-2" style="width:36px;height:36px;background:${c.iconBg};color:#fff;font-size:0.85rem;">
+                  <i class="${c.icon}"></i>
+                </div>
+                <div>
+                  <div class="fw-bold" style="color:${c.text};font-size:0.95rem;">${escapeHtml(src.label)}</div>
+                  <div class="text-muted" style="font-size:0.75rem;">${fmtInt(src.donor_count)} donors</div>
+                </div>
+              </div>
+              <div class="row g-2 mb-2">
+                <div class="col-4 text-center">
+                  <div class="fw-bold" style="font-size:1.05rem;">${escapeHtml(fmtMoney(src.total_pledged))}</div>
+                  <div class="text-muted" style="font-size:0.7rem;text-transform:uppercase;">Pledged</div>
+                </div>
+                <div class="col-4 text-center">
+                  <div class="fw-bold text-success" style="font-size:1.05rem;">${escapeHtml(fmtMoney(src.total_paid))}</div>
+                  <div class="text-muted" style="font-size:0.7rem;text-transform:uppercase;">Paid</div>
+                </div>
+                <div class="col-4 text-center">
+                  <div class="fw-bold text-danger" style="font-size:1.05rem;">${escapeHtml(fmtMoney(src.total_balance))}</div>
+                  <div class="text-muted" style="font-size:0.7rem;text-transform:uppercase;">Balance</div>
+                </div>
+              </div>
+              <div class="progress" style="height:6px;background:rgba(0,0,0,0.1);">
+                <div class="progress-bar" style="width:${progressWidth}%;background:${c.border};" role="progressbar"></div>
+              </div>
+              <div class="d-flex justify-content-between mt-1" style="font-size:0.7rem;">
+                <span style="color:${c.text};">${pct}% collected</span>
+                <span class="text-muted">${fmtInt(src.donors_paying)} paying · ${fmtInt(src.donors_completed)} completed · ${fmtInt(src.donors_not_started)} not started</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+    });
+    cardsContainer.innerHTML = cardsHtml;
+  }
+
+  function buildDataSourceCharts(pledgeData) {
+    if (!window.echarts) return;
+    const breakdown = Array.isArray(pledgeData.data_source_breakdown) ? pledgeData.data_source_breakdown : [];
+    if (breakdown.length === 0) return;
+
+    const labels = breakdown.map(s => s.label);
+    const pledgedVals = breakdown.map(s => Number(s.total_pledged || 0));
+    const paidVals = breakdown.map(s => Number(s.total_paid || 0));
+    const balanceVals = breakdown.map(s => Number(s.total_balance || 0));
+    const donorCounts = breakdown.map(s => Number(s.donor_count || 0));
+    const payingCounts = breakdown.map(s => Number(s.donors_paying || 0));
+    const completedCounts = breakdown.map(s => Number(s.donors_completed || 0));
+    const notStartedCounts = breakdown.map(s => Number(s.donors_not_started || 0));
+
+    const colors = ['#ffc107', '#198754'];
+
+    const pledgedNode = el('chartDataSourcePledged');
+    if (pledgedNode && pledgedNode.offsetWidth > 0) {
+      let chart = echarts.getInstanceByDom(pledgedNode) || echarts.init(pledgedNode);
+      CHARTS['chartDataSourcePledged'] = chart;
+      chart.setOption({
+        title: { text: 'Financial Comparison', textStyle: { fontSize: 13 } },
+        tooltip: { trigger: 'axis', valueFormatter: v => fmtMoney(v) },
+        legend: { top: 'bottom' },
+        grid: { left: 24, right: 24, top: 40, bottom: 50, containLabel: true },
+        xAxis: { type: 'category', data: labels },
+        yAxis: { type: 'value' },
+        series: [
+          { name: 'Pledged', type: 'bar', data: pledgedVals, itemStyle: { borderRadius: [6,6,0,0], color: '#6c757d' } },
+          { name: 'Paid', type: 'bar', data: paidVals, itemStyle: { borderRadius: [6,6,0,0], color: '#198754' } },
+          { name: 'Balance', type: 'bar', data: balanceVals, itemStyle: { borderRadius: [6,6,0,0], color: '#dc3545' } }
+        ]
+      });
+    }
+
+    const donorsNode = el('chartDataSourceDonors');
+    if (donorsNode && donorsNode.offsetWidth > 0) {
+      let chart = echarts.getInstanceByDom(donorsNode) || echarts.init(donorsNode);
+      CHARTS['chartDataSourceDonors'] = chart;
+      chart.setOption({
+        title: { text: 'Donor Status Comparison', textStyle: { fontSize: 13 } },
+        tooltip: { trigger: 'axis' },
+        legend: { top: 'bottom' },
+        grid: { left: 24, right: 24, top: 40, bottom: 50, containLabel: true },
+        xAxis: { type: 'category', data: labels },
+        yAxis: { type: 'value' },
+        series: [
+          { name: 'Paying', type: 'bar', stack: 'status', data: payingCounts, itemStyle: { borderRadius: [0,0,0,0], color: '#0d6efd' } },
+          { name: 'Completed', type: 'bar', stack: 'status', data: completedCounts, itemStyle: { borderRadius: [0,0,0,0], color: '#198754' } },
+          { name: 'Not Started', type: 'bar', stack: 'status', data: notStartedCounts, itemStyle: { borderRadius: [6,6,0,0], color: '#ffc107' } }
+        ]
+      });
+    }
+  }
+
   function renderPledgeTab(data) {
     const p = data && data.pledge_payments ? data.pledge_payments : {};
 
@@ -763,6 +913,8 @@ $page_title = 'Financial Dashboard';
 
     if (el('pledgeDonorsPaying')) el('pledgeDonorsPaying').textContent = fmtInt(d.paying);
     if (el('pledgeDonorsCompleted')) el('pledgeDonorsCompleted').textContent = fmtInt(d.completed);
+
+    renderDataSourceBreakdown(p);
 
     const body = el('pledgeDonorsBody');
     if (body) {
