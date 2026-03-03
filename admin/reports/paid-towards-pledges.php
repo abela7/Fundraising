@@ -167,6 +167,18 @@ $page_title = 'Paid Towards Pledges - Detail';
             padding: 10px 16px;
             white-space: nowrap;
         }
+        .ptp-sortable {
+            cursor: pointer;
+            user-select: none;
+            transition: color 0.15s ease;
+        }
+        .ptp-sortable:hover { color: var(--primary) !important; }
+        .ptp-sortable .ptp-sort-icon {
+            margin-left: 4px;
+            opacity: 0.5;
+            font-size: 0.65rem;
+        }
+        .ptp-sortable.ptp-sort-active .ptp-sort-icon { opacity: 1; color: var(--primary); }
         .ptp-data-card .table tbody td {
             padding: 10px 16px;
             vertical-align: middle;
@@ -316,14 +328,6 @@ $page_title = 'Paid Towards Pledges - Detail';
                                 <option value="other">Other</option>
                             </select>
                         </div>
-                        <div class="col-12 col-md-3">
-                            <label class="form-label">Amount (Min – Max)</label>
-                            <div class="input-group input-group-sm">
-                                <input type="number" class="form-control" id="filterAmountMin" placeholder="Min" step="0.01" min="0">
-                                <span class="input-group-text">–</span>
-                                <input type="number" class="form-control" id="filterAmountMax" placeholder="Max" step="0.01" min="0">
-                            </div>
-                        </div>
                         <div class="col-12 col-md-2 d-flex gap-2">
                             <button class="btn btn-primary btn-sm flex-fill" id="applyFilters"><i class="fas fa-search me-1"></i>Apply</button>
                             <button class="btn btn-outline-secondary btn-sm" id="clearFilters"><i class="fas fa-times me-1"></i>Clear</button>
@@ -362,12 +366,12 @@ $page_title = 'Paid Towards Pledges - Detail';
                             <thead>
                                 <tr>
                                     <th>#</th>
-                                    <th>Donor</th>
-                                    <th class="text-end">Amount</th>
-                                    <th>Method</th>
-                                    <th>Payment Date</th>
-                                    <th>Reference</th>
-                                    <th>Approved By</th>
+                                    <th class="ptp-sortable" data-sort-by="donor" title="Click to sort">Donor<span class="ptp-sort-icon"></span></th>
+                                    <th class="text-end ptp-sortable" data-sort-by="amount" title="Click to sort">Amount<span class="ptp-sort-icon"></span></th>
+                                    <th class="ptp-sortable" data-sort-by="method" title="Click to sort">Method<span class="ptp-sort-icon"></span></th>
+                                    <th class="ptp-sortable ptp-sort-active" data-sort-by="payment_date" title="Click to sort">Payment Date<span class="ptp-sort-icon"><i class="fas fa-sort-down"></i></span></th>
+                                    <th class="ptp-sortable" data-sort-by="reference" title="Click to sort">Reference<span class="ptp-sort-icon"></span></th>
+                                    <th class="ptp-sortable" data-sort-by="approved_by" title="Click to sort">Approved By<span class="ptp-sort-icon"></span></th>
                                 </tr>
                             </thead>
                             <tbody id="dataBody">
@@ -406,6 +410,7 @@ $page_title = 'Paid Towards Pledges - Detail';
 <script>
 (function(){
   const CURRENCY = <?php echo json_encode($currency); ?>;
+  let sortState = { sortBy: 'payment_date', sortOrder: 'desc' };
 
   function fmtMoney(amount) {
     const n = Number(amount || 0);
@@ -433,19 +438,44 @@ $page_title = 'Paid Towards Pledges - Detail';
     const params = new URLSearchParams();
     params.set('page', String(page));
     params.set('per_page', document.getElementById('perPage').value);
+    params.set('sort_by', sortState.sortBy);
+    params.set('sort_order', sortState.sortOrder);
     const df = document.getElementById('filterDateFrom').value;
     const dt = document.getElementById('filterDateTo').value;
     const donor = document.getElementById('filterDonor').value.trim();
     const method = document.getElementById('filterMethod').value;
-    const amMin = document.getElementById('filterAmountMin').value.trim();
-    const amMax = document.getElementById('filterAmountMax').value.trim();
     if (df) params.set('date_from', df);
     if (dt) params.set('date_to', dt);
     if (donor) params.set('donor', donor);
     if (method) params.set('payment_method', method);
-    if (amMin && !isNaN(parseFloat(amMin))) params.set('amount_min', amMin);
-    if (amMax && !isNaN(parseFloat(amMax))) params.set('amount_max', amMax);
     return 'api/paid-towards-pledges.php?' + params.toString();
+  }
+
+  function updateSortHeaders() {
+    document.querySelectorAll('.ptp-sortable').forEach(th => {
+      const col = th.dataset.sortBy;
+      th.classList.remove('ptp-sort-active');
+      const icon = th.querySelector('.ptp-sort-icon');
+      if (icon) {
+        if (col === sortState.sortBy) {
+          th.classList.add('ptp-sort-active');
+          icon.innerHTML = sortState.sortOrder === 'asc' ? '<i class="fas fa-sort-up"></i>' : '<i class="fas fa-sort-down"></i>';
+        } else {
+          icon.innerHTML = '<i class="fas fa-sort" style="opacity:0.4"></i>';
+        }
+      }
+    });
+  }
+
+  function handleSortClick(sortBy) {
+    if (sortState.sortBy === sortBy) {
+      sortState.sortOrder = sortState.sortOrder === 'asc' ? 'desc' : 'asc';
+    } else {
+      sortState.sortBy = sortBy;
+      sortState.sortOrder = ['amount', 'payment_date'].includes(sortBy) ? 'desc' : 'asc';
+    }
+    updateSortHeaders();
+    load(1);
   }
 
   function renderTable(data) {
@@ -583,18 +613,16 @@ $page_title = 'Paid Towards Pledges - Detail';
     const params = new URLSearchParams();
     params.set('page', '1');
     params.set('per_page', '99999');
+    params.set('sort_by', sortState.sortBy);
+    params.set('sort_order', sortState.sortOrder);
     const df = document.getElementById('filterDateFrom').value;
     const dt = document.getElementById('filterDateTo').value;
     const donor = document.getElementById('filterDonor').value.trim();
     const method = document.getElementById('filterMethod').value;
-    const amMin = document.getElementById('filterAmountMin').value.trim();
-    const amMax = document.getElementById('filterAmountMax').value.trim();
     if (df) params.set('date_from', df);
     if (dt) params.set('date_to', dt);
     if (donor) params.set('donor', donor);
     if (method) params.set('payment_method', method);
-    if (amMin && !isNaN(parseFloat(amMin))) params.set('amount_min', amMin);
-    if (amMax && !isNaN(parseFloat(amMax))) params.set('amount_max', amMax);
 
     fetch('api/paid-towards-pledges.php?' + params.toString(), { method: 'GET', credentials: 'same-origin', headers: { 'Accept': 'application/json' } })
       .then(r => r.json())
@@ -631,19 +659,23 @@ $page_title = 'Paid Towards Pledges - Detail';
     document.getElementById('filterDateTo').value = '';
     document.getElementById('filterDonor').value = '';
     document.getElementById('filterMethod').value = '';
-    document.getElementById('filterAmountMin').value = '';
-    document.getElementById('filterAmountMax').value = '';
     load(1);
   });
   document.getElementById('perPage').addEventListener('change', () => load(1));
   document.getElementById('exportCsvBtn').addEventListener('click', exportCsv);
 
   // Apply on Enter in filter inputs
-  ['filterDonor', 'filterDateFrom', 'filterDateTo', 'filterAmountMin', 'filterAmountMax'].forEach(id => {
+  ['filterDonor', 'filterDateFrom', 'filterDateTo'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.addEventListener('keydown', (e) => { if (e.key === 'Enter') load(1); });
   });
 
+  // Sortable column headers
+  document.querySelectorAll('.ptp-sortable').forEach(th => {
+    th.addEventListener('click', () => handleSortClick(th.dataset.sortBy));
+  });
+
+  updateSortHeaders();
   load(1);
 })();
 </script>
