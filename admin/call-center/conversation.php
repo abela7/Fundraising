@@ -1251,15 +1251,14 @@ $page_title = 'Live Call';
                                             </div>
 
                                             <?php foreach ($templates as $template): ?>
-                                                <?php if ((string)$template['id'] === 'custom') continue; ?>
-                                                <?php if ((int)($template['duration_months'] ?? 0) === 1) { continue; } ?>
                                                 <?php
+                                                    $templateId = strtolower(trim((string)($template['id'] ?? '')));
+                                                    $templateName = strtolower(trim((string)($template['name'] ?? '')));
                                                     $templateDuration = (int)($template['duration_months'] ?? 0);
-                                                    $templateLabel = $templateDuration > 1 ? $templateDuration . ' Months' : 'Custom Plan';
-                                                    if ($templateDuration <= 0) {
-                                                        $templateLabel = 'Custom Plan';
-                                                    }
                                                 ?>
+                                                <?php if ($templateId === 'custom' || $templateName === 'custom plan' || strpos($templateName, 'custom') !== false || $templateDuration <= 0) { continue; } ?>
+                                                <?php if ($templateDuration === 1) { continue; } ?>
+                                                <?php $templateLabel = $templateDuration . ' Months'; ?>
                                                 <div class="plan-card" onclick="selectPlan('<?php echo $template['id']; ?>', <?php echo $template['duration_months']; ?>)">
                                                     <div class="plan-name"><?php echo htmlspecialchars($template['name']); ?></div>
                                                     <div class="plan-duration"><?php echo $templateLabel; ?></div>
