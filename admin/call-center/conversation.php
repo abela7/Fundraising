@@ -2358,11 +2358,11 @@ function selectPaymentMethod(method, clickedElement) {
     });
     
     // Step 3 Logic (Payment Readiness)
-    function selectReadiness(choice) {
-        document.getElementById('readyToPayInput').value = choice;
-        if (choice === 'yes') {
-            goToStep(8);
-        } else if (choice === 'refused') {
+function selectReadiness(choice) {
+    document.getElementById('readyToPayInput').value = choice;
+    if (choice === 'yes') {
+        goToStep(6);
+    } else if (choice === 'refused') {
             // Capture duration
             let duration = 0;
             try {
