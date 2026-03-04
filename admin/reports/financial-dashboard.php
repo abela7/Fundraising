@@ -326,9 +326,14 @@ $page_title = 'Financial Dashboard';
                                     This tab focuses only on pledges and pledge payments: who is paying, who is completed, and how collection is trending.
                                 </div>
                             </div>
-                            <a href="data-comparison.php" class="btn btn-outline-primary btn-sm">
-                                <i class="fas fa-code-compare me-1"></i>Compare with Excel
-                            </a>
+                            <div class="d-flex gap-2">
+                                <a href="source-tables.php" class="btn btn-outline-secondary btn-sm">
+                                    <i class="fas fa-database me-1"></i>Source Tables
+                                </a>
+                                <a href="data-comparison.php" class="btn btn-outline-primary btn-sm">
+                                    <i class="fas fa-code-compare me-1"></i>Compare with Excel
+                                </a>
+                            </div>
                         </div>
 
                         <div class="row g-3 mb-3">
