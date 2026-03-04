@@ -81,9 +81,6 @@ $currency = htmlspecialchars($settings['currency_code'] ?? 'GBP', ENT_QUOTES, 'U
 
         .table-scroll-wrapper { max-height:600px; overflow:auto; }
 
-        .dc-col-map { background:var(--white); border:1px solid var(--gray-200); border-radius:12px; padding:16px 20px; margin-bottom:16px; box-shadow:var(--shadow-sm); }
-        .dc-col-map .form-label { font-size:0.7rem; font-weight:600; color:var(--gray-500); text-transform:uppercase; }
-
         @media (max-width:768px) {
             .dc-page-header { flex-direction:column; }
             .dc-stat { min-width:auto; }
@@ -101,24 +98,25 @@ $currency = htmlspecialchars($settings['currency_code'] ?? 'GBP', ENT_QUOTES, 'U
                 <div class="dc-page-header">
                     <div>
                         <h1><i class="fas fa-code-compare me-2" style="color:var(--primary);"></i>Data Comparison Tool</h1>
-                        <p>Upload an Excel file and compare it against the live database. Identify mismatches, missing records, and discrepancies.</p>
+                        <p>Upload your Excel file — columns are detected automatically and comparison runs instantly.</p>
                     </div>
                     <div class="d-flex gap-2">
                         <a class="btn btn-outline-secondary" href="financial-dashboard.php#tab-pledge"><i class="fas fa-arrow-left me-1"></i>Back to Dashboard</a>
                     </div>
                 </div>
 
-                <!-- Step 1: Upload -->
+                <!-- Upload -->
                 <div id="uploadSection">
                     <div class="dc-card">
                         <div class="dc-card-header">
-                            <h6><i class="fas fa-file-excel me-2 text-success"></i>Step 1: Upload Excel File</h6>
+                            <h6><i class="fas fa-file-excel me-2 text-success"></i>Upload Excel File</h6>
+                            <span class="text-muted small">Comparison runs automatically after upload</span>
                         </div>
                         <div class="p-4">
                             <div class="dc-upload-zone" id="dropZone">
                                 <i class="fas fa-cloud-arrow-up"></i>
                                 <p class="fw-semibold mb-1">Drop your Excel file here or click to browse</p>
-                                <p class="small text-muted">Supports .xlsx and .xls files</p>
+                                <p class="small text-muted">Supports .xlsx and .xls files — columns are detected automatically</p>
                                 <input type="file" id="fileInput" accept=".xlsx,.xls,.csv" style="display:none">
                             </div>
                             <div class="mt-3 d-none" id="fileInfo">
@@ -128,36 +126,19 @@ $currency = htmlspecialchars($settings['currency_code'] ?? 'GBP', ENT_QUOTES, 'U
                                         <div class="fw-semibold" id="fileName">—</div>
                                         <div class="text-muted small" id="fileDetails">—</div>
                                     </div>
+                                    <span class="badge bg-success ms-2 d-none" id="autoDetectBadge"><i class="fas fa-magic me-1"></i>Columns auto-detected</span>
                                     <button class="btn btn-sm btn-outline-danger ms-auto" id="removeFileBtn"><i class="fas fa-times"></i></button>
                                 </div>
                             </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Step 2: Column Mapping -->
-                <div id="mappingSection" style="display:none">
-                    <div class="dc-card">
-                        <div class="dc-card-header">
-                            <h6><i class="fas fa-columns me-2 text-primary"></i>Step 2: Map Columns</h6>
-                            <span class="badge bg-light text-dark border" id="xlRowCount">—</span>
-                        </div>
-                        <div class="p-4">
-                            <p class="text-muted small mb-3">Map Excel columns to database fields. We auto-detect common headers.</p>
-                            <div class="row g-3" id="columnMapRow"></div>
-                            <div class="mt-3 text-end">
-                                <button class="btn btn-primary" id="runComparisonBtn"><i class="fas fa-play me-1"></i>Run Comparison</button>
+                            <div class="mt-3 d-none" id="loadingBar">
+                                <div class="d-flex align-items-center gap-2">
+                                    <div class="spinner-border spinner-border-sm text-primary"></div>
+                                    <span class="text-muted small" id="loadingText">Reading file...</span>
+                                </div>
+                                <div class="progress mt-2" style="height:4px;">
+                                    <div class="progress-bar progress-bar-striped progress-bar-animated" id="loadingProgress" style="width:0%"></div>
+                                </div>
                             </div>
-                        </div>
-                    </div>
-
-                    <!-- Preview -->
-                    <div class="dc-card">
-                        <div class="dc-card-header">
-                            <h6><i class="fas fa-table me-2 text-secondary"></i>Excel Preview (first 10 rows)</h6>
-                        </div>
-                        <div class="table-scroll-wrapper">
-                            <table class="table table-sm dc-table mb-0" id="previewTable"></table>
                         </div>
                     </div>
                 </div>
@@ -311,6 +292,29 @@ $currency = htmlspecialchars($settings['currency_code'] ?? 'GBP', ENT_QUOTES, 'U
 
   const el = id => document.getElementById(id);
 
+  // Known column name patterns for auto-detection (broadened to handle many Excel formats)
+  const KNOWN_COLUMNS = {
+    name:   ['Name', 'name', 'Donor', 'donor', 'Full Name', 'full name', 'Donor Name', 'donor name', 'Fullname'],
+    phone:  ['Mobile', 'mobile', 'Phone', 'phone', 'Telephone', 'Tel', 'Cell', 'Contact', 'Phone Number', 'Mobile Number'],
+    amount: ['Amount', 'amount', 'Pledged', 'pledged', 'Pledge', 'pledge', 'Pledge Amount', 'Total'],
+    paid:   ['Amount Paid', 'amount paid', 'Paid', 'paid', 'Total Paid', 'Payment', 'Received'],
+    city:   ['City', 'city', 'Town', 'Location', 'Address'],
+    method: ['Payment Method', 'payment method', 'Method', 'method', 'Pay Method', 'Type'],
+    sn:     ['S.N.', 's.n.', 'SN', 'sn', 'Serial', 'No.', 'no.', 'No', '#', 'ID', 'Serial Number'],
+  };
+
+  function autoDetectColumns(headers) {
+    const mapped = {};
+    for (const [field, candidates] of Object.entries(KNOWN_COLUMNS)) {
+      mapped[field] = '';
+      for (const c of candidates) {
+        const found = headers.find(h => h === c || h.trim().toLowerCase() === c.toLowerCase());
+        if (found) { mapped[field] = found; break; }
+      }
+    }
+    return mapped;
+  }
+
   // --- Upload ---
   const dropZone = el('dropZone');
   const fileInput = el('fileInput');
@@ -322,22 +326,70 @@ $currency = htmlspecialchars($settings['currency_code'] ?? 'GBP', ENT_QUOTES, 'U
   fileInput.addEventListener('change', () => { if (fileInput.files[0]) handleFile(fileInput.files[0]); });
   el('removeFileBtn').addEventListener('click', resetUpload);
 
+  function setLoading(show, text, pct) {
+    const bar = el('loadingBar');
+    if (show) {
+      bar.classList.remove('d-none');
+      el('loadingText').textContent = text || 'Working...';
+      el('loadingProgress').style.width = (pct || 0) + '%';
+    } else {
+      bar.classList.add('d-none');
+    }
+  }
+
   function handleFile(file) {
     if (!file) return;
     el('fileName').textContent = file.name;
     el('fileDetails').textContent = (file.size / 1024).toFixed(1) + ' KB';
     el('fileInfo').classList.remove('d-none');
+    el('autoDetectBadge').classList.add('d-none');
+    setLoading(true, 'Reading Excel file...', 10);
 
     const reader = new FileReader();
-    reader.onload = function(e) {
+    reader.onload = async function(e) {
       try {
+        setLoading(true, 'Parsing spreadsheet...', 30);
         const wb = XLSX.read(e.target.result, { type: 'array' });
         const ws = wb.Sheets[wb.SheetNames[0]];
         const json = XLSX.utils.sheet_to_json(ws, { defval: '' });
+
+        if (!json || json.length === 0) { alert('No data rows found in the file.'); setLoading(false); return; }
+
         xlData = json;
-        showMapping(json);
+        const headers = Object.keys(json[0]);
+        columnMap = autoDetectColumns(headers);
+
+        const detected = Object.entries(columnMap).filter(([k,v]) => v).map(([k,v]) => k);
+        if (!columnMap.name && !columnMap.phone) {
+          alert('Could not detect Name or Phone columns. Please check your Excel headers.');
+          setLoading(false);
+          return;
+        }
+
+        el('autoDetectBadge').classList.remove('d-none');
+        el('fileDetails').textContent = (file.size / 1024).toFixed(1) + ' KB · ' + json.length + ' rows · Detected: ' + detected.join(', ');
+
+        setLoading(true, 'Loading database donors...', 50);
+        const res = await fetch('api/data-comparison.php', { credentials: 'same-origin', headers: { 'Accept': 'application/json' } });
+        const dbJson = await res.json();
+        if (!dbJson.success) throw new Error(dbJson.error || 'API error');
+        dbData = dbJson.donors;
+
+        setLoading(true, 'Comparing ' + json.length + ' Excel rows with ' + dbData.length + ' database donors...', 80);
+        await new Promise(r => setTimeout(r, 100));
+
+        compare();
+
+        setLoading(true, 'Done!', 100);
+        await new Promise(r => setTimeout(r, 300));
+        setLoading(false);
+
+        el('resultsSection').style.display = '';
+        el('resultsSection').scrollIntoView({ behavior: 'smooth', block: 'start' });
+
       } catch(err) {
-        alert('Failed to parse Excel file: ' + err.message);
+        setLoading(false);
+        alert('Error: ' + err.message);
       }
     };
     reader.readAsArrayBuffer(file);
@@ -345,105 +397,14 @@ $currency = htmlspecialchars($settings['currency_code'] ?? 'GBP', ENT_QUOTES, 'U
 
   function resetUpload() {
     xlData = [];
+    dbData = [];
+    comparisonResults = [];
+    filteredResults = [];
     fileInput.value = '';
     el('fileInfo').classList.add('d-none');
-    el('mappingSection').style.display = 'none';
+    el('autoDetectBadge').classList.add('d-none');
     el('resultsSection').style.display = 'none';
-  }
-
-  // --- Column Mapping ---
-  const DB_FIELDS = [
-    { key: 'name', label: 'Donor Name', required: true },
-    { key: 'phone', label: 'Phone Number', required: true },
-    { key: 'amount', label: 'Pledged Amount', required: false },
-    { key: 'paid', label: 'Amount Paid', required: false },
-    { key: 'city', label: 'City', required: false },
-    { key: 'method', label: 'Payment Method', required: false },
-    { key: 'sn', label: 'Serial Number', required: false },
-  ];
-
-  const AUTO_MAP = {
-    name: ['name', 'donor', 'full name', 'donor name', 'fullname'],
-    phone: ['mobile', 'phone', 'telephone', 'tel', 'cell', 'contact', 'phone number', 'mobile number'],
-    amount: ['amount', 'pledged', 'pledge', 'total', 'pledge amount', 'pledged amount'],
-    paid: ['paid', 'amount paid', 'total paid', 'payment', 'received'],
-    city: ['city', 'town', 'location', 'address'],
-    method: ['method', 'payment method', 'pay method', 'type'],
-    sn: ['s.n.', 'sn', 'serial', 'no.', 'no', '#', 'id', 'serial number'],
-  };
-
-  function showMapping(data) {
-    if (!data || data.length === 0) { alert('No data found in file.'); return; }
-
-    const headers = Object.keys(data[0]);
-    el('xlRowCount').textContent = data.length + ' rows detected';
-
-    // Auto-map
-    for (const [field, keywords] of Object.entries(AUTO_MAP)) {
-      columnMap[field] = '';
-      for (const h of headers) {
-        const hLow = h.toLowerCase().trim();
-        if (keywords.includes(hLow)) { columnMap[field] = h; break; }
-      }
-    }
-
-    let mapHtml = '';
-    DB_FIELDS.forEach(f => {
-      const req = f.required ? ' <span class="text-danger">*</span>' : '';
-      mapHtml += `
-        <div class="col-12 col-md-3 col-lg-2">
-          <label class="form-label">${f.label}${req}</label>
-          <select class="form-select form-select-sm dc-map-select" data-field="${f.key}">
-            <option value="">— skip —</option>
-            ${headers.map(h => `<option value="${esc(h)}" ${columnMap[f.key] === h ? 'selected' : ''}>${esc(h)}</option>`).join('')}
-          </select>
-        </div>
-      `;
-    });
-    el('columnMapRow').innerHTML = mapHtml;
-
-    document.querySelectorAll('.dc-map-select').forEach(sel => {
-      sel.addEventListener('change', () => { columnMap[sel.dataset.field] = sel.value; });
-    });
-
-    // Preview
-    const previewRows = data.slice(0, 10);
-    let previewHtml = '<thead><tr>' + headers.map(h => `<th>${esc(h)}</th>`).join('') + '</tr></thead><tbody>';
-    previewRows.forEach(row => {
-      previewHtml += '<tr>' + headers.map(h => `<td>${esc(String(row[h] ?? ''))}</td>`).join('') + '</tr>';
-    });
-    previewHtml += '</tbody>';
-    el('previewTable').innerHTML = previewHtml;
-
-    el('mappingSection').style.display = '';
-  }
-
-  // --- Run Comparison ---
-  el('runComparisonBtn').addEventListener('click', runComparison);
-
-  async function runComparison() {
-    if (!columnMap.name && !columnMap.phone) {
-      alert('Please map at least Name or Phone to run comparison.');
-      return;
-    }
-
-    el('runComparisonBtn').disabled = true;
-    el('runComparisonBtn').innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Loading DB data...';
-
-    try {
-      const res = await fetch('api/data-comparison.php', { credentials: 'same-origin', headers: { 'Accept': 'application/json' } });
-      const json = await res.json();
-      if (!json.success) throw new Error(json.error || 'API error');
-      dbData = json.donors;
-
-      compare();
-      el('resultsSection').style.display = '';
-    } catch(err) {
-      alert('Failed to load database data: ' + err.message);
-    } finally {
-      el('runComparisonBtn').disabled = false;
-      el('runComparisonBtn').innerHTML = '<i class="fas fa-play me-1"></i>Run Comparison';
-    }
+    setLoading(false);
   }
 
   function compare() {
@@ -755,7 +716,6 @@ $currency = htmlspecialchars($settings['currency_code'] ?? 'GBP', ENT_QUOTES, 'U
   // --- Re-upload ---
   el('reuploadBtn').addEventListener('click', () => {
     el('resultsSection').style.display = 'none';
-    el('mappingSection').style.display = 'none';
     resetUpload();
   });
 
