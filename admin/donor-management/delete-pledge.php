@@ -3,7 +3,7 @@ declare(strict_types=1);
 /**
  * Delete Pledge - Multi-Page Wizard (Option A)
  * Safe, comprehensive deletion with step-by-step verification.
- * Only REJECTED pledges can be deleted.
+ * Approved, rejected, pending, and cancelled pledges can be deleted.
  */
 
 require_once __DIR__ . '/../../shared/auth.php';
@@ -132,10 +132,6 @@ try {
 $can_delete = true;
 $block_reason = '';
 
-if ($pledge->status !== 'rejected') {
-    $can_delete = false;
-    $block_reason = 'Only rejected pledges can be deleted. This pledge has status: "' . ucfirst($pledge->status) . '". Please reject the pledge first.';
-}
 if ($pledge->linked_plans > 0) {
     $can_delete = false;
     $block_reason = 'This pledge has ' . $pledge->linked_plans . ' active payment plan(s). Delete the payment plan(s) first.';
@@ -294,9 +290,22 @@ if ($step === 6 && $_SERVER['REQUEST_METHOD'] === 'POST' && $can_delete) {
             }
         }
 
+        // 8. If pledge was approved, recalculate donor total_pledged and balance
+        if ($pledge->status === 'approved') {
+            $recalc = $conn->prepare("
+                UPDATE donors 
+                SET total_pledged = (SELECT COALESCE(SUM(amount), 0) FROM pledges WHERE donor_id = donors.id AND status = 'approved'),
+                    balance = GREATEST(0, total_pledged - total_paid)
+                WHERE id = ?
+            ");
+            $recalc->bind_param('i', $donor_id);
+            $recalc->execute();
+            $recalc->close();
+        }
+
         $conn->commit();
 
-        $msg = 'Rejected pledge deleted successfully.';
+        $msg = 'Pledge deleted successfully.';
         if ($cells_deallocated > 0) {
             $msg .= ' ' . $cells_deallocated . ' cell(s) deallocated.';
         }
@@ -384,7 +393,7 @@ $step_titles = [
             <div class="detail-row"><span class="detail-label">Date</span><span><?php echo $pledge->created_at ? date('M d, Y', strtotime($pledge->created_at)) : '—'; ?></span></div>
         </div>
         <div class="alert alert-success py-2">
-            <i class="fas fa-check-circle me-2"></i>Eligibility checks passed. This rejected pledge can be safely deleted.
+            <i class="fas fa-check-circle me-2"></i>Eligibility checks passed. This pledge can be safely deleted.
         </div>
         <p class="text-muted small">The wizard will guide you through each affected area before deletion.</p>
         <?php endif; ?>
@@ -450,13 +459,13 @@ $step_titles = [
             <li><strong>last_pledge_id</strong> – set to the most recent remaining pledge (or cleared if none)</li>
             <?php endif; ?>
         </ul>
-        <p class="small text-muted">Financial totals (total_pledged, total_paid, balance) are unchanged because rejected pledges don't count.</p>
+        <p class="small text-muted"><?php echo $pledge->status === 'approved' ? 'Donor total_pledged and balance will be recalculated.' : 'Financial totals are unchanged (this pledge was not approved).'; ?></p>
         <?php endif; ?>
 
         <?php if ($step === 6): ?>
         <div class="danger-box">
             <strong><i class="fas fa-exclamation-triangle me-2"></i>Final confirmation</strong>
-            <p class="mb-0 mt-2">You are about to permanently delete this rejected pledge. This cannot be undone.</p>
+            <p class="mb-0 mt-2">You are about to permanently delete this pledge. This cannot be undone.</p>
         </div>
         <div class="info-box">
             <h6 class="mb-2">Summary of actions</h6>
@@ -466,6 +475,7 @@ $step_titles = [
                 <?php if (count($pledge_payments) + count($linked_payments) > 0): ?><li>Unlink <?php echo count($pledge_payments) + count($linked_payments); ?> payment(s)</li><?php endif; ?>
                 <?php if (count($batches) > 0): ?><li>Clear <?php echo count($batches); ?> batch reference(s)</li><?php endif; ?>
                 <li>Update donor pledge_count<?php if ($has_last_pledge_id_col): ?> and last_pledge_id<?php endif; ?></li>
+                <?php if ($pledge->status === 'approved'): ?><li>Recalculate donor total_pledged and balance</li><?php endif; ?>
             </ul>
         </div>
         <?php endif; ?>
