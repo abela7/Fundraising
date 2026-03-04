@@ -210,8 +210,20 @@ $page_title = 'Source Tables - Pledges & Pledge Payments';
     const params = new URLSearchParams({ page: page || 1, per_page: 25 });
     if (donor) params.set('donor', donor);
     fetch('api/total-pledged-approved.php?' + params, { credentials: 'same-origin', headers: { Accept: 'application/json' } })
-      .then(r => r.json())
+      .then(r => {
+        const ct = r.headers.get('Content-Type') || '';
+        if (!ct.includes('application/json')) {
+          throw new Error('Server returned non-JSON (status ' + r.status + '). Check if you are logged in.');
+        }
+        return r.json();
+      })
       .then(d => {
+        if (d.error) {
+          document.getElementById('pledgesBody').innerHTML = '<tr><td colspan="5" class="text-center py-4 text-danger">' + esc(d.message || d.error) + '</td></tr>';
+          document.getElementById('pledgesInfo').textContent = '—';
+          document.getElementById('pledgesPagination').innerHTML = '';
+          return;
+        }
         const body = document.getElementById('pledgesBody');
         const rows = d.rows || [];
         if (rows.length === 0) {
@@ -232,7 +244,11 @@ $page_title = 'Source Tables - Pledges & Pledge Payments';
         document.getElementById('pledgesInfo').textContent = rows.length ? `Showing ${start}–${start + rows.length - 1} of ${d.total_count || 0}` : `0 of ${d.total_count || 0}`;
         renderPagination('pledgesPagination', d.page, d.total_pages, loadPledges);
       })
-      .catch(() => { document.getElementById('pledgesBody').innerHTML = '<tr><td colspan="5" class="text-center py-4 text-danger">Failed to load.</td></tr>'; });
+      .catch(err => {
+        document.getElementById('pledgesBody').innerHTML = '<tr><td colspan="5" class="text-center py-4 text-danger">' + esc(err && err.message ? err.message : 'Failed to load.') + '</td></tr>';
+        document.getElementById('pledgesInfo').textContent = '—';
+        document.getElementById('pledgesPagination').innerHTML = '';
+      });
   }
 
   function loadPP(page) {
@@ -240,7 +256,13 @@ $page_title = 'Source Tables - Pledges & Pledge Payments';
     const params = new URLSearchParams({ page: page || 1, per_page: 25 });
     if (donor) params.set('donor', donor);
     fetch('api/paid-towards-pledges.php?' + params, { credentials: 'same-origin', headers: { Accept: 'application/json' } })
-      .then(r => r.json())
+      .then(r => {
+        const ct = r.headers.get('Content-Type') || '';
+        if (!ct.includes('application/json')) {
+          throw new Error('Server returned non-JSON (status ' + r.status + '). Check if you are logged in.');
+        }
+        return r.json();
+      })
       .then(d => {
         if (d.error) {
           document.getElementById('ppBody').innerHTML = '<tr><td colspan="6" class="text-center py-4 text-muted">' + esc(d.error) + '</td></tr>';
@@ -269,7 +291,11 @@ $page_title = 'Source Tables - Pledges & Pledge Payments';
         document.getElementById('ppInfo').textContent = rows.length ? `Showing ${start}–${start + rows.length - 1} of ${d.total_count || 0}` : `0 of ${d.total_count || 0}`;
         renderPagination('ppPagination', d.page, d.total_pages, loadPP);
       })
-      .catch(() => { document.getElementById('ppBody').innerHTML = '<tr><td colspan="6" class="text-center py-4 text-danger">Failed to load.</td></tr>'; });
+      .catch(err => {
+        document.getElementById('ppBody').innerHTML = '<tr><td colspan="6" class="text-center py-4 text-danger">' + esc(err && err.message ? err.message : 'Failed to load.') + '</td></tr>';
+        document.getElementById('ppInfo').textContent = '—';
+        document.getElementById('ppPagination').innerHTML = '';
+      });
   }
 
   function renderPagination(id, page, total, fn) {
