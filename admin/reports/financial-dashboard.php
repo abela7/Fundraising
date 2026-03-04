@@ -333,18 +333,20 @@ $page_title = 'Financial Dashboard';
 
                         <div class="row g-3 mb-3">
                             <div class="col-xl-3 col-md-6">
-                                <div class="card border-0 shadow-sm h-100 kpi-card">
-                                    <div class="card-body">
-                                        <div class="d-flex align-items-center">
-                                            <div class="icon-circle bg-primary text-white"><i class="fas fa-hand-holding-heart"></i></div>
-                                            <div class="ms-3 flex-grow-1">
-                                                <div class="kpi-label text-primary fw-bold">Total Pledged (approved)</div>
-                                                <div class="kpi-value" id="pledgeTotalPledged">—</div>
-                                                <div class="kpi-sub">Approved pledges</div>
+                                <a href="total-pledged-approved.php" class="text-decoration-none text-body d-block">
+                                    <div class="card border-0 shadow-sm h-100 kpi-card clickable-card">
+                                        <div class="card-body">
+                                            <div class="d-flex align-items-center">
+                                                <div class="icon-circle bg-primary text-white"><i class="fas fa-hand-holding-heart"></i></div>
+                                                <div class="ms-3 flex-grow-1">
+                                                    <div class="kpi-label text-primary fw-bold">Total Pledged (approved)</div>
+                                                    <div class="kpi-value" id="pledgeTotalPledged">—</div>
+                                                    <div class="kpi-sub">Approved pledges <i class="fas fa-external-link-alt ms-1 small opacity-75"></i></div>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
-                                </div>
+                                </a>
                             </div>
 
                             <div class="col-xl-3 col-md-6">
