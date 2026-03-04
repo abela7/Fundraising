@@ -115,6 +115,27 @@ $currency = htmlspecialchars($settings['currency_code'] ?? 'GBP', ENT_QUOTES, 'U
         .dc-summary-table th { font-size:0.7rem; font-weight:600; color:var(--gray-500); text-transform:uppercase; letter-spacing:0.3px; background:var(--gray-50); }
         .dc-summary-table td { color:var(--gray-600); }
 
+        /* Tabs */
+        .dc-tabs { border-bottom:1px solid var(--gray-200); margin-bottom:0; padding:0 20px; background:var(--gray-50); }
+        .dc-tabs .nav-link { font-size:0.875rem; font-weight:600; color:var(--gray-500); border:none; border-bottom:3px solid transparent; border-radius:0; padding:12px 16px; margin-bottom:-1px; transition:all 0.15s ease; }
+        .dc-tabs .nav-link:hover { color:var(--gray-700); }
+        .dc-tabs .nav-link.active { color:var(--primary); border-bottom-color:var(--primary); background:transparent; }
+        .dc-tabs .nav-link i { margin-right:6px; opacity:0.8; }
+
+        /* Finance tab */
+        .dc-finance-hero { background:linear-gradient(135deg, rgba(10,98,134,0.06) 0%, rgba(10,98,134,0.02) 100%); border:1px solid var(--gray-200); border-radius:12px; padding:24px; margin-bottom:20px; }
+        .dc-finance-kpi { display:flex; align-items:center; gap:16px; padding:16px 20px; background:var(--white); border:1px solid var(--gray-200); border-radius:10px; margin-bottom:12px; }
+        .dc-finance-kpi-icon { width:44px; height:44px; border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:1.1rem; flex-shrink:0; }
+        .dc-finance-kpi-val { font-size:1.35rem; font-weight:700; color:var(--gray-900); }
+        .dc-finance-kpi-lbl { font-size:0.75rem; color:var(--gray-500); }
+        .dc-finance-diff { font-size:0.875rem; font-weight:600; padding:4px 10px; border-radius:6px; }
+        .dc-finance-diff-higher { background:rgba(245,158,11,0.1); color:#92400e; }
+        .dc-finance-diff-lower { background:rgba(59,130,246,0.1); color:#1e40af; }
+        .dc-finance-diff-same { background:rgba(16,185,129,0.1); color:#065f46; }
+        .dc-finance-section { font-size:0.75rem; font-weight:600; color:var(--gray-500); text-transform:uppercase; letter-spacing:0.3px; margin-bottom:10px; }
+        .dc-finance-bar { height:8px; border-radius:4px; background:var(--gray-100); overflow:hidden; margin-top:6px; }
+        .dc-finance-bar-fill { height:100%; border-radius:4px; transition:width 0.3s ease; }
+
         /* §16 Responsive */
         @media (max-width:768px) {
             .dc-header { flex-direction:column; }
@@ -191,8 +212,20 @@ $currency = htmlspecialchars($settings['currency_code'] ?? 'GBP', ENT_QUOTES, 'U
                     <!-- Stat Chips (clickable to filter) -->
                     <div class="dc-stats dc-fade" id="statsRow"></div>
 
+                    <!-- Tabs -->
+                    <ul class="nav dc-tabs dc-fade" id="dcTabs" role="tablist" style="animation-delay:0.03s;">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="tab-comparison" data-bs-toggle="tab" data-bs-target="#pane-comparison" type="button" role="tab"><i class="fas fa-table-columns"></i>Comparison</button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="tab-finance" data-bs-toggle="tab" data-bs-target="#pane-finance" type="button" role="tab"><i class="fas fa-coins"></i>Finance</button>
+                        </li>
+                    </ul>
+
+                    <div class="tab-content" id="dcTabContent">
+                        <div class="tab-pane fade show active" id="pane-comparison" role="tabpanel">
                     <!-- Filter Bar -->
-                    <div class="dc-filters dc-fade" style="animation-delay:0.05s;">
+                    <div class="dc-filters" style="margin-top:16px;">
                         <div class="row g-2 align-items-end">
                             <div class="col-6 col-md-2">
                                 <label class="form-label">Status</label>
@@ -272,13 +305,12 @@ $currency = htmlspecialchars($settings['currency_code'] ?? 'GBP', ENT_QUOTES, 'U
                         </div>
                     </div>
 
-                    <!-- Financial Summary -->
-                    <div class="dc-card dc-fade" style="animation-delay:0.15s;">
-                        <div class="dc-card-head">
-                            <h6><i class="fas fa-calculator me-2" style="color:var(--warning);"></i>Financial Summary</h6>
-                        </div>
-                        <div style="padding:20px;" id="financialSummary"></div>
-                    </div>
+                        </div><!-- /pane-comparison -->
+
+                        <div class="tab-pane fade" id="pane-finance" role="tabpanel">
+                            <div style="padding:20px 0;" id="financeTabContent"></div>
+                        </div><!-- /pane-finance -->
+                    </div><!-- /tab-content -->
 
                     <div class="text-center mb-4 dc-fade" style="animation-delay:0.2s;">
                         <button class="btn btn-outline-secondary" id="reuploadBtn" style="border-radius:8px;"><i class="fas fa-redo me-1"></i>Upload Different File</button>
@@ -634,55 +666,192 @@ $currency = htmlspecialchars($settings['currency_code'] ?? 'GBP', ENT_QUOTES, 'U
     }).join('');
   }
 
-  // --- Financial Summary ---
+  // --- Finance Tab ---
   function renderFinancials() {
     const matched = comparisonResults.filter(r => r.status === 'match' || r.status === 'mismatch');
     const xlOnly = comparisonResults.filter(r => r.status === 'xl_only');
     const dbOnly = comparisonResults.filter(r => r.status === 'db_only');
     const mm = comparisonResults.filter(r => r.status === 'mismatch');
+    const m = comparisonResults.filter(r => r.status === 'match');
 
     const xlP = matched.reduce((s,r) => s+(r.xlAmount||0), 0) + xlOnly.reduce((s,r) => s+(r.xlAmount||0), 0);
     const dbP = matched.reduce((s,r) => s+(r.dbPledged||0), 0) + dbOnly.reduce((s,r) => s+(r.dbPledged||0), 0);
     const xlD = matched.reduce((s,r) => s+(r.xlPaid||0), 0) + xlOnly.reduce((s,r) => s+(r.xlPaid||0), 0);
     const dbD = matched.reduce((s,r) => s+(r.dbPaid||0), 0) + dbOnly.reduce((s,r) => s+(r.dbPaid||0), 0);
+    const xlB = xlP - xlD;
+    const dbB = dbP - dbD;
+
+    const diffP = xlP - dbP;
+    const diffD = xlD - dbD;
+    const diffB = xlB - dbB;
+
     const mmPD = mm.reduce((s,r) => s+(r.pledgeDiff||0), 0);
     const mmDD = mm.reduce((s,r) => s+(r.paidDiff||0), 0);
+    const xlOnlyP = xlOnly.reduce((s,r) => s+(r.xlAmount||0), 0);
+    const xlOnlyD = xlOnly.reduce((s,r) => s+(r.xlPaid||0), 0);
+    const dbOnlyP = dbOnly.reduce((s,r) => s+(r.dbPledged||0), 0);
+    const dbOnlyD = dbOnly.reduce((s,r) => s+(r.dbPaid||0), 0);
 
-    function diffCell(a, b) {
+    const xlRate = xlP > 0 ? ((xlD / xlP) * 100).toFixed(1) : '0';
+    const dbRate = dbP > 0 ? ((dbD / dbP) * 100).toFixed(1) : '0';
+
+    function diffBadge(a, b, label) {
       const d = a - b;
-      return `<td class="text-end fw-semibold ${Math.abs(d) > 0.01 ? 'dc-val-diff' : 'dc-val-ok'}">${fmtMoney(d)}</td>`;
+      if (Math.abs(d) < 0.01) return `<span class="dc-finance-diff dc-finance-diff-same">Same</span>`;
+      if (d > 0) return `<span class="dc-finance-diff dc-finance-diff-higher">Excel +${fmtMoney(d)}</span>`;
+      return `<span class="dc-finance-diff dc-finance-diff-lower">DB +${fmtMoney(-d)}</span>`;
     }
 
-    el('financialSummary').innerHTML = `
+    function diffRow(label, xlVal, dbVal) {
+      const d = xlVal - dbVal;
+      const cls = Math.abs(d) > 0.01 ? 'dc-val-diff' : 'dc-val-ok';
+      return `<tr><td class="fw-semibold" style="color:var(--gray-800);">${label}</td><td class="text-end">${fmtMoney(xlVal)}</td><td class="text-end">${fmtMoney(dbVal)}</td><td class="text-end fw-semibold ${cls}">${fmtMoney(d)}</td></tr>`;
+    }
+
+    const maxP = Math.max(xlP, dbP, 1);
+    const maxD = Math.max(xlD, dbD, 1);
+
+    const bySource = {};
+    comparisonResults.forEach(r => {
+      const src = r.dbSource || 'unknown';
+      if (!bySource[src]) bySource[src] = { count:0, xlP:0, xlD:0, dbP:0, dbD:0 };
+      bySource[src].count++;
+      bySource[src].xlP += r.xlAmount || 0;
+      bySource[src].xlD += r.xlPaid || 0;
+      bySource[src].dbP += r.dbPledged || 0;
+      bySource[src].dbD += r.dbPaid || 0;
+    });
+
+    const sourceRows = Object.entries(bySource).filter(([k]) => k !== 'unknown').map(([src, v]) => {
+      const lbl = src === 'old_system' ? 'Old System' : src === 'new_system' ? 'New System' : src;
+      return `<tr><td><span class="dc-badge ${src === 'old_system' ? 'dc-badge-old' : 'dc-badge-new'}">${lbl}</span></td><td class="text-end">${v.count}</td><td class="text-end">${fmtMoney(v.xlP)}</td><td class="text-end">${fmtMoney(v.dbP)}</td><td class="text-end">${fmtMoney(v.xlD)}</td><td class="text-end">${fmtMoney(v.dbD)}</td></tr>`;
+    }).join('');
+    const excelOnlyRow = xlOnly.length ? `<tr><td><span class="dc-badge dc-badge-xl">Excel Only (no DB match)</span></td><td class="text-end">${xlOnly.length}</td><td class="text-end">${fmtMoney(xlOnlyP)}</td><td class="text-end">—</td><td class="text-end">${fmtMoney(xlOnlyD)}</td><td class="text-end">—</td></tr>` : '';
+
+    el('financeTabContent').innerHTML = `
+      <div class="dc-finance-hero">
+        <div class="dc-finance-section"><i class="fas fa-scale-balanced me-1" style="color:var(--primary);"></i>Overall Difference</div>
+        <div class="row g-3 mb-0">
+          <div class="col-md-4">
+            <div class="dc-finance-kpi">
+              <div class="dc-finance-kpi-icon" style="background:rgba(10,98,134,0.1);color:var(--primary);"><i class="fas fa-hand-holding-heart"></i></div>
+              <div style="flex:1;">
+                <div class="dc-finance-kpi-val">${fmtMoney(Math.abs(diffP))}</div>
+                <div class="dc-finance-kpi-lbl">Pledged difference (Excel − DB)</div>
+                <div class="mt-1">${diffBadge(xlP, dbP, 'Pledged')}</div>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="dc-finance-kpi">
+              <div class="dc-finance-kpi-icon" style="background:rgba(16,185,129,0.1);color:var(--success);"><i class="fas fa-money-bill-transfer"></i></div>
+              <div style="flex:1;">
+                <div class="dc-finance-kpi-val">${fmtMoney(Math.abs(diffD))}</div>
+                <div class="dc-finance-kpi-lbl">Paid difference (Excel − DB)</div>
+                <div class="mt-1">${diffBadge(xlD, dbD, 'Paid')}</div>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="dc-finance-kpi">
+              <div class="dc-finance-kpi-icon" style="background:rgba(245,158,11,0.1);color:var(--warning);"><i class="fas fa-percentage"></i></div>
+              <div style="flex:1;">
+                <div class="dc-finance-kpi-val">${xlRate}% vs ${dbRate}%</div>
+                <div class="dc-finance-kpi-lbl">Collection rate (Excel vs DB)</div>
+                <div class="mt-1">${Number(xlRate) > Number(dbRate) ? '<span class="dc-finance-diff dc-finance-diff-higher">Excel higher</span>' : Number(xlRate) < Number(dbRate) ? '<span class="dc-finance-diff dc-finance-diff-lower">DB higher</span>' : '<span class="dc-finance-diff dc-finance-diff-same">Same</span>'}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <div class="row g-4">
         <div class="col-lg-6">
-          <div style="font-size:0.75rem;font-weight:600;color:var(--gray-500);text-transform:uppercase;letter-spacing:0.3px;margin-bottom:8px;">
-            <i class="fas fa-scale-balanced me-1" style="color:var(--primary);"></i>Totals Comparison
+          <div class="dc-card">
+            <div class="dc-card-head"><h6><i class="fas fa-table me-2" style="color:var(--primary);"></i>Totals Comparison</h6></div>
+            <div style="padding:20px;">
+              <table class="table table-sm dc-summary-table mb-0">
+                <thead><tr><th></th><th class="text-end">Excel</th><th class="text-end">Database</th><th class="text-end">Difference</th></tr></thead>
+                <tbody>
+                  ${diffRow('Total Pledged', xlP, dbP)}
+                  ${diffRow('Total Paid', xlD, dbD)}
+                  ${diffRow('Outstanding (Pledged − Paid)', xlB, dbB)}
+                </tbody>
+              </table>
+              <div class="mt-3" style="font-size:0.8125rem;color:var(--gray-500);">
+                ${Math.abs(diffP) > 0.01 ? (diffP > 0 ? `Excel shows ${fmtMoney(diffP)} more pledged than database.` : `Database shows ${fmtMoney(-diffP)} more pledged than Excel.`) : 'Pledged totals match.'}
+                ${Math.abs(diffD) > 0.01 ? (diffD > 0 ? ` Excel shows ${fmtMoney(diffD)} more paid.` : ` Database shows ${fmtMoney(-diffD)} more paid.`) : ' Paid totals match.'}
+              </div>
+            </div>
           </div>
-          <table class="table table-sm dc-summary-table mb-0">
-            <thead><tr><th></th><th class="text-end">Excel</th><th class="text-end">Database</th><th class="text-end">Difference</th></tr></thead>
-            <tbody>
-              <tr><td class="fw-semibold" style="color:var(--gray-800);">Total Pledged</td><td class="text-end">${fmtMoney(xlP)}</td><td class="text-end">${fmtMoney(dbP)}</td>${diffCell(xlP, dbP)}</tr>
-              <tr><td class="fw-semibold" style="color:var(--gray-800);">Total Paid</td><td class="text-end">${fmtMoney(xlD)}</td><td class="text-end">${fmtMoney(dbD)}</td>${diffCell(xlD, dbD)}</tr>
-            </tbody>
-          </table>
         </div>
         <div class="col-lg-6">
-          <div style="font-size:0.75rem;font-weight:600;color:var(--gray-500);text-transform:uppercase;letter-spacing:0.3px;margin-bottom:8px;">
-            <i class="fas fa-magnifying-glass-chart me-1" style="color:var(--danger);"></i>Discrepancy Breakdown
+          <div class="dc-card">
+            <div class="dc-card-head"><h6><i class="fas fa-chart-pie me-2" style="color:var(--warning);"></i>Visual Comparison</h6></div>
+            <div style="padding:20px;">
+              <div class="mb-3">
+                <div class="d-flex justify-content-between mb-1" style="font-size:0.75rem;color:var(--gray-500);"><span>Pledged</span><span>Excel ${fmtMoney(xlP)} · DB ${fmtMoney(dbP)}</span></div>
+                <div class="dc-finance-bar"><div class="dc-finance-bar-fill" style="width:${(xlP/maxP)*50}%;background:rgba(245,158,11,0.6);"></div></div>
+                <div class="dc-finance-bar mt-1"><div class="dc-finance-bar-fill" style="width:${(dbP/maxP)*50}%;background:rgba(59,130,246,0.6);"></div></div>
+                <div class="d-flex gap-2 mt-1" style="font-size:0.65rem;"><span style="color:#92400e;"><span style="display:inline-block;width:8px;height:8px;background:rgba(245,158,11,0.6);border-radius:2px;"></span> Excel</span><span style="color:#1e40af;"><span style="display:inline-block;width:8px;height:8px;background:rgba(59,130,246,0.6);border-radius:2px;"></span> Database</span></div>
+              </div>
+              <div>
+                <div class="d-flex justify-content-between mb-1" style="font-size:0.75rem;color:var(--gray-500);"><span>Paid</span><span>Excel ${fmtMoney(xlD)} · DB ${fmtMoney(dbD)}</span></div>
+                <div class="dc-finance-bar"><div class="dc-finance-bar-fill" style="width:${(xlD/maxD)*50}%;background:rgba(245,158,11,0.6);"></div></div>
+                <div class="dc-finance-bar mt-1"><div class="dc-finance-bar-fill" style="width:${(dbD/maxD)*50}%;background:rgba(59,130,246,0.6);"></div></div>
+              </div>
+            </div>
           </div>
+        </div>
+      </div>
+
+      <div class="row g-4 mt-2">
+        <div class="col-lg-6">
+          <div class="dc-card">
+            <div class="dc-card-head"><h6><i class="fas fa-magnifying-glass-chart me-2" style="color:var(--danger);"></i>Breakdown by Status</h6></div>
+            <div style="padding:20px;">
+              <table class="table table-sm dc-summary-table mb-0">
+                <thead><tr><th>Status</th><th class="text-end">Count</th><th class="text-end">Pledged (XL)</th><th class="text-end">Pledged (DB)</th><th class="text-end">Paid (XL)</th><th class="text-end">Paid (DB)</th></tr></thead>
+                <tbody>
+                  <tr><td><span class="dc-badge dc-badge-match">Match</span></td><td class="text-end">${m.length}</td><td class="text-end">${fmtMoney(m.reduce((s,r)=>s+(r.xlAmount||0),0))}</td><td class="text-end">${fmtMoney(m.reduce((s,r)=>s+(r.dbPledged||0),0))}</td><td class="text-end">${fmtMoney(m.reduce((s,r)=>s+(r.xlPaid||0),0))}</td><td class="text-end">${fmtMoney(m.reduce((s,r)=>s+(r.dbPaid||0),0))}</td></tr>
+                  <tr><td><span class="dc-badge dc-badge-mismatch">Mismatch</span></td><td class="text-end">${mm.length}</td><td class="text-end">${fmtMoney(mm.reduce((s,r)=>s+(r.xlAmount||0),0))}</td><td class="text-end">${fmtMoney(mm.reduce((s,r)=>s+(r.dbPledged||0),0))}</td><td class="text-end">${fmtMoney(mm.reduce((s,r)=>s+(r.xlPaid||0),0))}</td><td class="text-end">${fmtMoney(mm.reduce((s,r)=>s+(r.dbPaid||0),0))}</td></tr>
+                  <tr><td><span class="dc-badge dc-badge-xl">Excel Only</span></td><td class="text-end">${xlOnly.length}</td><td class="text-end">${fmtMoney(xlOnlyP)}</td><td class="text-end">—</td><td class="text-end">${fmtMoney(xlOnlyD)}</td><td class="text-end">—</td></tr>
+                  <tr><td><span class="dc-badge dc-badge-db">DB Only</span></td><td class="text-end">${dbOnly.length}</td><td class="text-end">—</td><td class="text-end">${fmtMoney(dbOnlyP)}</td><td class="text-end">—</td><td class="text-end">${fmtMoney(dbOnlyD)}</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+        <div class="col-lg-6">
+          <div class="dc-card">
+            <div class="dc-card-head"><h6><i class="fas fa-code-branch me-2" style="color:var(--info);"></i>Discrepancy Summary</h6></div>
+            <div style="padding:20px;">
+              <table class="table table-sm dc-summary-table mb-0">
+                <tbody>
+                  <tr><td>Mismatched records — pledge diff total</td><td class="text-end fw-semibold ${Math.abs(mmPD) > 0.01 ? 'dc-val-diff' : ''}">${fmtMoney(mmPD)}</td></tr>
+                  <tr><td>Mismatched records — paid diff total</td><td class="text-end fw-semibold ${Math.abs(mmDD) > 0.01 ? 'dc-val-diff' : ''}">${fmtMoney(mmDD)}</td></tr>
+                  <tr><td>Excel-only — total pledged</td><td class="text-end">${fmtMoney(xlOnlyP)}</td></tr>
+                  <tr><td>Excel-only — total paid</td><td class="text-end">${fmtMoney(xlOnlyD)}</td></tr>
+                  <tr><td>DB-only — total pledged</td><td class="text-end">${fmtMoney(dbOnlyP)}</td></tr>
+                  <tr><td>DB-only — total paid</td><td class="text-end">${fmtMoney(dbOnlyD)}</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      ${(sourceRows || excelOnlyRow) ? `
+      <div class="dc-card mt-4">
+        <div class="dc-card-head"><h6><i class="fas fa-database me-2" style="color:var(--gray-600);"></i>By Data Source (Old vs New System)</h6></div>
+        <div style="padding:20px;">
           <table class="table table-sm dc-summary-table mb-0">
-            <tbody>
-              <tr><td>Mismatched — pledge diff</td><td class="text-end fw-semibold">${fmtMoney(mmPD)}</td></tr>
-              <tr><td>Mismatched — paid diff</td><td class="text-end fw-semibold">${fmtMoney(mmDD)}</td></tr>
-              <tr><td>Excel-only — pledged</td><td class="text-end">${fmtMoney(xlOnly.reduce((s,r) => s+(r.xlAmount||0), 0))}</td></tr>
-              <tr><td>Excel-only — paid</td><td class="text-end">${fmtMoney(xlOnly.reduce((s,r) => s+(r.xlPaid||0), 0))}</td></tr>
-              <tr><td>DB-only — pledged</td><td class="text-end">${fmtMoney(dbOnly.reduce((s,r) => s+(r.dbPledged||0), 0))}</td></tr>
-              <tr><td>DB-only — paid</td><td class="text-end">${fmtMoney(dbOnly.reduce((s,r) => s+(r.dbPaid||0), 0))}</td></tr>
-            </tbody>
+            <thead><tr><th>Source</th><th class="text-end">Donors</th><th class="text-end">Pledged (XL)</th><th class="text-end">Pledged (DB)</th><th class="text-end">Paid (XL)</th><th class="text-end">Paid (DB)</th></tr></thead>
+            <tbody>${sourceRows}${excelOnlyRow}</tbody>
           </table>
         </div>
       </div>
+      ` : ''}
     `;
   }
 
