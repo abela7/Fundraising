@@ -152,6 +152,40 @@ if ($step === 6 && $_SERVER['REQUEST_METHOD'] === 'POST' && $can_delete) {
     try {
         $conn->begin_transaction();
 
+        // 0. Ensure deleted_pledges table exists and save history before delete
+        $conn->query("
+            CREATE TABLE IF NOT EXISTS deleted_pledges (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                pledge_id INT NOT NULL,
+                donor_id INT NOT NULL,
+                donor_name VARCHAR(255) NOT NULL,
+                amount DECIMAL(12,2) NOT NULL,
+                pledge_created_at DATETIME NULL,
+                deleted_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                deleted_by INT NULL,
+                status VARCHAR(50) DEFAULT 'rejected',
+                INDEX idx_deleted_at (deleted_at),
+                INDEX idx_donor_id (donor_id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        ");
+        $deleted_by = (int)($_SESSION['user']['id'] ?? 0);
+        $pledge_created = $pledge->created_at ?? null;
+        $ins = $conn->prepare("
+            INSERT INTO deleted_pledges (pledge_id, donor_id, donor_name, amount, pledge_created_at, deleted_by, status)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        ");
+        $ins->bind_param('iisdsis',
+            $pledge_id,
+            $donor_id,
+            $pledge->donor_name,
+            $pledge->amount,
+            $pledge_created,
+            $deleted_by,
+            $pledge->status
+        );
+        $ins->execute();
+        $ins->close();
+
         // 1. Deallocate floor_grid_cells (including allocation_batch_id if column exists)
         $cells_deallocated = 0;
         if ($pledge->allocated_cells > 0) {
