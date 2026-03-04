@@ -385,9 +385,18 @@ if ($is_admin_user) {
 }
 
 // Get filter parameters
-$filter_agent_id = parseDonorFilterInt($_GET, 'filter_agent');
+$filter_agent_param = (string)($_GET['filter_agent'] ?? '');
 $show_all = isset($_GET['show_all']) && $_GET['show_all'] === '1';
 $search_term = isset($_GET['search']) ? trim($_GET['search']) : '';
+
+// For admins: '' = my assigned (default), 'all' = all donors, <id> = specific agent
+$filter_agent_id = null;
+$admin_show_all_donors = false;
+if ($filter_agent_param === 'all') {
+    $admin_show_all_donors = true; // Only meaningful for admins; non-admins are restricted below
+} elseif ($filter_agent_param !== '') {
+    $filter_agent_id = parseDonorFilterInt($_GET, 'filter_agent');
+}
 
 // New filter parameters
 $filter_payment_min = parseDonorFilterFloat($_GET, 'payment_min');
@@ -422,12 +431,14 @@ $filter_data_source = in_array($filter_data_source, $allowed_data_sources, true)
 
 // Determine default behavior based on user role
 if ($is_admin_user) {
-    // Admins see ALL donors by default (unless they explicitly filter by agent)
-    // No action needed - $show_all defaults to true behavior for admins
+    // Admins see THEIR assigned donors by default; "all" shows everyone
+    if ($filter_agent_param === '' && !$admin_show_all_donors) {
+        $filter_agent_id = (int)$current_user['id']; // Default: my assigned only
+    }
 } else {
     // Registrars/agents ONLY see their assigned donors
     $show_all = false;
-    $filter_agent_id = null; // Will use current user's ID as agent filter
+    $filter_agent_id = (int)$current_user['id'];
 }
 
 if ($filter_payment_min !== null && $filter_payment_max !== null && $filter_payment_min > $filter_payment_max) {
@@ -477,14 +488,12 @@ try {
     
     // Agent filter - respects user role
     if ($is_admin_user) {
-        // Admins: only apply agent filter if explicitly requested
-        if ($filter_agent_id !== null) {
-            // Admin filtering by specific agent
+        // Admins: default = my assigned; "all" = everyone; or specific agent
+        if (!$admin_show_all_donors && $filter_agent_id !== null) {
             $where_conditions[] = "d.agent_id = ?";
             $params[] = $filter_agent_id;
             $types .= 'i';
         }
-        // If no filter, show all donors (no WHERE condition added)
     } else {
         // Registrars/agents: always filter by their assigned donors
         $where_conditions[] = "d.agent_id = ?";
@@ -902,12 +911,14 @@ unset($donor); // Break reference
                                 <i class="fas fa-table me-1 text-primary"></i>
                                 <?php 
                                 if ($is_admin_user) {
-                                    if ($filter_agent_id !== null) {
+                                    if ($admin_show_all_donors) {
+                                        echo 'All Donors';
+                                    } elseif ($filter_agent_id !== null) {
                                         $selected_agent = array_filter($agents, fn($a) => $a['id'] == $filter_agent_id);
                                         $selected_agent = reset($selected_agent);
                                         echo 'Donors — ' . htmlspecialchars($selected_agent['name'] ?? 'Agent');
                                     } else {
-                                        echo 'All Donors';
+                                        echo 'My Donors';
                                     }
                                 } else {
                                     echo 'My Donors';
@@ -934,8 +945,8 @@ unset($donor); // Break reference
                                 <?php if ($show_all): ?>
                                     <input type="hidden" name="show_all" value="1">
                                 <?php endif; ?>
-                                <?php if ($filter_agent_id): ?>
-                                    <input type="hidden" name="filter_agent" value="<?php echo $filter_agent_id; ?>">
+                                <?php if ($is_admin_user && $filter_agent_param !== ''): ?>
+                                    <input type="hidden" name="filter_agent" value="<?php echo htmlspecialchars($filter_agent_param); ?>">
                                 <?php endif; ?>
                                 <div class="input-group input-group-sm">
                                     <input type="text" class="form-control" name="search" id="header_search_input"
@@ -970,12 +981,8 @@ unset($donor); // Break reference
                                             <i class="fas fa-user-tie me-1"></i>Assigned Agent
                                         </label>
                                         <select class="form-select form-select-sm" name="filter_agent" id="filter_assigned_agent">
-                                            <option value="" <?php echo ($filter_agent_id === null) ? 'selected' : ''; ?>>All Donors (Default)</option>
-                                            <optgroup label="My Donors">
-                                                <option value="<?php echo $current_user['id']; ?>" <?php echo $filter_agent_id == $current_user['id'] ? 'selected' : ''; ?>>
-                                                    My Assigned Donors
-                                                </option>
-                                            </optgroup>
+                                            <option value="" <?php echo ($filter_agent_param === '') ? 'selected' : ''; ?>>My Assigned Donors (Default)</option>
+                                            <option value="all" <?php echo ($filter_agent_param === 'all') ? 'selected' : ''; ?>>All Donors</option>
                                             <optgroup label="Specific Agent">
                                                 <?php foreach ($agents as $agent): ?>
                                                     <option value="<?php echo $agent['id']; ?>" <?php echo $filter_agent_id == $agent['id'] ? 'selected' : ''; ?>>
@@ -1181,9 +1188,10 @@ unset($donor); // Break reference
                                         <?php if ($is_admin_user && $filter_agent_id !== null): 
                                             $selected_agent = array_filter($agents, fn($a) => $a['id'] == $filter_agent_id);
                                             $selected_agent = reset($selected_agent);
+                                            $agent_label = $selected_agent['name'] ?? ($filter_agent_id == $current_user['id'] ? $current_user['name'] : ('User #' . $filter_agent_id));
                                         ?>
                                             <span class="badge bg-dark text-white">
-                                                <i class="fas fa-user-tie me-1"></i>Assigned: <?php echo htmlspecialchars($selected_agent['name'] ?? ('User #' . $filter_agent_id)); ?>
+                                                <i class="fas fa-user-tie me-1"></i>Assigned: <?php echo htmlspecialchars($agent_label); ?>
                                             </span>
                                         <?php endif; ?>
                                         <?php if ($filter_registrar_id !== null): 
