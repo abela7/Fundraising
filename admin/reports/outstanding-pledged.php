@@ -117,9 +117,9 @@ $page_title = 'Outstanding Pledged - Detail';
                         </div>
                         <div class="col-12 col-md-4 d-flex align-items-end">
                             <div class="form-check mt-2 mt-md-0">
-                                <input class="form-check-input" type="checkbox" id="filterBalanceMismatch" title="Show only donors where stored balance differs from calculated">
+                                <input class="form-check-input" type="checkbox" id="filterBalanceMismatch" title="Show only donors where balance exceeds pledged (data error)">
                                 <label class="form-check-label small" for="filterBalanceMismatch">
-                                    <i class="fas fa-exclamation-triangle text-warning me-1"></i>Balance mismatch only
+                                    <i class="fas fa-exclamation-triangle text-warning me-1"></i>Balance &gt; pledged only
                                 </label>
                             </div>
                         </div>
@@ -301,7 +301,7 @@ $page_title = 'Outstanding Pledged - Detail';
     if (rows.length === 0) {
       const mismatchOnly = document.getElementById('filterBalanceMismatch').checked;
       const msg = mismatchOnly
-        ? 'No donors with balance mismatch found. Stored balance matches calculated for all filtered donors.'
+        ? 'No donors with balance > pledged found. Outstanding is within pledged for all filtered donors.'
         : 'No donors with outstanding balance match your filters.';
       document.getElementById('noDataMessage').innerHTML = `<strong>${msg}</strong>`;
       body.innerHTML = '<tr><td colspan="7"><div class="ptp-empty-state"><i class="fas fa-inbox"></i><p>' + msg + '</p><button type="button" class="btn btn-sm btn-outline-primary mt-2" onclick="document.getElementById(\'clearFilters\').click()"><i class="fas fa-times me-1"></i>Clear Filters</button></div></td></tr>';
