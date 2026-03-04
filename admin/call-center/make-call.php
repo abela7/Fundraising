@@ -190,14 +190,14 @@ $page_title = 'Call: ' . $donor->name;
             vertical-align: middle;
         }
         .donor-source-tag--old {
-            background: rgba(245, 158, 11, 0.9);
+            background: #fcd34d;
             color: #92400e;
-            border: 1px solid rgba(255, 255, 255, 0.5);
+            border: 1px solid #f59e0b;
         }
         .donor-source-tag--new {
-            background: rgba(255, 255, 255, 0.25);
-            color: white;
-            border: 1px solid rgba(255, 255, 255, 0.4);
+            background: #34d399;
+            color: #065f46;
+            border: 1px solid #10b981;
         }
         
         /* Info Grid - Compact */
