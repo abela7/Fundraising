@@ -35,56 +35,103 @@ $currency = htmlspecialchars($settings['currency_code'] ?? 'GBP', ENT_QUOTES, 'U
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
     <style>
-        .dc-page-header { display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:12px; margin-bottom:20px; }
-        .dc-page-header h1 { font-size:1.5rem; font-weight:700; color:var(--gray-900); margin:0; }
-        .dc-page-header p { color:var(--gray-500); font-size:0.875rem; margin:4px 0 0; }
+        /* §5 Page Header */
+        .dc-header { display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:12px; margin-bottom:20px; }
+        .dc-header h1 { font-size:1.5rem; font-weight:700; color:var(--gray-900); margin:0; }
+        .dc-header p { color:var(--gray-500); font-size:0.875rem; margin:4px 0 0; }
 
-        .dc-upload-zone { border:2px dashed var(--gray-300); border-radius:12px; padding:40px 20px; text-align:center; background:var(--gray-50); transition:all 0.2s; cursor:pointer; }
-        .dc-upload-zone:hover, .dc-upload-zone.dragover { border-color:var(--primary); background:rgba(10,98,134,0.04); }
-        .dc-upload-zone i { font-size:2.5rem; color:var(--gray-400); margin-bottom:12px; display:block; }
-        .dc-upload-zone p { color:var(--gray-500); margin:0; }
+        /* Upload Zone */
+        .dc-upload { border:2px dashed var(--gray-300); border-radius:12px; padding:48px 24px; text-align:center; background:var(--gray-50); transition:all 0.2s ease; cursor:pointer; }
+        .dc-upload:hover, .dc-upload.dc-dragover { border-color:var(--primary); background:rgba(10,98,134,0.04); transform:translateY(-1px); }
+        .dc-upload-icon { width:56px; height:56px; border-radius:14px; background:rgba(10,98,134,0.1); color:var(--primary); display:inline-flex; align-items:center; justify-content:center; font-size:1.4rem; margin-bottom:12px; }
+        .dc-upload-title { font-size:0.9375rem; font-weight:600; color:var(--gray-800); margin-bottom:4px; }
+        .dc-upload-sub { font-size:0.8125rem; color:var(--gray-400); }
 
-        .dc-card { background:var(--white); border:1px solid var(--gray-200); border-radius:12px; box-shadow:var(--shadow-sm); overflow:hidden; margin-bottom:16px; }
-        .dc-card:hover { box-shadow:var(--shadow-md); }
-        .dc-card-header { padding:14px 20px; background:var(--gray-50); border-bottom:1px solid var(--gray-200); display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:0.75rem; }
-        .dc-card-header h6 { font-weight:600; color:var(--gray-800); margin:0; font-size:0.9375rem; }
+        /* File info bar */
+        .dc-file-bar { display:flex; align-items:center; gap:12px; background:var(--white); border:1px solid var(--gray-200); border-radius:10px; padding:12px 16px; margin-top:16px; }
+        .dc-file-icon { width:40px; height:40px; border-radius:10px; background:rgba(16,185,129,0.1); color:var(--success); display:flex; align-items:center; justify-content:center; font-size:1rem; flex-shrink:0; }
+        .dc-file-name { font-size:0.875rem; font-weight:600; color:var(--gray-800); }
+        .dc-file-meta { font-size:0.75rem; color:var(--gray-400); }
+        .dc-file-badge { font-size:0.6875rem; font-weight:600; padding:4px 10px; border-radius:6px; background:rgba(16,185,129,0.1); color:var(--success); }
 
-        .dc-stat { display:flex; align-items:center; gap:10px; background:var(--white); border:1px solid var(--gray-200); border-radius:10px; padding:12px 18px; box-shadow:var(--shadow-sm); flex:1; min-width:140px; }
-        .dc-stat:hover { box-shadow:var(--shadow-md); }
-        .dc-stat-icon { width:38px; height:38px; border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:0.9rem; flex-shrink:0; }
-        .dc-stat-value { font-size:1.15rem; font-weight:700; color:var(--gray-900); line-height:1.2; }
-        .dc-stat-label { font-size:0.6875rem; font-weight:500; color:var(--gray-500); text-transform:uppercase; letter-spacing:0.4px; }
+        /* Progress */
+        .dc-progress { display:flex; align-items:center; gap:10px; margin-top:16px; }
+        .dc-progress-text { font-size:0.8125rem; color:var(--gray-500); white-space:nowrap; }
+        .dc-progress-bar { flex:1; height:4px; border-radius:4px; background:var(--gray-100); overflow:hidden; }
+        .dc-progress-fill { height:100%; border-radius:4px; background:var(--primary); transition:width 0.3s ease; }
 
-        .dc-table thead th { background:var(--white); font-size:0.7rem; font-weight:600; color:var(--gray-500); text-transform:uppercase; letter-spacing:0.3px; border-bottom:1px solid var(--gray-200); padding:8px 12px; white-space:nowrap; position:sticky; top:0; z-index:2; }
-        .dc-table tbody td { padding:8px 12px; vertical-align:middle; font-size:0.8125rem; border-bottom:1px solid var(--gray-50); }
+        /* §8 Data Card */
+        .dc-card { background:var(--white); border:1px solid var(--gray-200); border-radius:12px; box-shadow:0 1px 2px rgba(0,0,0,0.05); overflow:hidden; margin-bottom:16px; transition:box-shadow 0.15s ease; }
+        .dc-card:hover { box-shadow:0 4px 12px rgba(0,0,0,0.08); }
+        .dc-card-head { padding:14px 20px; background:var(--gray-50); border-bottom:1px solid var(--gray-200); display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:0.75rem; }
+        .dc-card-head h6 { font-weight:600; color:var(--gray-800); margin:0; font-size:0.9375rem; }
+
+        /* §6 Stat Chips */
+        .dc-stats { display:flex; gap:12px; margin-bottom:20px; flex-wrap:wrap; }
+        .dc-chip { display:flex; align-items:center; gap:10px; background:var(--white); border:1px solid var(--gray-200); border-radius:10px; padding:12px 18px; box-shadow:0 1px 2px rgba(0,0,0,0.05); flex:1; min-width:140px; cursor:pointer; transition:all 0.15s ease; }
+        .dc-chip:hover { box-shadow:0 4px 12px rgba(0,0,0,0.08); transform:translateY(-1px); }
+        .dc-chip.dc-chip-active { border-color:var(--primary); box-shadow:0 0 0 2px rgba(10,98,134,0.15); }
+        .dc-chip-icon { width:38px; height:38px; border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:0.9rem; flex-shrink:0; }
+        .dc-chip-val { font-size:1.25rem; font-weight:700; color:var(--gray-900); line-height:1.2; }
+        .dc-chip-lbl { font-size:0.6875rem; font-weight:600; color:var(--gray-500); text-transform:uppercase; letter-spacing:0.4px; }
+
+        /* §7 Filter Bar */
+        .dc-filters { background:var(--white); border:1px solid var(--gray-200); border-radius:12px; padding:16px 20px; margin-bottom:16px; box-shadow:0 1px 2px rgba(0,0,0,0.05); }
+        .dc-filters .form-label { font-size:0.75rem; font-weight:600; color:var(--gray-500); text-transform:uppercase; letter-spacing:0.3px; margin-bottom:4px; }
+        .dc-filters .form-control,
+        .dc-filters .form-select { border:1px solid var(--gray-200); border-radius:8px; font-size:0.875rem; padding:8px 12px; }
+        .dc-filters .form-control:focus,
+        .dc-filters .form-select:focus { border-color:var(--primary); box-shadow:0 0 0 3px rgba(10,98,134,0.1); }
+
+        /* §8 Table */
+        .dc-table thead th { background:var(--white); font-size:0.7rem; font-weight:600; color:var(--gray-500); text-transform:uppercase; letter-spacing:0.3px; border-bottom:1px solid var(--gray-200); padding:10px 14px; white-space:nowrap; position:sticky; top:0; z-index:2; }
+        .dc-table tbody td { padding:10px 14px; vertical-align:middle; font-size:0.8125rem; color:var(--gray-600); border-bottom:1px solid var(--gray-50); }
         .dc-table tbody tr:hover { background:var(--gray-50); }
+        .dc-table tbody tr:last-child td { border-bottom:none; }
+        .dc-scroll { max-height:600px; overflow:auto; }
 
-        .dc-match { background:rgba(16,185,129,0.06); }
-        .dc-mismatch { background:rgba(239,68,68,0.06); }
-        .dc-xl-only { background:rgba(245,158,11,0.06); }
-        .dc-db-only { background:rgba(59,130,246,0.06); }
+        /* Row status tints */
+        .dc-row-match { background:rgba(16,185,129,0.04); }
+        .dc-row-mismatch { background:rgba(239,68,68,0.04); }
+        .dc-row-xl { background:rgba(245,158,11,0.04); }
+        .dc-row-db { background:rgba(59,130,246,0.04); }
 
-        .dc-diff { font-weight:600; color:var(--danger); }
-        .dc-same { color:var(--success); }
+        /* Status badges */
+        .dc-badge { font-size:0.6875rem; font-weight:600; padding:3px 8px; border-radius:6px; display:inline-flex; align-items:center; gap:4px; }
+        .dc-badge-match { background:rgba(16,185,129,0.1); color:#065f46; }
+        .dc-badge-mismatch { background:rgba(239,68,68,0.1); color:#991b1b; }
+        .dc-badge-xl { background:rgba(245,158,11,0.1); color:#92400e; }
+        .dc-badge-db { background:rgba(59,130,246,0.1); color:#1e40af; }
+        .dc-badge-old { background:rgba(245,158,11,0.1); color:#92400e; }
+        .dc-badge-new { background:rgba(16,185,129,0.1); color:#065f46; }
+        .dc-badge-status { background:var(--gray-100); color:var(--gray-600); }
 
-        .dc-filter-bar { background:var(--white); border:1px solid var(--gray-200); border-radius:12px; padding:14px 20px; margin-bottom:16px; box-shadow:var(--shadow-sm); }
-        .dc-filter-bar .form-label { font-size:0.7rem; font-weight:600; color:var(--gray-500); text-transform:uppercase; letter-spacing:0.3px; margin-bottom:4px; }
-        .dc-filter-bar .form-control, .dc-filter-bar .form-select { border:1px solid var(--gray-200); border-radius:8px; font-size:0.8125rem; padding:6px 10px; }
+        /* Diff values */
+        .dc-val-diff { font-weight:600; color:var(--danger); }
+        .dc-val-ok { color:var(--success); }
 
-        .dc-badge-match { background:rgba(16,185,129,0.12); color:#065f46; }
-        .dc-badge-mismatch { background:rgba(239,68,68,0.12); color:#991b1b; }
-        .dc-badge-xl { background:rgba(245,158,11,0.12); color:#92400e; }
-        .dc-badge-db { background:rgba(59,130,246,0.12); color:#1e40af; }
+        /* Financial summary */
+        .dc-summary-table { font-size:0.8125rem; }
+        .dc-summary-table th { font-size:0.7rem; font-weight:600; color:var(--gray-500); text-transform:uppercase; letter-spacing:0.3px; background:var(--gray-50); }
+        .dc-summary-table td { color:var(--gray-600); }
 
-        .dc-progress-section { display:none; }
-        .dc-results-section { display:none; }
-
-        .table-scroll-wrapper { max-height:600px; overflow:auto; }
-
+        /* §16 Responsive */
         @media (max-width:768px) {
-            .dc-page-header { flex-direction:column; }
-            .dc-stat { min-width:auto; }
+            .dc-header { flex-direction:column; }
+            .dc-chip { min-width:auto; }
+            .dc-filters { padding:12px 16px; }
+            .dc-card-head { padding:12px 16px; }
+            .dc-table thead th, .dc-table tbody td { padding:8px 10px; }
         }
+        @media (max-width:576px) {
+            .dc-stats { gap:8px; }
+            .dc-chip { padding:10px 14px; }
+            .dc-chip-val { font-size:1.05rem; }
+        }
+
+        /* Fade-in */
+        .dc-fade { animation:dcFadeIn 0.3s ease forwards; }
+        @keyframes dcFadeIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
     </style>
 </head>
 <body>
@@ -95,83 +142,78 @@ $currency = htmlspecialchars($settings['currency_code'] ?? 'GBP', ENT_QUOTES, 'U
         <main class="main-content">
             <div class="container-fluid">
 
-                <div class="dc-page-header">
+                <!-- §5 Page Header -->
+                <div class="dc-header">
                     <div>
-                        <h1><i class="fas fa-code-compare me-2" style="color:var(--primary);"></i>Data Comparison Tool</h1>
-                        <p>Upload your Excel file — columns are detected automatically and comparison runs instantly.</p>
+                        <h1><i class="fas fa-code-compare me-2" style="color:var(--primary);"></i>Data Comparison</h1>
+                        <p>Upload your Excel file to compare against the live database instantly.</p>
                     </div>
                     <div class="d-flex gap-2">
                         <a class="btn btn-outline-secondary" href="financial-dashboard.php#tab-pledge"><i class="fas fa-arrow-left me-1"></i>Back to Dashboard</a>
                     </div>
                 </div>
 
-                <!-- Upload -->
-                <div id="uploadSection">
-                    <div class="dc-card">
-                        <div class="dc-card-header">
-                            <h6><i class="fas fa-file-excel me-2 text-success"></i>Upload Excel File</h6>
-                            <span class="text-muted small">Comparison runs automatically after upload</span>
+                <!-- Upload Card -->
+                <div class="dc-card" id="uploadCard">
+                    <div class="dc-card-head">
+                        <h6><i class="fas fa-file-excel me-2" style="color:var(--success);"></i>Upload Excel File</h6>
+                        <span style="font-size:0.75rem; color:var(--gray-400);">Comparison runs automatically</span>
+                    </div>
+                    <div style="padding:20px;">
+                        <div class="dc-upload" id="dropZone">
+                            <div class="dc-upload-icon"><i class="fas fa-cloud-arrow-up"></i></div>
+                            <div class="dc-upload-title">Drop your Excel file here or click to browse</div>
+                            <div class="dc-upload-sub">Supports .xlsx and .xls — columns are detected automatically</div>
+                            <input type="file" id="fileInput" accept=".xlsx,.xls,.csv" style="display:none">
                         </div>
-                        <div class="p-4">
-                            <div class="dc-upload-zone" id="dropZone">
-                                <i class="fas fa-cloud-arrow-up"></i>
-                                <p class="fw-semibold mb-1">Drop your Excel file here or click to browse</p>
-                                <p class="small text-muted">Supports .xlsx and .xls files — columns are detected automatically</p>
-                                <input type="file" id="fileInput" accept=".xlsx,.xls,.csv" style="display:none">
+
+                        <div class="dc-file-bar d-none" id="fileBar">
+                            <div class="dc-file-icon"><i class="fas fa-file-excel"></i></div>
+                            <div style="flex:1; min-width:0;">
+                                <div class="dc-file-name" id="fileName">—</div>
+                                <div class="dc-file-meta" id="fileMeta">—</div>
                             </div>
-                            <div class="mt-3 d-none" id="fileInfo">
-                                <div class="d-flex align-items-center gap-2">
-                                    <i class="fas fa-file-excel text-success fs-4"></i>
-                                    <div>
-                                        <div class="fw-semibold" id="fileName">—</div>
-                                        <div class="text-muted small" id="fileDetails">—</div>
-                                    </div>
-                                    <span class="badge bg-success ms-2 d-none" id="autoDetectBadge"><i class="fas fa-magic me-1"></i>Columns auto-detected</span>
-                                    <button class="btn btn-sm btn-outline-danger ms-auto" id="removeFileBtn"><i class="fas fa-times"></i></button>
-                                </div>
-                            </div>
-                            <div class="mt-3 d-none" id="loadingBar">
-                                <div class="d-flex align-items-center gap-2">
-                                    <div class="spinner-border spinner-border-sm text-primary"></div>
-                                    <span class="text-muted small" id="loadingText">Reading file...</span>
-                                </div>
-                                <div class="progress mt-2" style="height:4px;">
-                                    <div class="progress-bar progress-bar-striped progress-bar-animated" id="loadingProgress" style="width:0%"></div>
-                                </div>
-                            </div>
+                            <span class="dc-file-badge d-none" id="detectBadge"><i class="fas fa-wand-magic-sparkles me-1"></i>Auto-detected</span>
+                            <button class="btn btn-sm btn-outline-secondary" id="removeBtn" title="Remove file" style="border-radius:8px;"><i class="fas fa-times"></i></button>
+                        </div>
+
+                        <div class="dc-progress d-none" id="progressBar">
+                            <div class="spinner-border spinner-border-sm" style="color:var(--primary); width:16px; height:16px;"></div>
+                            <span class="dc-progress-text" id="progressText">Reading file...</span>
+                            <div class="dc-progress-bar"><div class="dc-progress-fill" id="progressFill" style="width:0%"></div></div>
                         </div>
                     </div>
                 </div>
 
-                <!-- Step 3: Results -->
+                <!-- Results (hidden until comparison runs) -->
                 <div id="resultsSection" style="display:none">
 
-                    <!-- Summary Stats -->
-                    <div class="d-flex mb-3 flex-wrap" style="gap:12px;" id="summaryStats"></div>
+                    <!-- Stat Chips (clickable to filter) -->
+                    <div class="dc-stats dc-fade" id="statsRow"></div>
 
-                    <!-- Filters -->
-                    <div class="dc-filter-bar" id="resultFilters">
+                    <!-- Filter Bar -->
+                    <div class="dc-filters dc-fade" style="animation-delay:0.05s;">
                         <div class="row g-2 align-items-end">
-                            <div class="col-12 col-md-2">
+                            <div class="col-6 col-md-2">
                                 <label class="form-label">Status</label>
                                 <select class="form-select form-select-sm" id="filterStatus">
                                     <option value="">All</option>
-                                    <option value="match">Matched (exact)</option>
-                                    <option value="mismatch">Mismatched (amount differs)</option>
-                                    <option value="xl_only">In Excel Only</option>
-                                    <option value="db_only">In Database Only</option>
+                                    <option value="match">Matched</option>
+                                    <option value="mismatch">Mismatched</option>
+                                    <option value="xl_only">Excel Only</option>
+                                    <option value="db_only">DB Only</option>
                                 </select>
                             </div>
-                            <div class="col-12 col-md-2">
-                                <label class="form-label">Amount Diff</label>
+                            <div class="col-6 col-md-2">
+                                <label class="form-label">Discrepancy</label>
                                 <select class="form-select form-select-sm" id="filterAmountDiff">
                                     <option value="">Any</option>
                                     <option value="pledge_diff">Pledge differs</option>
                                     <option value="paid_diff">Paid differs</option>
-                                    <option value="both_diff">Both differ</option>
+                                    <option value="both_diff">Either differs</option>
                                 </select>
                             </div>
-                            <div class="col-12 col-md-2">
+                            <div class="col-6 col-md-2">
                                 <label class="form-label">Data Source</label>
                                 <select class="form-select form-select-sm" id="filterDataSource">
                                     <option value="">All</option>
@@ -184,26 +226,26 @@ $currency = htmlspecialchars($settings['currency_code'] ?? 'GBP', ENT_QUOTES, 'U
                                 <input type="text" class="form-control form-control-sm" id="filterSearch" placeholder="Name or phone...">
                             </div>
                             <div class="col-12 col-md-3 d-flex gap-2">
-                                <button class="btn btn-primary btn-sm flex-fill" id="applyResultFilters"><i class="fas fa-filter me-1"></i>Filter</button>
-                                <button class="btn btn-outline-secondary btn-sm" id="clearResultFilters"><i class="fas fa-times me-1"></i>Clear</button>
-                                <button class="btn btn-success btn-sm" id="exportResultsBtn"><i class="fas fa-file-csv me-1"></i>Export</button>
+                                <button class="btn btn-sm flex-fill" id="applyBtn" style="background:var(--primary); color:var(--white); border-radius:8px;"><i class="fas fa-search me-1"></i>Apply</button>
+                                <button class="btn btn-sm btn-outline-secondary" id="clearBtn" style="border-radius:8px;"><i class="fas fa-times me-1"></i>Clear</button>
+                                <button class="btn btn-sm" id="exportBtn" style="background:rgba(16,185,129,0.1); color:var(--success); border-radius:8px;"><i class="fas fa-file-csv me-1"></i>CSV</button>
                             </div>
                         </div>
                     </div>
 
                     <!-- Comparison Table -->
-                    <div class="dc-card">
-                        <div class="dc-card-header">
-                            <h6><i class="fas fa-code-compare me-2" style="color:var(--primary);"></i>Comparison Results</h6>
-                            <div class="d-flex align-items-center gap-2">
-                                <span class="badge dc-badge-match">Match</span>
-                                <span class="badge dc-badge-mismatch">Mismatch</span>
-                                <span class="badge dc-badge-xl">Excel Only</span>
-                                <span class="badge dc-badge-db">DB Only</span>
-                                <span class="text-muted small ms-2" id="resultCount">—</span>
+                    <div class="dc-card dc-fade" style="animation-delay:0.1s;">
+                        <div class="dc-card-head">
+                            <h6><i class="fas fa-table-columns me-2" style="color:var(--primary);"></i>Comparison Results</h6>
+                            <div class="d-flex align-items-center gap-2 flex-wrap">
+                                <span class="dc-badge dc-badge-match"><i class="fas fa-check"></i>Match</span>
+                                <span class="dc-badge dc-badge-mismatch"><i class="fas fa-xmark"></i>Mismatch</span>
+                                <span class="dc-badge dc-badge-xl"><i class="fas fa-file-excel"></i>Excel Only</span>
+                                <span class="dc-badge dc-badge-db"><i class="fas fa-database"></i>DB Only</span>
+                                <span style="font-size:0.75rem; color:var(--gray-400); margin-left:4px;" id="resultCount">—</span>
                             </div>
                         </div>
-                        <div class="table-scroll-wrapper">
+                        <div class="dc-scroll">
                             <table class="table table-sm dc-table mb-0">
                                 <thead>
                                     <tr>
@@ -218,29 +260,28 @@ $currency = htmlspecialchars($settings['currency_code'] ?? 'GBP', ENT_QUOTES, 'U
                                         <th class="text-end">Paid (XL)</th>
                                         <th class="text-end">Paid (DB)</th>
                                         <th class="text-end">Diff</th>
-                                        <th>City (XL)</th>
+                                        <th>City</th>
                                         <th>Source</th>
-                                        <th>DB Status</th>
+                                        <th>Status</th>
                                     </tr>
                                 </thead>
-                                <tbody id="comparisonBody">
-                                    <tr><td colspan="14" class="text-center text-muted py-4">Run comparison to see results</td></tr>
+                                <tbody id="tableBody">
+                                    <tr><td colspan="14" class="text-center py-4" style="color:var(--gray-400);">Upload a file to begin</td></tr>
                                 </tbody>
                             </table>
                         </div>
                     </div>
 
                     <!-- Financial Summary -->
-                    <div class="dc-card">
-                        <div class="dc-card-header">
-                            <h6><i class="fas fa-calculator me-2 text-warning"></i>Financial Summary</h6>
+                    <div class="dc-card dc-fade" style="animation-delay:0.15s;">
+                        <div class="dc-card-head">
+                            <h6><i class="fas fa-calculator me-2" style="color:var(--warning);"></i>Financial Summary</h6>
                         </div>
-                        <div class="p-4" id="financialSummary">—</div>
+                        <div style="padding:20px;" id="financialSummary"></div>
                     </div>
 
-                    <!-- Back / Re-upload -->
-                    <div class="text-center mb-4">
-                        <button class="btn btn-outline-secondary" id="reuploadBtn"><i class="fas fa-redo me-1"></i>Upload Different File</button>
+                    <div class="text-center mb-4 dc-fade" style="animation-delay:0.2s;">
+                        <button class="btn btn-outline-secondary" id="reuploadBtn" style="border-radius:8px;"><i class="fas fa-redo me-1"></i>Upload Different File</button>
                     </div>
                 </div>
 
@@ -254,28 +295,21 @@ $currency = htmlspecialchars($settings['currency_code'] ?? 'GBP', ENT_QUOTES, 'U
 <script>
 (function(){
   const CURRENCY = <?php echo json_encode($currency); ?>;
+  const el = id => document.getElementById(id);
 
   function fmtMoney(n) {
     n = Number(n || 0);
     try { return new Intl.NumberFormat(undefined, { style:'currency', currency:CURRENCY, maximumFractionDigits:2 }).format(n); }
     catch(_) { return CURRENCY + ' ' + n.toFixed(2); }
   }
-
-  function esc(s) {
-    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-  }
-
+  function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
   function normalizePhone(raw) {
     let p = String(raw || '').replace(/[^0-9]/g, '');
     if (p.startsWith('44') && p.length >= 12) p = p.substring(2);
     if (p.length === 10 && p.startsWith('7')) p = '0' + p;
     return p;
   }
-
-  function normalizeName(n) {
-    return String(n || '').toLowerCase().replace(/[^a-z0-9]/g, ' ').replace(/\s+/g, ' ').trim();
-  }
-
+  function normalizeName(n) { return String(n || '').toLowerCase().replace(/[^a-z0-9]/g, ' ').replace(/\s+/g, ' ').trim(); }
   function parseAmount(v) {
     if (v === null || v === undefined) return 0;
     const s = String(v).trim().toLowerCase();
@@ -284,200 +318,160 @@ $currency = htmlspecialchars($settings['currency_code'] ?? 'GBP', ENT_QUOTES, 'U
     return isNaN(n) ? 0 : n;
   }
 
-  let xlData = [];
-  let dbData = [];
-  let comparisonResults = [];
-  let filteredResults = [];
-  let columnMap = { name: '', phone: '', amount: '', paid: '', city: '', method: '', sn: '' };
+  let xlData = [], dbData = [], comparisonResults = [], filteredResults = [];
+  let columnMap = { name:'', phone:'', amount:'', paid:'', city:'', method:'', sn:'' };
 
-  const el = id => document.getElementById(id);
-
-  // Known column name patterns for auto-detection
-  const KNOWN_COLUMNS = {
-    name:   ['Name', 'name', 'Donor', 'donor', 'Full Name', 'full name', 'Donor Name', 'donor name', 'Fullname'],
-    phone:  ['Mobile', 'mobile', 'Phone', 'phone', 'Telephone', 'Tel', 'Cell', 'Contact', 'Phone Number', 'Mobile Number'],
-    amount: ['Amount', 'amount', 'Pledged', 'pledged', 'Pledge', 'pledge', 'Pledge Amount', 'Total'],
-    paid:   ['Amount Paid', 'amount paid', 'Paid', 'paid', 'Total Paid', 'Payment', 'Received'],
-    city:   ['City', 'city', 'Town', 'Location', 'Address'],
-    method: ['Payment Method', 'payment method', 'Method', 'method', 'Pay Method', 'Type'],
-    sn:     ['S.N.', 's.n.', 'SN', 'sn', 'Serial', 'No.', 'no.', 'No', '#', 'ID', 'Serial Number'],
+  // Auto-detect columns
+  const COL_MAP = {
+    name:   ['Name','name','Donor','donor','Full Name','Donor Name'],
+    phone:  ['Mobile','mobile','Phone','phone','Telephone','Tel','Contact','Phone Number'],
+    amount: ['Amount','amount','Pledged','pledged','Pledge','Pledge Amount','Total'],
+    paid:   ['Amount Paid','amount paid','Paid','paid','Total Paid','Payment','Received'],
+    city:   ['City','city','Town','Location'],
+    method: ['Payment Method','payment method','Method','method'],
+    sn:     ['S.N.','s.n.','SN','No.','no.','No','#','Serial Number'],
   };
 
-  function autoDetectColumns(headers) {
-    const mapped = {};
-    for (const [field, candidates] of Object.entries(KNOWN_COLUMNS)) {
-      mapped[field] = '';
-      for (const c of candidates) {
+  function autoDetect(headers) {
+    const m = {};
+    for (const [field, cands] of Object.entries(COL_MAP)) {
+      m[field] = '';
+      for (const c of cands) {
         const found = headers.find(h => h === c || h.trim().toLowerCase() === c.toLowerCase());
-        if (found) { mapped[field] = found; break; }
+        if (found) { m[field] = found; break; }
       }
     }
-    return mapped;
+    return m;
   }
 
+  // Smart Excel parser — finds header row automatically
   function findHeaderRow(ws) {
     const range = XLSX.utils.decode_range(ws['!ref'] || 'A1');
     for (let r = range.s.r; r <= Math.min(range.s.r + 15, range.e.r); r++) {
-      let cellCount = 0;
-      let hasNameLike = false;
+      let count = 0, hasKey = false;
       for (let c = range.s.c; c <= range.e.c; c++) {
-        const addr = XLSX.utils.encode_cell({ r, c });
-        const cell = ws[addr];
-        if (cell && cell.v !== undefined && cell.v !== null && String(cell.v).trim() !== '') {
-          cellCount++;
-          const val = String(cell.v).trim().toLowerCase();
-          if (['name', 'donor', 'mobile', 'phone', 'amount', 'paid', 'amount paid'].includes(val)) {
-            hasNameLike = true;
-          }
+        const cell = ws[XLSX.utils.encode_cell({r,c})];
+        if (cell && cell.v != null && String(cell.v).trim()) {
+          count++;
+          const v = String(cell.v).trim().toLowerCase();
+          if (['name','donor','mobile','phone','amount','paid','amount paid'].includes(v)) hasKey = true;
         }
       }
-      if (cellCount >= 3 && hasNameLike) return r;
+      if (count >= 3 && hasKey) return r;
     }
     return 0;
   }
 
   function parseSheet(ws) {
-    const headerRowIdx = findHeaderRow(ws);
+    const hIdx = findHeaderRow(ws);
     const range = XLSX.utils.decode_range(ws['!ref'] || 'A1');
-
     const headers = [];
     for (let c = range.s.c; c <= range.e.c; c++) {
-      const addr = XLSX.utils.encode_cell({ r: headerRowIdx, c });
-      const cell = ws[addr];
-      const val = (cell && cell.v !== undefined) ? String(cell.v).trim() : '';
-      headers.push(val || ('Col_' + c));
+      const cell = ws[XLSX.utils.encode_cell({r:hIdx, c})];
+      headers.push((cell && cell.v != null) ? String(cell.v).trim() : ('Col_' + c));
     }
-
+    const nameCol = headers.find(h => h.toLowerCase() === 'name' || h.toLowerCase() === 'donor');
+    const phoneCol = headers.find(h => h.toLowerCase() === 'mobile' || h.toLowerCase() === 'phone');
     const rows = [];
-    for (let r = headerRowIdx + 1; r <= range.e.r; r++) {
+    for (let r = hIdx + 1; r <= range.e.r; r++) {
       const row = {};
       let hasData = false;
       for (let c = range.s.c; c <= range.e.c; c++) {
-        const addr = XLSX.utils.encode_cell({ r, c });
-        const cell = ws[addr];
-        const val = cell ? (cell.v !== undefined ? cell.v : '') : '';
+        const cell = ws[XLSX.utils.encode_cell({r,c})];
+        const val = cell ? (cell.v != null ? cell.v : '') : '';
         row[headers[c - range.s.c]] = val;
-        if (val !== '' && val !== null && val !== undefined) hasData = true;
+        if (val !== '' && val != null) hasData = true;
       }
-      // Skip completely empty rows and separator rows
-      const nameCol = headers.find(h => h.toLowerCase() === 'name' || h.toLowerCase() === 'donor');
-      const hasName = nameCol && row[nameCol] && String(row[nameCol]).trim() !== '';
-      const phoneCol = headers.find(h => h.toLowerCase() === 'mobile' || h.toLowerCase() === 'phone');
-      const hasPhone = phoneCol && row[phoneCol] && String(row[phoneCol]).trim() !== '';
-      if (hasData && (hasName || hasPhone)) {
-        rows.push(row);
-      }
+      const hasName = nameCol && row[nameCol] && String(row[nameCol]).trim();
+      const hasPhone = phoneCol && row[phoneCol] && String(row[phoneCol]).trim();
+      if (hasData && (hasName || hasPhone)) rows.push(row);
     }
-    return { headers, rows, headerRow: headerRowIdx + 1 };
+    return { headers, rows, headerRow: hIdx + 1 };
   }
 
   // --- Upload ---
-  const dropZone = el('dropZone');
-  const fileInput = el('fileInput');
-
+  const dropZone = el('dropZone'), fileInput = el('fileInput');
   dropZone.addEventListener('click', () => fileInput.click());
-  dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); });
-  dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
-  dropZone.addEventListener('drop', e => { e.preventDefault(); dropZone.classList.remove('dragover'); handleFile(e.dataTransfer.files[0]); });
+  dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dc-dragover'); });
+  dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dc-dragover'));
+  dropZone.addEventListener('drop', e => { e.preventDefault(); dropZone.classList.remove('dc-dragover'); handleFile(e.dataTransfer.files[0]); });
   fileInput.addEventListener('change', () => { if (fileInput.files[0]) handleFile(fileInput.files[0]); });
-  el('removeFileBtn').addEventListener('click', resetUpload);
+  el('removeBtn').addEventListener('click', resetAll);
 
-  function setLoading(show, text, pct) {
-    const bar = el('loadingBar');
-    if (show) {
-      bar.classList.remove('d-none');
-      el('loadingText').textContent = text || 'Working...';
-      el('loadingProgress').style.width = (pct || 0) + '%';
-    } else {
-      bar.classList.add('d-none');
-    }
+  function setProgress(show, text, pct) {
+    const bar = el('progressBar');
+    bar.classList.toggle('d-none', !show);
+    if (show) { el('progressText').textContent = text || ''; el('progressFill').style.width = (pct||0)+'%'; }
   }
 
   function handleFile(file) {
     if (!file) return;
     el('fileName').textContent = file.name;
-    el('fileDetails').textContent = (file.size / 1024).toFixed(1) + ' KB';
-    el('fileInfo').classList.remove('d-none');
-    el('autoDetectBadge').classList.add('d-none');
-    setLoading(true, 'Reading Excel file...', 10);
+    el('fileMeta').textContent = (file.size / 1024).toFixed(1) + ' KB';
+    el('fileBar').classList.remove('d-none');
+    el('detectBadge').classList.add('d-none');
+    dropZone.style.display = 'none';
+    setProgress(true, 'Reading Excel file...', 10);
 
     const reader = new FileReader();
     reader.onload = async function(e) {
       try {
-        setLoading(true, 'Parsing spreadsheet...', 30);
-        const wb = XLSX.read(e.target.result, { type: 'array' });
-        const ws = wb.Sheets[wb.SheetNames[0]];
-        const parsed = parseSheet(ws);
-
-        if (!parsed.rows || parsed.rows.length === 0) { alert('No data rows found in the file. Check that it has Name/Mobile columns.'); setLoading(false); return; }
+        setProgress(true, 'Parsing spreadsheet...', 30);
+        const wb = XLSX.read(e.target.result, { type:'array' });
+        const parsed = parseSheet(wb.Sheets[wb.SheetNames[0]]);
+        if (!parsed.rows.length) { alert('No data rows found.'); setProgress(false); return; }
 
         xlData = parsed.rows;
-        columnMap = autoDetectColumns(parsed.headers);
+        columnMap = autoDetect(parsed.headers);
+        const detected = Object.entries(columnMap).filter(([,v]) => v).map(([k]) => k);
+        if (!columnMap.name && !columnMap.phone) { alert('Could not find Name or Phone columns.\nHeaders found: ' + parsed.headers.join(', ')); setProgress(false); return; }
 
-        const detected = Object.entries(columnMap).filter(([k,v]) => v).map(([k,v]) => k);
-        if (!columnMap.name && !columnMap.phone) {
-          alert('Could not detect Name or Phone columns. Found headers: ' + parsed.headers.join(', '));
-          setLoading(false);
-          return;
-        }
+        el('detectBadge').classList.remove('d-none');
+        el('fileMeta').textContent = (file.size/1024).toFixed(1) + ' KB · ' + parsed.rows.length + ' rows · Header row ' + parsed.headerRow;
 
-        el('autoDetectBadge').classList.remove('d-none');
-        el('fileDetails').textContent = (file.size / 1024).toFixed(1) + ' KB · ' + parsed.rows.length + ' rows (header at row ' + parsed.headerRow + ') · Detected: ' + detected.join(', ');
+        setProgress(true, 'Loading database...', 50);
+        const res = await fetch('api/data-comparison.php', { credentials:'same-origin', headers:{'Accept':'application/json'} });
+        const json = await res.json();
+        if (!json.success) throw new Error(json.error || 'API error');
+        dbData = json.donors;
 
-        setLoading(true, 'Loading database donors...', 50);
-        const res = await fetch('api/data-comparison.php', { credentials: 'same-origin', headers: { 'Accept': 'application/json' } });
-        const dbJson = await res.json();
-        if (!dbJson.success) throw new Error(dbJson.error || 'API error');
-        dbData = dbJson.donors;
-
-        setLoading(true, 'Comparing ' + parsed.rows.length + ' Excel rows with ' + dbData.length + ' database donors...', 80);
-        await new Promise(r => setTimeout(r, 100));
-
+        setProgress(true, 'Comparing ' + parsed.rows.length + ' rows vs ' + dbData.length + ' donors...', 80);
+        await new Promise(r => setTimeout(r, 80));
         compare();
 
-        setLoading(true, 'Done!', 100);
-        await new Promise(r => setTimeout(r, 300));
-        setLoading(false);
+        setProgress(true, 'Done!', 100);
+        await new Promise(r => setTimeout(r, 250));
+        setProgress(false);
 
         el('resultsSection').style.display = '';
-        el('resultsSection').scrollIntoView({ behavior: 'smooth', block: 'start' });
-
+        el('resultsSection').scrollIntoView({ behavior:'smooth', block:'start' });
       } catch(err) {
-        setLoading(false);
+        setProgress(false);
         alert('Error: ' + err.message);
       }
     };
     reader.readAsArrayBuffer(file);
   }
 
-  function resetUpload() {
-    xlData = [];
-    dbData = [];
-    comparisonResults = [];
-    filteredResults = [];
+  function resetAll() {
+    xlData = []; dbData = []; comparisonResults = []; filteredResults = [];
     fileInput.value = '';
-    el('fileInfo').classList.add('d-none');
-    el('autoDetectBadge').classList.add('d-none');
+    el('fileBar').classList.add('d-none');
+    el('detectBadge').classList.add('d-none');
     el('resultsSection').style.display = 'none';
-    setLoading(false);
+    dropZone.style.display = '';
+    setProgress(false);
   }
 
+  // --- Compare ---
   function compare() {
     const results = [];
-    const dbByPhone = {};
-    const dbByName = {};
-    const dbMatched = new Set();
+    const dbByPhone = {}, dbByName = {}, dbMatched = new Set();
 
     dbData.forEach((d, i) => {
-      if (d.phone_normalized) {
-        if (!dbByPhone[d.phone_normalized]) dbByPhone[d.phone_normalized] = [];
-        dbByPhone[d.phone_normalized].push(i);
-      }
-      const nName = normalizeName(d.name);
-      if (nName) {
-        if (!dbByName[nName]) dbByName[nName] = [];
-        dbByName[nName].push(i);
-      }
+      if (d.phone_normalized) { (dbByPhone[d.phone_normalized] = dbByPhone[d.phone_normalized] || []).push(i); }
+      const n = normalizeName(d.name);
+      if (n) { (dbByName[n] = dbByName[n] || []).push(i); }
     });
 
     xlData.forEach((xlRow, xlIdx) => {
@@ -486,253 +480,205 @@ $currency = htmlspecialchars($settings['currency_code'] ?? 'GBP', ENT_QUOTES, 'U
       const xlAmount = columnMap.amount ? parseAmount(xlRow[columnMap.amount]) : null;
       const xlPaid = columnMap.paid ? parseAmount(xlRow[columnMap.paid]) : null;
       const xlCity = columnMap.city ? String(xlRow[columnMap.city] || '') : '';
-      const xlMethod = columnMap.method ? String(xlRow[columnMap.method] || '') : '';
-      const xlSn = columnMap.sn ? String(xlRow[columnMap.sn] || '') : '';
-
       if (!xlName && !xlPhone) return;
 
-      let dbIdx = -1;
-      let matchType = '';
-
-      // Match by phone first (most reliable)
-      if (xlPhone && dbByPhone[xlPhone]) {
-        dbIdx = dbByPhone[xlPhone][0];
-        matchType = 'phone';
-      }
-
-      // Fallback: match by name
+      let dbIdx = -1, matchType = '';
+      if (xlPhone && dbByPhone[xlPhone]) { dbIdx = dbByPhone[xlPhone][0]; matchType = 'phone'; }
       if (dbIdx === -1 && xlName) {
-        const nName = normalizeName(xlName);
-        if (dbByName[nName]) {
-          dbIdx = dbByName[nName][0];
-          matchType = 'name';
-        } else {
-          // Fuzzy: check if XL name is contained in DB name or vice versa
+        const nn = normalizeName(xlName);
+        if (dbByName[nn]) { dbIdx = dbByName[nn][0]; matchType = 'name'; }
+        else {
           for (let i = 0; i < dbData.length; i++) {
             if (dbMatched.has(i)) continue;
-            const dbNorm = normalizeName(dbData[i].name);
-            if (dbNorm && nName && (dbNorm.includes(nName) || nName.includes(dbNorm))) {
-              dbIdx = i;
-              matchType = 'fuzzy_name';
-              break;
-            }
+            const dn = normalizeName(dbData[i].name);
+            if (dn && nn && (dn.includes(nn) || nn.includes(dn))) { dbIdx = i; matchType = 'fuzzy'; break; }
           }
         }
       }
 
-      const dbRow = dbIdx >= 0 ? dbData[dbIdx] : null;
+      const db = dbIdx >= 0 ? dbData[dbIdx] : null;
       if (dbIdx >= 0) dbMatched.add(dbIdx);
 
-      let status = 'xl_only';
-      let pledgeDiff = null;
-      let paidDiff = null;
-
-      if (dbRow) {
-        const pledgeMatch = xlAmount === null || Math.abs(xlAmount - dbRow.total_pledged) < 0.01;
-        const paidMatch = xlPaid === null || Math.abs(xlPaid - dbRow.total_paid) < 0.01;
-        pledgeDiff = xlAmount !== null ? xlAmount - dbRow.total_pledged : null;
-        paidDiff = xlPaid !== null ? xlPaid - dbRow.total_paid : null;
-
-        status = (pledgeMatch && paidMatch) ? 'match' : 'mismatch';
+      let status = 'xl_only', pledgeDiff = null, paidDiff = null;
+      if (db) {
+        const pOk = xlAmount === null || Math.abs(xlAmount - db.total_pledged) < 0.01;
+        const dOk = xlPaid === null || Math.abs(xlPaid - db.total_paid) < 0.01;
+        pledgeDiff = xlAmount !== null ? xlAmount - db.total_pledged : null;
+        paidDiff = xlPaid !== null ? xlPaid - db.total_paid : null;
+        status = (pOk && dOk) ? 'match' : 'mismatch';
       }
 
-      results.push({
-        status,
-        matchType,
-        xlIdx: xlIdx + 1,
-        xlName, xlPhone, xlAmount, xlPaid, xlCity, xlMethod, xlSn,
-        dbId: dbRow ? dbRow.id : null,
-        dbName: dbRow ? dbRow.name : '',
-        dbPhone: dbRow ? dbRow.phone : '',
-        dbPledged: dbRow ? dbRow.total_pledged : null,
-        dbPaid: dbRow ? dbRow.total_paid : null,
-        dbBalance: dbRow ? dbRow.balance : null,
-        dbStatus: dbRow ? dbRow.payment_status : '',
-        dbSource: dbRow ? dbRow.data_source : '',
-        dbCity: dbRow ? dbRow.city : '',
-        pledgeDiff,
-        paidDiff,
-      });
+      results.push({ status, matchType, xlIdx:xlIdx+1, xlName, xlPhone, xlAmount, xlPaid, xlCity,
+        dbId:db?.id||null, dbName:db?.name||'', dbPhone:db?.phone||'',
+        dbPledged:db?.total_pledged??null, dbPaid:db?.total_paid??null, dbBalance:db?.balance??null,
+        dbStatus:db?.payment_status||'', dbSource:db?.data_source||'', dbCity:db?.city||'',
+        pledgeDiff, paidDiff });
     });
 
-    // DB-only records
     dbData.forEach((d, i) => {
       if (!dbMatched.has(i)) {
-        results.push({
-          status: 'db_only',
-          matchType: '',
-          xlIdx: null,
-          xlName: '', xlPhone: '', xlAmount: null, xlPaid: null, xlCity: '', xlMethod: '', xlSn: '',
-          dbId: d.id,
-          dbName: d.name,
-          dbPhone: d.phone,
-          dbPledged: d.total_pledged,
-          dbPaid: d.total_paid,
-          dbBalance: d.balance,
-          dbStatus: d.payment_status,
-          dbSource: d.data_source,
-          dbCity: d.city,
-          pledgeDiff: null,
-          paidDiff: null,
-        });
+        results.push({ status:'db_only', matchType:'', xlIdx:null, xlName:'', xlPhone:'', xlAmount:null, xlPaid:null, xlCity:'',
+          dbId:d.id, dbName:d.name, dbPhone:d.phone, dbPledged:d.total_pledged, dbPaid:d.total_paid, dbBalance:d.balance,
+          dbStatus:d.payment_status, dbSource:d.data_source, dbCity:d.city, pledgeDiff:null, paidDiff:null });
       }
     });
 
     comparisonResults = results;
     applyFilters();
-    renderSummary();
-    renderFinancialSummary();
+    renderStats();
+    renderFinancials();
   }
 
+  // --- Filters ---
   function applyFilters() {
-    const status = el('filterStatus').value;
-    const amountDiff = el('filterAmountDiff').value;
-    const dataSource = el('filterDataSource').value;
-    const search = el('filterSearch').value.toLowerCase().trim();
-
+    const st = el('filterStatus').value, ad = el('filterAmountDiff').value;
+    const ds = el('filterDataSource').value, q = el('filterSearch').value.toLowerCase().trim();
     filteredResults = comparisonResults.filter(r => {
-      if (status && r.status !== status) return false;
-      if (dataSource && r.dbSource !== dataSource) return false;
-      if (search) {
-        const hay = [r.xlName, r.dbName, r.xlPhone, r.dbPhone].join(' ').toLowerCase();
-        if (!hay.includes(search)) return false;
-      }
-      if (amountDiff === 'pledge_diff' && (r.pledgeDiff === null || Math.abs(r.pledgeDiff) < 0.01)) return false;
-      if (amountDiff === 'paid_diff' && (r.paidDiff === null || Math.abs(r.paidDiff) < 0.01)) return false;
-      if (amountDiff === 'both_diff') {
-        if ((r.pledgeDiff === null || Math.abs(r.pledgeDiff) < 0.01) && (r.paidDiff === null || Math.abs(r.paidDiff) < 0.01)) return false;
-      }
+      if (st && r.status !== st) return false;
+      if (ds && r.dbSource !== ds) return false;
+      if (q && ![r.xlName, r.dbName, r.xlPhone, r.dbPhone].join(' ').toLowerCase().includes(q)) return false;
+      if (ad === 'pledge_diff' && (r.pledgeDiff === null || Math.abs(r.pledgeDiff) < 0.01)) return false;
+      if (ad === 'paid_diff' && (r.paidDiff === null || Math.abs(r.paidDiff) < 0.01)) return false;
+      if (ad === 'both_diff' && (r.pledgeDiff === null || Math.abs(r.pledgeDiff) < 0.01) && (r.paidDiff === null || Math.abs(r.paidDiff) < 0.01)) return false;
       return true;
     });
-
     renderTable();
+    updateChipStates();
   }
 
-  el('applyResultFilters').addEventListener('click', applyFilters);
-  el('clearResultFilters').addEventListener('click', () => {
-    el('filterStatus').value = '';
-    el('filterAmountDiff').value = '';
-    el('filterDataSource').value = '';
-    el('filterSearch').value = '';
+  el('applyBtn').addEventListener('click', applyFilters);
+  el('clearBtn').addEventListener('click', () => {
+    el('filterStatus').value = ''; el('filterAmountDiff').value = ''; el('filterDataSource').value = ''; el('filterSearch').value = '';
     applyFilters();
   });
   el('filterSearch').addEventListener('keydown', e => { if (e.key === 'Enter') applyFilters(); });
 
-  function renderSummary() {
-    const counts = { match: 0, mismatch: 0, xl_only: 0, db_only: 0 };
-    comparisonResults.forEach(r => counts[r.status]++);
-
-    const stats = [
-      { icon: 'fas fa-check-circle', bg: 'rgba(16,185,129,0.1)', color: '#065f46', value: counts.match, label: 'Matched' },
-      { icon: 'fas fa-exclamation-triangle', bg: 'rgba(239,68,68,0.1)', color: '#991b1b', value: counts.mismatch, label: 'Mismatched' },
-      { icon: 'fas fa-file-excel', bg: 'rgba(245,158,11,0.1)', color: '#92400e', value: counts.xl_only, label: 'Excel Only' },
-      { icon: 'fas fa-database', bg: 'rgba(59,130,246,0.1)', color: '#1e40af', value: counts.db_only, label: 'DB Only' },
-      { icon: 'fas fa-list', bg: 'rgba(107,114,128,0.1)', color: '#374151', value: comparisonResults.length, label: 'Total Records' },
+  // --- Stat Chips (clickable) ---
+  function renderStats() {
+    const c = { match:0, mismatch:0, xl_only:0, db_only:0 };
+    comparisonResults.forEach(r => c[r.status]++);
+    const chips = [
+      { key:'match', icon:'fas fa-check-circle', bg:'rgba(16,185,129,0.1)', color:'#065f46', val:c.match, lbl:'Matched' },
+      { key:'mismatch', icon:'fas fa-triangle-exclamation', bg:'rgba(239,68,68,0.1)', color:'#991b1b', val:c.mismatch, lbl:'Mismatched' },
+      { key:'xl_only', icon:'fas fa-file-excel', bg:'rgba(245,158,11,0.1)', color:'#92400e', val:c.xl_only, lbl:'Excel Only' },
+      { key:'db_only', icon:'fas fa-database', bg:'rgba(59,130,246,0.1)', color:'#1e40af', val:c.db_only, lbl:'DB Only' },
+      { key:'', icon:'fas fa-layer-group', bg:'rgba(107,114,128,0.1)', color:'#374151', val:comparisonResults.length, lbl:'Total' },
     ];
-
-    el('summaryStats').innerHTML = stats.map(s => `
-      <div class="dc-stat">
-        <div class="dc-stat-icon" style="background:${s.bg};color:${s.color};"><i class="${s.icon}"></i></div>
-        <div>
-          <div class="dc-stat-value">${s.value}</div>
-          <div class="dc-stat-label">${s.label}</div>
-        </div>
+    el('statsRow').innerHTML = chips.map(s => `
+      <div class="dc-chip" data-filter="${s.key}" title="${s.key ? 'Click to filter by ' + s.lbl : 'Click to show all'}">
+        <div class="dc-chip-icon" style="background:${s.bg};color:${s.color};"><i class="${s.icon}"></i></div>
+        <div><div class="dc-chip-val">${s.val}</div><div class="dc-chip-lbl">${s.lbl}</div></div>
       </div>
     `).join('');
+
+    el('statsRow').querySelectorAll('.dc-chip').forEach(chip => {
+      chip.addEventListener('click', () => {
+        const f = chip.dataset.filter;
+        el('filterStatus').value = f;
+        applyFilters();
+      });
+    });
   }
 
-  function renderTable() {
-    const body = el('comparisonBody');
-    el('resultCount').textContent = filteredResults.length + ' of ' + comparisonResults.length + ' records';
+  function updateChipStates() {
+    const active = el('filterStatus').value;
+    el('statsRow').querySelectorAll('.dc-chip').forEach(chip => {
+      chip.classList.toggle('dc-chip-active', chip.dataset.filter === active);
+    });
+  }
 
-    if (filteredResults.length === 0) {
-      body.innerHTML = '<tr><td colspan="14" class="text-center text-muted py-4">No records match your filters.</td></tr>';
+  // --- Table ---
+  function renderTable() {
+    const body = el('tableBody');
+    el('resultCount').textContent = filteredResults.length + ' of ' + comparisonResults.length;
+    if (!filteredResults.length) {
+      body.innerHTML = '<tr><td colspan="14" class="text-center py-4" style="color:var(--gray-400);"><i class="fas fa-inbox me-2"></i>No records match your filters.</td></tr>';
       return;
     }
-
-    const statusBadge = {
-      match: '<span class="badge dc-badge-match"><i class="fas fa-check me-1"></i>Match</span>',
-      mismatch: '<span class="badge dc-badge-mismatch"><i class="fas fa-times me-1"></i>Mismatch</span>',
-      xl_only: '<span class="badge dc-badge-xl"><i class="fas fa-file-excel me-1"></i>XL Only</span>',
-      db_only: '<span class="badge dc-badge-db"><i class="fas fa-database me-1"></i>DB Only</span>',
+    const badges = {
+      match:'<span class="dc-badge dc-badge-match"><i class="fas fa-check"></i> Match</span>',
+      mismatch:'<span class="dc-badge dc-badge-mismatch"><i class="fas fa-xmark"></i> Mismatch</span>',
+      xl_only:'<span class="dc-badge dc-badge-xl"><i class="fas fa-file-excel"></i> XL Only</span>',
+      db_only:'<span class="dc-badge dc-badge-db"><i class="fas fa-database"></i> DB Only</span>',
     };
+    const rowCls = { match:'dc-row-match', mismatch:'dc-row-mismatch', xl_only:'dc-row-xl', db_only:'dc-row-db' };
 
-    const rowClass = { match: 'dc-match', mismatch: 'dc-mismatch', xl_only: 'dc-xl-only', db_only: 'dc-db-only' };
+    body.innerHTML = filteredResults.map(r => {
+      const pd = r.pledgeDiff !== null && Math.abs(r.pledgeDiff) >= 0.01
+        ? `<span class="dc-val-diff">${r.pledgeDiff > 0 ? '+' : ''}${fmtMoney(r.pledgeDiff)}</span>`
+        : (r.pledgeDiff !== null ? '<span class="dc-val-ok">—</span>' : '');
+      const dd = r.paidDiff !== null && Math.abs(r.paidDiff) >= 0.01
+        ? `<span class="dc-val-diff">${r.paidDiff > 0 ? '+' : ''}${fmtMoney(r.paidDiff)}</span>`
+        : (r.paidDiff !== null ? '<span class="dc-val-ok">—</span>' : '');
+      const src = r.dbSource === 'old_system' ? '<span class="dc-badge dc-badge-old">Old</span>'
+        : r.dbSource === 'new_system' ? '<span class="dc-badge dc-badge-new">New</span>' : '';
+      const st = r.dbStatus ? `<span class="dc-badge dc-badge-status">${esc(r.dbStatus)}</span>` : '';
+      const fuzzy = r.matchType === 'fuzzy' ? ' <i class="fas fa-question-circle" style="color:var(--warning);font-size:0.7rem;" title="Fuzzy name match"></i>' : '';
 
-    body.innerHTML = filteredResults.map((r, i) => {
-      const pledgeDiffHtml = r.pledgeDiff !== null && Math.abs(r.pledgeDiff) >= 0.01
-        ? `<span class="dc-diff">${r.pledgeDiff > 0 ? '+' : ''}${fmtMoney(r.pledgeDiff)}</span>`
-        : (r.pledgeDiff !== null ? '<span class="dc-same">—</span>' : '');
-      const paidDiffHtml = r.paidDiff !== null && Math.abs(r.paidDiff) >= 0.01
-        ? `<span class="dc-diff">${r.paidDiff > 0 ? '+' : ''}${fmtMoney(r.paidDiff)}</span>`
-        : (r.paidDiff !== null ? '<span class="dc-same">—</span>' : '');
-
-      const srcBadge = r.dbSource === 'old_system' ? '<span class="badge" style="background:#fff3cd;color:#856404;font-size:0.65rem;">Old</span>'
-        : r.dbSource === 'new_system' ? '<span class="badge" style="background:#d1e7dd;color:#0f5132;font-size:0.65rem;">New</span>'
-        : '';
-
-      const dbStatusBadge = r.dbStatus ? `<span class="badge bg-light text-dark border" style="font-size:0.65rem;">${esc(r.dbStatus)}</span>` : '';
-
-      return `<tr class="${rowClass[r.status] || ''}">
-        <td>${r.xlIdx || (r.dbId ? 'DB#' + r.dbId : '')}</td>
-        <td>${statusBadge[r.status] || ''}</td>
-        <td>${esc(r.xlName)}</td>
-        <td>${esc(r.dbName)}${r.matchType === 'fuzzy_name' ? ' <i class="fas fa-question-circle text-warning" title="Fuzzy match"></i>' : ''}</td>
-        <td class="text-nowrap">${esc(r.xlPhone || r.dbPhone)}</td>
+      return `<tr class="${rowCls[r.status]||''}">
+        <td style="color:var(--gray-400);font-size:0.75rem;">${r.xlIdx || (r.dbId ? '#'+r.dbId : '')}</td>
+        <td>${badges[r.status]||''}</td>
+        <td style="font-weight:500;color:var(--gray-800);">${esc(r.xlName)}</td>
+        <td>${esc(r.dbName)}${fuzzy}</td>
+        <td class="text-nowrap" style="font-family:monospace;font-size:0.75rem;color:var(--gray-500);">${esc(r.xlPhone || r.dbPhone)}</td>
         <td class="text-end">${r.xlAmount !== null ? fmtMoney(r.xlAmount) : ''}</td>
         <td class="text-end">${r.dbPledged !== null ? fmtMoney(r.dbPledged) : ''}</td>
-        <td class="text-end">${pledgeDiffHtml}</td>
+        <td class="text-end">${pd}</td>
         <td class="text-end">${r.xlPaid !== null ? fmtMoney(r.xlPaid) : ''}</td>
         <td class="text-end">${r.dbPaid !== null ? fmtMoney(r.dbPaid) : ''}</td>
-        <td class="text-end">${paidDiffHtml}</td>
-        <td>${esc(r.xlCity)}</td>
-        <td>${srcBadge}</td>
-        <td>${dbStatusBadge}</td>
+        <td class="text-end">${dd}</td>
+        <td style="color:var(--gray-500);">${esc(r.xlCity || r.dbCity)}</td>
+        <td>${src}</td>
+        <td>${st}</td>
       </tr>`;
     }).join('');
   }
 
-  function renderFinancialSummary() {
+  // --- Financial Summary ---
+  function renderFinancials() {
     const matched = comparisonResults.filter(r => r.status === 'match' || r.status === 'mismatch');
     const xlOnly = comparisonResults.filter(r => r.status === 'xl_only');
     const dbOnly = comparisonResults.filter(r => r.status === 'db_only');
-    const mismatched = comparisonResults.filter(r => r.status === 'mismatch');
+    const mm = comparisonResults.filter(r => r.status === 'mismatch');
 
-    const sumXlPledge = matched.reduce((s, r) => s + (r.xlAmount || 0), 0) + xlOnly.reduce((s, r) => s + (r.xlAmount || 0), 0);
-    const sumDbPledge = matched.reduce((s, r) => s + (r.dbPledged || 0), 0) + dbOnly.reduce((s, r) => s + (r.dbPledged || 0), 0);
-    const sumXlPaid = matched.reduce((s, r) => s + (r.xlPaid || 0), 0) + xlOnly.reduce((s, r) => s + (r.xlPaid || 0), 0);
-    const sumDbPaid = matched.reduce((s, r) => s + (r.dbPaid || 0), 0) + dbOnly.reduce((s, r) => s + (r.dbPaid || 0), 0);
+    const xlP = matched.reduce((s,r) => s+(r.xlAmount||0), 0) + xlOnly.reduce((s,r) => s+(r.xlAmount||0), 0);
+    const dbP = matched.reduce((s,r) => s+(r.dbPledged||0), 0) + dbOnly.reduce((s,r) => s+(r.dbPledged||0), 0);
+    const xlD = matched.reduce((s,r) => s+(r.xlPaid||0), 0) + xlOnly.reduce((s,r) => s+(r.xlPaid||0), 0);
+    const dbD = matched.reduce((s,r) => s+(r.dbPaid||0), 0) + dbOnly.reduce((s,r) => s+(r.dbPaid||0), 0);
+    const mmPD = mm.reduce((s,r) => s+(r.pledgeDiff||0), 0);
+    const mmDD = mm.reduce((s,r) => s+(r.paidDiff||0), 0);
 
-    const mismatchPledgeDiff = mismatched.reduce((s, r) => s + (r.pledgeDiff || 0), 0);
-    const mismatchPaidDiff = mismatched.reduce((s, r) => s + (r.paidDiff || 0), 0);
-
-    const xlOnlyPledge = xlOnly.reduce((s, r) => s + (r.xlAmount || 0), 0);
-    const xlOnlyPaid = xlOnly.reduce((s, r) => s + (r.xlPaid || 0), 0);
-    const dbOnlyPledge = dbOnly.reduce((s, r) => s + (r.dbPledged || 0), 0);
-    const dbOnlyPaid = dbOnly.reduce((s, r) => s + (r.dbPaid || 0), 0);
+    function diffCell(a, b) {
+      const d = a - b;
+      return `<td class="text-end fw-semibold ${Math.abs(d) > 0.01 ? 'dc-val-diff' : 'dc-val-ok'}">${fmtMoney(d)}</td>`;
+    }
 
     el('financialSummary').innerHTML = `
-      <div class="row g-3">
-        <div class="col-md-6">
-          <h6 class="fw-bold mb-2"><i class="fas fa-chart-bar me-1 text-primary"></i>Totals Comparison</h6>
-          <table class="table table-sm table-bordered mb-0">
-            <thead class="table-light"><tr><th></th><th class="text-end">Excel</th><th class="text-end">Database</th><th class="text-end">Difference</th></tr></thead>
+      <div class="row g-4">
+        <div class="col-lg-6">
+          <div style="font-size:0.75rem;font-weight:600;color:var(--gray-500);text-transform:uppercase;letter-spacing:0.3px;margin-bottom:8px;">
+            <i class="fas fa-scale-balanced me-1" style="color:var(--primary);"></i>Totals Comparison
+          </div>
+          <table class="table table-sm dc-summary-table mb-0">
+            <thead><tr><th></th><th class="text-end">Excel</th><th class="text-end">Database</th><th class="text-end">Difference</th></tr></thead>
             <tbody>
-              <tr><td class="fw-semibold">Total Pledged</td><td class="text-end">${fmtMoney(sumXlPledge)}</td><td class="text-end">${fmtMoney(sumDbPledge)}</td><td class="text-end ${Math.abs(sumXlPledge - sumDbPledge) > 0.01 ? 'dc-diff' : 'dc-same'}">${fmtMoney(sumXlPledge - sumDbPledge)}</td></tr>
-              <tr><td class="fw-semibold">Total Paid</td><td class="text-end">${fmtMoney(sumXlPaid)}</td><td class="text-end">${fmtMoney(sumDbPaid)}</td><td class="text-end ${Math.abs(sumXlPaid - sumDbPaid) > 0.01 ? 'dc-diff' : 'dc-same'}">${fmtMoney(sumXlPaid - sumDbPaid)}</td></tr>
+              <tr><td class="fw-semibold" style="color:var(--gray-800);">Total Pledged</td><td class="text-end">${fmtMoney(xlP)}</td><td class="text-end">${fmtMoney(dbP)}</td>${diffCell(xlP, dbP)}</tr>
+              <tr><td class="fw-semibold" style="color:var(--gray-800);">Total Paid</td><td class="text-end">${fmtMoney(xlD)}</td><td class="text-end">${fmtMoney(dbD)}</td>${diffCell(xlD, dbD)}</tr>
             </tbody>
           </table>
         </div>
-        <div class="col-md-6">
-          <h6 class="fw-bold mb-2"><i class="fas fa-exclamation-circle me-1 text-danger"></i>Discrepancy Breakdown</h6>
-          <table class="table table-sm table-bordered mb-0">
+        <div class="col-lg-6">
+          <div style="font-size:0.75rem;font-weight:600;color:var(--gray-500);text-transform:uppercase;letter-spacing:0.3px;margin-bottom:8px;">
+            <i class="fas fa-magnifying-glass-chart me-1" style="color:var(--danger);"></i>Discrepancy Breakdown
+          </div>
+          <table class="table table-sm dc-summary-table mb-0">
             <tbody>
-              <tr><td>Mismatched records (pledge diff total)</td><td class="text-end fw-semibold">${fmtMoney(mismatchPledgeDiff)}</td></tr>
-              <tr><td>Mismatched records (paid diff total)</td><td class="text-end fw-semibold">${fmtMoney(mismatchPaidDiff)}</td></tr>
-              <tr><td>Excel-only records (pledge total)</td><td class="text-end">${fmtMoney(xlOnlyPledge)}</td></tr>
-              <tr><td>Excel-only records (paid total)</td><td class="text-end">${fmtMoney(xlOnlyPaid)}</td></tr>
-              <tr><td>DB-only records (pledge total)</td><td class="text-end">${fmtMoney(dbOnlyPledge)}</td></tr>
-              <tr><td>DB-only records (paid total)</td><td class="text-end">${fmtMoney(dbOnlyPaid)}</td></tr>
+              <tr><td>Mismatched — pledge diff</td><td class="text-end fw-semibold">${fmtMoney(mmPD)}</td></tr>
+              <tr><td>Mismatched — paid diff</td><td class="text-end fw-semibold">${fmtMoney(mmDD)}</td></tr>
+              <tr><td>Excel-only — pledged</td><td class="text-end">${fmtMoney(xlOnly.reduce((s,r) => s+(r.xlAmount||0), 0))}</td></tr>
+              <tr><td>Excel-only — paid</td><td class="text-end">${fmtMoney(xlOnly.reduce((s,r) => s+(r.xlPaid||0), 0))}</td></tr>
+              <tr><td>DB-only — pledged</td><td class="text-end">${fmtMoney(dbOnly.reduce((s,r) => s+(r.dbPledged||0), 0))}</td></tr>
+              <tr><td>DB-only — paid</td><td class="text-end">${fmtMoney(dbOnly.reduce((s,r) => s+(r.dbPaid||0), 0))}</td></tr>
             </tbody>
           </table>
         </div>
@@ -741,39 +687,22 @@ $currency = htmlspecialchars($settings['currency_code'] ?? 'GBP', ENT_QUOTES, 'U
   }
 
   // --- Export ---
-  el('exportResultsBtn').addEventListener('click', () => {
-    if (filteredResults.length === 0) { alert('No data to export.'); return; }
-    const headers = ['#','Status','Name (XL)','Name (DB)','Phone','Pledged (XL)','Pledged (DB)','Pledge Diff','Paid (XL)','Paid (DB)','Paid Diff','City (XL)','Data Source','DB Status'];
+  el('exportBtn').addEventListener('click', () => {
+    if (!filteredResults.length) { alert('No data to export.'); return; }
+    const h = ['#','Status','Name (XL)','Name (DB)','Phone','Pledged (XL)','Pledged (DB)','Pledge Diff','Paid (XL)','Paid (DB)','Paid Diff','City','Data Source','DB Status'];
     const rows = filteredResults.map(r => [
-      r.xlIdx || (r.dbId ? 'DB#' + r.dbId : ''),
-      r.status,
-      r.xlName, r.dbName,
-      r.xlPhone || r.dbPhone,
-      r.xlAmount !== null ? r.xlAmount : '',
-      r.dbPledged !== null ? r.dbPledged : '',
-      r.pledgeDiff !== null ? r.pledgeDiff : '',
-      r.xlPaid !== null ? r.xlPaid : '',
-      r.dbPaid !== null ? r.dbPaid : '',
-      r.paidDiff !== null ? r.paidDiff : '',
-      r.xlCity,
-      r.dbSource,
-      r.dbStatus,
+      r.xlIdx||(r.dbId?'#'+r.dbId:''), r.status, r.xlName, r.dbName, r.xlPhone||r.dbPhone,
+      r.xlAmount??'', r.dbPledged??'', r.pledgeDiff??'', r.xlPaid??'', r.dbPaid??'', r.paidDiff??'',
+      r.xlCity||r.dbCity, r.dbSource, r.dbStatus
     ]);
-    const csv = [headers.join(','), ...rows.map(row => row.map(c => '"' + String(c).replace(/"/g, '""') + '"').join(','))].join('\n');
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+    const csv = [h.join(','), ...rows.map(r => r.map(c => '"'+String(c).replace(/"/g,'""')+'"').join(','))].join('\n');
     const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
+    a.href = URL.createObjectURL(new Blob([csv], {type:'text/csv'}));
     a.download = 'data-comparison-' + new Date().toISOString().slice(0,10) + '.csv';
     a.click();
-    URL.revokeObjectURL(a.href);
   });
 
-  // --- Re-upload ---
-  el('reuploadBtn').addEventListener('click', () => {
-    el('resultsSection').style.display = 'none';
-    resetUpload();
-  });
-
+  el('reuploadBtn').addEventListener('click', () => { el('resultsSection').style.display = 'none'; resetAll(); });
 })();
 </script>
 </body>
