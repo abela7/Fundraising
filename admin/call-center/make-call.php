@@ -31,7 +31,13 @@ try {
     }
     
     // If queue_id is 0, donor is not in queue - that's okay, we can still call them
-    
+
+    $hasDataSource = false;
+    $dsCheck = $db->query("SHOW COLUMNS FROM donors LIKE 'data_source'");
+    if ($dsCheck && $dsCheck->num_rows > 0) {
+        $hasDataSource = true;
+    }
+
     // Get donor information
     $donor_query = "
         SELECT 
@@ -59,6 +65,7 @@ try {
             ) as registrar_name,
             (SELECT created_at FROM pledges WHERE donor_id = d.id AND status = 'approved' ORDER BY created_at DESC LIMIT 1) as pledge_date,
             (SELECT call_started_at FROM call_center_sessions WHERE donor_id = d.id ORDER BY call_started_at DESC LIMIT 1) as last_call_date
+            " . ($hasDataSource ? ", d.data_source" : ", 'new_system' AS data_source") . "
         FROM donors d
         LEFT JOIN call_center_queues q ON q.donor_id = d.id AND q.id = ?
         WHERE d.id = ?
@@ -169,6 +176,20 @@ $page_title = 'Call: ' . $donor->name;
         .donor-name-header .phone-link:focus {
             color: white !important;
             text-decoration: none;
+        }
+
+        .donor-source-tag {
+            display: inline-block;
+            font-size: 0.65rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            padding: 0.2rem 0.5rem;
+            margin-left: 0.5rem;
+            background: rgba(255, 255, 255, 0.25);
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            border-radius: 4px;
+            vertical-align: middle;
         }
         
         /* Info Grid - Compact */
@@ -493,6 +514,9 @@ $page_title = 'Call: ' . $donor->name;
                     <h2>
                         <i class="fas fa-user-circle"></i>
                         <?php echo htmlspecialchars($donor->name); ?>
+                        <?php if (!empty($donor->data_source) && $donor->data_source === 'old_system'): ?>
+                        <span class="donor-source-tag">Old data</span>
+                        <?php endif; ?>
                     </h2>
                     <a href="tel:<?php echo htmlspecialchars($donor->phone); ?>" class="phone-link">
                         <i class="fas fa-phone"></i>
