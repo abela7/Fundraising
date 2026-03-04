@@ -430,7 +430,7 @@ $currency = htmlspecialchars($settings['currency_code'] ?? 'GBP', ENT_QUOTES, 'U
         if (!dbJson.success) throw new Error(dbJson.error || 'API error');
         dbData = dbJson.donors;
 
-        setLoading(true, 'Comparing ' + json.length + ' Excel rows with ' + dbData.length + ' database donors...', 80);
+        setLoading(true, 'Comparing ' + parsed.rows.length + ' Excel rows with ' + dbData.length + ' database donors...', 80);
         await new Promise(r => setTimeout(r, 100));
 
         compare();
