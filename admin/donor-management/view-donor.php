@@ -3159,7 +3159,7 @@ function formatDateTime($date) {
                                                                     title="Edit Pledge">
                                                                 <i class="fas fa-edit"></i>
                                                             </button>
-                                                            <a href="delete-pledge.php?id=<?php echo $pledge['id']; ?>&donor_id=<?php echo $donor_id; ?>&confirm=no" 
+                                                            <a href="delete-pledge.php?id=<?php echo $pledge['id']; ?>&donor_id=<?php echo $donor_id; ?>&step=1" 
                                                                class="btn btn-sm btn-danger" 
                                                                title="Delete Pledge">
                                                                 <i class="fas fa-trash-alt"></i>
