@@ -63,6 +63,7 @@ $page_title = 'Outstanding Pledged - Detail';
         .ptp-sortable.ptp-sort-active .ptp-sort-icon { opacity: 1; color: var(--primary); }
         .ptp-data-card .table tbody td { padding: 10px 16px; vertical-align: middle; font-size: 0.875rem; border-bottom: 1px solid var(--gray-50); }
         .ptp-data-card .table tbody tr:hover { background: var(--gray-50); }
+        .ptp-data-card .table tbody tr.ptp-row-clickable { cursor: pointer; }
         .ptp-data-card .table tbody tr:last-child td { border-bottom: none; }
         .ptp-donor-link { font-weight: 600; color: var(--primary); text-decoration: none; }
         .ptp-donor-link:hover { color: var(--primary-dark); text-decoration: underline; }
@@ -184,6 +185,32 @@ $page_title = 'Outstanding Pledged - Detail';
                     <span id="errorMessage">Failed to load data.</span>
                 </div>
 
+                <!-- Calculation Breakdown Modal -->
+                <div class="modal fade" id="breakdownModal" tabindex="-1" aria-labelledby="breakdownModalLabel" aria-hidden="true">
+                    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title" id="breakdownModalLabel">
+                                    <i class="fas fa-calculator me-2"></i><span id="breakdownDonorName">—</span>
+                                </h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                            </div>
+                            <div class="modal-body" id="breakdownBody">
+                                <div class="text-center py-5" id="breakdownLoading">
+                                    <div class="spinner-border text-primary" role="status"></div>
+                                    <p class="mt-2 mb-0 text-muted">Loading calculation from database...</p>
+                                </div>
+                                <div id="breakdownContent" class="d-none"></div>
+                                <div id="breakdownError" class="alert alert-danger d-none"></div>
+                            </div>
+                            <div class="modal-footer">
+                                <a href="#" id="breakdownViewDonorLink" class="btn btn-primary" target="_blank"><i class="fas fa-user me-1"></i>View Donor Profile</a>
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
             </div>
         </main>
     </div>
@@ -275,10 +302,10 @@ $page_title = 'Outstanding Pledged - Detail';
     const startNum = (data.page - 1) * data.per_page + 1;
     body.innerHTML = rows.map((r, i) => {
       const num = startNum + i;
-      const donorLink = `<a href="../donor-management/view-donor.php?id=${r.id}" class="ptp-donor-link">${escapeHtml(r.donor_name || 'Unknown')}</a>`;
+      const donorLink = `<a href="../donor-management/view-donor.php?id=${r.id}" class="ptp-donor-link" onclick="event.stopPropagation()">${escapeHtml(r.donor_name || 'Unknown')}</a>`;
       const statusBadge = r.payment_status ? `<span class="badge bg-warning text-dark">${escapeHtml(r.payment_status)}</span>` : '';
       return `
-        <tr>
+        <tr class="ptp-row-clickable" data-donor-id="${r.id}" data-donor-name="${escapeHtml(r.donor_name || 'Unknown')}">
           <td>${num}</td>
           <td>
             <div>${donorLink}</div>
@@ -288,12 +315,16 @@ $page_title = 'Outstanding Pledged - Detail';
           <td class="text-end text-success">${escapeHtml(fmtMoney(r.total_paid))}</td>
           <td class="text-end fw-semibold text-warning">${escapeHtml(fmtMoney(r.balance))}</td>
           <td>${statusBadge}</td>
-          <td>
+          <td onclick="event.stopPropagation()">
             <a href="../donor-management/view-donor.php?id=${r.id}" class="btn btn-sm btn-outline-primary" title="View donor"><i class="fas fa-user"></i></a>
           </td>
         </tr>
       `;
     }).join('');
+
+    body.querySelectorAll('tr.ptp-row-clickable').forEach(tr => {
+      tr.addEventListener('click', () => openBreakdownModal(tr.dataset.donorId, tr.dataset.donorName));
+    });
   }
 
   function renderPagination(data) {
@@ -339,6 +370,104 @@ $page_title = 'Outstanding Pledged - Detail';
         load(parseInt(a.dataset.page, 10));
       });
     });
+  }
+
+  function fmtDate(dateStr) {
+    if (!dateStr) return '—';
+    try {
+      const d = new Date(dateStr);
+      return isNaN(d.getTime()) ? dateStr : d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+    } catch (_) { return dateStr; }
+  }
+
+  function openBreakdownModal(donorId, donorName) {
+    const modal = new bootstrap.Modal(document.getElementById('breakdownModal'));
+    document.getElementById('breakdownDonorName').textContent = donorName || 'Donor';
+    document.getElementById('breakdownViewDonorLink').href = `../donor-management/view-donor.php?id=${donorId}`;
+    document.getElementById('breakdownLoading').classList.remove('d-none');
+    document.getElementById('breakdownContent').classList.add('d-none');
+    document.getElementById('breakdownError').classList.add('d-none');
+    modal.show();
+
+    fetch(`api/donor-breakdown.php?donor_id=${donorId}`, { method: 'GET', credentials: 'same-origin', headers: { 'Accept': 'application/json' } })
+      .then(r => r.json())
+      .then(data => {
+        document.getElementById('breakdownLoading').classList.add('d-none');
+        if (data.error) {
+          document.getElementById('breakdownError').textContent = data.message || data.error || 'Failed to load breakdown.';
+          document.getElementById('breakdownError').classList.remove('d-none');
+          return;
+        }
+        renderBreakdownContent(data);
+        document.getElementById('breakdownContent').classList.remove('d-none');
+      })
+      .catch(err => {
+        document.getElementById('breakdownLoading').classList.add('d-none');
+        document.getElementById('breakdownError').textContent = 'Failed to load calculation: ' + (err && err.message ? err.message : 'Unknown error');
+        document.getElementById('breakdownError').classList.remove('d-none');
+      });
+  }
+
+  function renderBreakdownContent(data) {
+    const b = data.breakdown || {};
+    const pledges = b.pledges || [];
+    const paymentsDirect = b.payments_direct || [];
+    const pledgePayments = b.pledge_payments || [];
+    const pledgedTotal = b.pledged_total || 0;
+    const directTotal = b.direct_total || 0;
+    const ppTotal = b.pledge_payments_total || 0;
+    const paidTotal = b.paid_total || 0;
+    const calcBalance = b.calculated_balance || 0;
+    const mismatch = b.balance_mismatch || false;
+    const storedBalance = data.donor && data.donor.balance !== undefined ? data.donor.balance : 0;
+
+    let pledgedHtml = pledges.length === 0
+      ? '<p class="mb-0 text-muted">— No approved pledges</p>'
+      : '<ul class="list-unstyled mb-0 small">' + pledges.map(p =>
+          `<li>Pledge #${p.id}: ${fmtMoney(p.amount)} <span class="text-muted">(${fmtDate(p.created_at)})</span></li>`
+        ).join('') + '</ul><p class="mb-0 mt-1 fw-bold">Total: ' + fmtMoney(pledgedTotal) + '</p>';
+
+    let paidHtml = '';
+    if (paymentsDirect.length === 0 && pledgePayments.length === 0) {
+      paidHtml = '<p class="mb-0 text-muted">— No payments</p>';
+    } else {
+      if (paymentsDirect.length > 0) {
+        paidHtml += '<span class="text-muted d-block">Direct payments:</span><ul class="list-unstyled mb-1 small">' +
+          paymentsDirect.map(pd => `<li>Payment #${pd.id}: ${fmtMoney(pd.amount)} <span class="text-muted">(${fmtDate(pd.payment_date)})</span></li>`).join('') +
+          '</ul><span class="text-muted">Subtotal: ' + fmtMoney(directTotal) + '</span><br>';
+      }
+      if (pledgePayments.length > 0) {
+        paidHtml += '<span class="text-muted d-block mt-1">Pledge payments:</span><ul class="list-unstyled mb-1 small">' +
+          pledgePayments.map(pp => `<li>Pledge payment #${pp.id}: ${fmtMoney(pp.amount)} <span class="text-muted">(${fmtDate(pp.payment_date)})</span></li>`).join('') +
+          '</ul><span class="text-muted">Subtotal: ' + fmtMoney(ppTotal) + '</span><br>';
+      }
+      paidHtml += '<p class="mb-0 mt-1 fw-bold">Total: ' + fmtMoney(paidTotal) + '</p>';
+    }
+
+    let outstandingHtml = `<p class="mb-0">${fmtMoney(pledgedTotal)} − ${fmtMoney(paidTotal)} = <strong>${fmtMoney(calcBalance)}</strong></p>`;
+    if (mismatch) {
+      outstandingHtml += `<p class="mb-0 mt-2 text-danger small"><i class="fas fa-exclamation-triangle me-1"></i>Stored balance (${fmtMoney(storedBalance)}) differs from calculated. Use Recalculate on donor profile to sync.</p>`;
+    }
+
+    document.getElementById('breakdownContent').innerHTML = `
+      <div class="row g-3">
+        <div class="col-md-4">
+          <strong class="text-primary">Pledged</strong>
+          <p class="mb-1 text-muted small">Sum of approved pledges:</p>
+          ${pledgedHtml}
+        </div>
+        <div class="col-md-4">
+          <strong class="text-success">Paid</strong>
+          <p class="mb-1 text-muted small">Approved payments + confirmed pledge payments:</p>
+          ${paidHtml}
+        </div>
+        <div class="col-md-4">
+          <strong class="text-warning">Outstanding</strong>
+          <p class="mb-1 text-muted small">Pledged − Paid:</p>
+          ${outstandingHtml}
+        </div>
+      </div>
+    `;
   }
 
   function updateSummary(data) {
