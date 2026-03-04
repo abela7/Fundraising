@@ -404,33 +404,37 @@ $page_title = 'Financial Dashboard';
                             </div>
 
                             <div class="col-xl-3 col-md-6">
-                                <div class="card border-0 shadow-sm h-100 kpi-card">
-                                    <div class="card-body">
-                                        <div class="d-flex align-items-center">
-                                            <div class="icon-circle bg-dark text-white"><i class="fas fa-person-walking"></i></div>
-                                            <div class="ms-3 flex-grow-1">
-                                                <div class="kpi-label fw-bold">Donors Paying</div>
-                                                <div class="kpi-value" id="pledgeDonorsPaying">—</div>
-                                                <div class="kpi-sub">Pledge donors currently paying</div>
+                                <a href="donors-by-status.php?status=paying" class="text-decoration-none text-body d-block">
+                                    <div class="card border-0 shadow-sm h-100 kpi-card clickable-card">
+                                        <div class="card-body">
+                                            <div class="d-flex align-items-center">
+                                                <div class="icon-circle bg-dark text-white"><i class="fas fa-person-walking"></i></div>
+                                                <div class="ms-3 flex-grow-1">
+                                                    <div class="kpi-label fw-bold">Donors Paying</div>
+                                                    <div class="kpi-value" id="pledgeDonorsPaying">—</div>
+                                                    <div class="kpi-sub">Pledge donors currently paying <i class="fas fa-external-link-alt ms-1 small opacity-75"></i></div>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
-                                </div>
+                                </a>
                             </div>
 
                             <div class="col-xl-3 col-md-6">
-                                <div class="card border-0 shadow-sm h-100 kpi-card">
-                                    <div class="card-body">
-                                        <div class="d-flex align-items-center">
-                                            <div class="icon-circle bg-secondary text-white"><i class="fas fa-flag-checkered"></i></div>
-                                            <div class="ms-3 flex-grow-1">
-                                                <div class="kpi-label fw-bold">Donors Completed</div>
-                                                <div class="kpi-value" id="pledgeDonorsCompleted">—</div>
-                                                <div class="kpi-sub">Pledge donors paid in full</div>
+                                <a href="donors-by-status.php?status=completed" class="text-decoration-none text-body d-block">
+                                    <div class="card border-0 shadow-sm h-100 kpi-card clickable-card">
+                                        <div class="card-body">
+                                            <div class="d-flex align-items-center">
+                                                <div class="icon-circle bg-secondary text-white"><i class="fas fa-flag-checkered"></i></div>
+                                                <div class="ms-3 flex-grow-1">
+                                                    <div class="kpi-label fw-bold">Donors Completed</div>
+                                                    <div class="kpi-value" id="pledgeDonorsCompleted">—</div>
+                                                    <div class="kpi-sub">Pledge donors paid in full <i class="fas fa-external-link-alt ms-1 small opacity-75"></i></div>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
-                                </div>
+                                </a>
                             </div>
                         </div>
 
