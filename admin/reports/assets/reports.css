@@ -62,31 +62,50 @@
     background-color: #f8f9fa;
 }
 
-/* Button Enhancements */
+/* Button Enhancements - DESIGN.md compliant */
 .btn {
-    border-radius: 6px;
+    border-radius: 8px;
     font-weight: 500;
-    transition: all 0.2s ease;
+    font-size: 0.875rem;
+    transition: all var(--transition-fast);
 }
 
 .btn:hover {
     transform: translateY(-1px);
 }
 
+.btn-outline-primary {
+    color: var(--primary);
+    border-color: var(--primary);
+}
+
+.btn-outline-secondary {
+    color: var(--gray-700);
+    border-color: var(--gray-200);
+}
+
+.btn-outline-secondary:hover {
+    background-color: var(--gray-100);
+    border-color: var(--gray-300);
+    color: var(--gray-800);
+}
+
 .btn-outline-primary:hover {
-    background-color: #0d6efd;
-    border-color: #0d6efd;
+    background-color: var(--primary);
+    border-color: var(--primary);
+    color: var(--white);
 }
 
 .btn-outline-success:hover {
-    background-color: #198754;
-    border-color: #198754;
+    background-color: var(--success);
+    border-color: var(--success);
+    color: var(--white);
 }
 
 .btn-outline-info:hover {
-    background-color: #0dcaf0;
-    border-color: #0dcaf0;
-    color: #000;
+    background-color: var(--info);
+    border-color: var(--info);
+    color: var(--white);
 }
 
 /* Card Headers */
@@ -102,9 +121,9 @@
 
 /* Quick Date Range Buttons */
 .btn-outline-primary.active {
-    background-color: #0d6efd;
-    border-color: #0d6efd;
-    color: #fff;
+    background-color: var(--primary);
+    border-color: var(--primary);
+    color: var(--white);
 }
 
 /* ============================================
@@ -654,8 +673,8 @@
 }
 
 .form-control:focus {
-    border-color: #0d6efd;
-    box-shadow: 0 0 0 0.2rem rgba(13,110,253,.25);
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(10, 98, 134, 0.1);
 }
 
 /* Additional spacing */
@@ -814,13 +833,13 @@
 }
 
 #datePickerPanel .nav-pills .nav-link:hover {
-    background: rgba(13, 110, 253, 0.1);
+    background: rgba(10, 98, 134, 0.1);
 }
 
 #datePickerPanel .nav-pills .nav-link.active {
-    background: #0d6efd;
-    color: white;
-    box-shadow: 0 2px 8px rgba(13, 110, 253, 0.3);
+    background: var(--primary);
+    color: var(--white);
+    box-shadow: 0 2px 8px rgba(10, 98, 134, 0.3);
 }
 
 #datePickerPanel .tab-pane {
@@ -837,8 +856,8 @@
 
 #datePickerPanel input[type="date"]:focus,
 #datePickerPanel select:focus {
-    border-color: #0d6efd;
-    box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.15);
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(10, 98, 134, 0.1);
 }
 
 #datePickerPanel .btn-primary {

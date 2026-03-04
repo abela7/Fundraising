@@ -321,16 +321,16 @@ $page_title = 'Financial Dashboard';
 
                         <div class="d-flex flex-wrap gap-2 justify-content-between align-items-center mb-2">
                             <div>
-                                <h5 class="mb-0"><i class="fas fa-hand-holding-usd text-success me-2"></i>Pledge Payments</h5>
-                                <div class="text-muted small">
+                                <h5 class="mb-0"><i class="fas fa-hand-holding-usd me-2" style="color:var(--success)"></i>Pledge Payments</h5>
+                                <div class="text-muted small" style="color:var(--gray-500); font-size:0.875rem">
                                     This tab focuses only on pledges and pledge payments: who is paying, who is completed, and how collection is trending.
                                 </div>
                             </div>
-                            <div class="d-flex gap-2">
-                                <a href="source-tables.php" class="btn btn-outline-secondary btn-sm">
+                            <div class="d-flex gap-2 align-items-center">
+                                <a href="source-tables.php" class="btn btn-outline-primary btn-sm">
                                     <i class="fas fa-database me-1"></i>Source Tables
                                 </a>
-                                <a href="data-comparison.php" class="btn btn-outline-primary btn-sm">
+                                <a href="data-comparison.php" class="btn btn-outline-secondary btn-sm">
                                     <i class="fas fa-code-compare me-1"></i>Compare with Excel
                                 </a>
                             </div>
