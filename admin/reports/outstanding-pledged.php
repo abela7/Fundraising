@@ -135,7 +135,7 @@ $page_title = 'Outstanding Pledged - Detail';
                         <div class="ptp-stat-icon warning"><i class="fas fa-pound-sign"></i></div>
                         <div>
                             <div class="ptp-stat-value" id="summaryTotal">—</div>
-                            <div class="ptp-stat-label">Total Outstanding (filtered)</div>
+                            <div class="ptp-stat-label">Total Outstanding</div>
                             <div class="ptp-stat-label mt-1" id="summarySub" style="font-size: 0.75rem; text-transform: none;">—</div>
                         </div>
                     </div>

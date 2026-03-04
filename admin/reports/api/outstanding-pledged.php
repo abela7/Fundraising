@@ -12,6 +12,14 @@ require_admin();
 try {
     $db = db();
 
+    // Use same Outstanding formula as Financial Dashboard: pledges - pledge_payments (single source of truth)
+    $hasPledgePayments = $db->query("SHOW TABLES LIKE 'pledge_payments'")->num_rows > 0;
+    $pledgesSum = (float)($db->query("SELECT COALESCE(SUM(amount),0) FROM pledges WHERE status = 'approved'")->fetch_row()[0] ?? 0);
+    $ppSum = $hasPledgePayments
+        ? (float)($db->query("SELECT COALESCE(SUM(amount),0) FROM pledge_payments WHERE status = 'confirmed'")->fetch_row()[0] ?? 0)
+        : 0;
+    $canonicalOutstanding = max(0.0, $pledgesSum - $ppSum);
+
     $donorSearch = trim($_GET['donor'] ?? '');
     $balanceMismatchOnly = !empty($_GET['balance_mismatch']);
     $page = max(1, (int)($_GET['page'] ?? 1));
@@ -72,16 +80,19 @@ try {
         $totalRows = (int)($db->query($countSql)->fetch_assoc()['total'] ?? 0);
     }
 
-    $sumSql = "SELECT COALESCE(SUM(d.balance), 0) as total_outstanding FROM donors d {$whereClause}";
+    // Use canonical total (pledges - pledge_payments) to match dashboard; show donor sum only when filtered
+    $donorSumSql = "SELECT COALESCE(SUM(d.balance), 0) as donor_sum FROM donors d {$whereClause}";
+    $donorSum = 0;
     if (!empty($params)) {
-        $stmt = $db->prepare($sumSql);
+        $stmt = $db->prepare($donorSumSql);
         $stmt->bind_param($types, ...$params);
         $stmt->execute();
-        $totalOutstanding = (float)($stmt->get_result()->fetch_assoc()['total_outstanding'] ?? 0);
+        $donorSum = (float)($stmt->get_result()->fetch_assoc()['donor_sum'] ?? 0);
         $stmt->close();
     } else {
-        $totalOutstanding = (float)($db->query($sumSql)->fetch_assoc()['total_outstanding'] ?? 0);
+        $donorSum = (float)($db->query($donorSumSql)->fetch_assoc()['donor_sum'] ?? 0);
     }
+    $totalOutstanding = ($donorSearch !== '' || $balanceMismatchOnly) ? $donorSum : $canonicalOutstanding;
 
     $orderBy = "{$orderColumn} {$sortOrder}, d.name ASC";
     $cols = "d.id, d.name, d.phone, d.total_pledged, d.total_paid, d.balance";
