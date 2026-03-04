@@ -292,7 +292,7 @@ $currency = htmlspecialchars($settings['currency_code'] ?? 'GBP', ENT_QUOTES, 'U
 
   const el = id => document.getElementById(id);
 
-  // Known column name patterns for auto-detection (broadened to handle many Excel formats)
+  // Known column name patterns for auto-detection
   const KNOWN_COLUMNS = {
     name:   ['Name', 'name', 'Donor', 'donor', 'Full Name', 'full name', 'Donor Name', 'donor name', 'Fullname'],
     phone:  ['Mobile', 'mobile', 'Phone', 'phone', 'Telephone', 'Tel', 'Cell', 'Contact', 'Phone Number', 'Mobile Number'],
@@ -313,6 +313,62 @@ $currency = htmlspecialchars($settings['currency_code'] ?? 'GBP', ENT_QUOTES, 'U
       }
     }
     return mapped;
+  }
+
+  function findHeaderRow(ws) {
+    const range = XLSX.utils.decode_range(ws['!ref'] || 'A1');
+    for (let r = range.s.r; r <= Math.min(range.s.r + 15, range.e.r); r++) {
+      let cellCount = 0;
+      let hasNameLike = false;
+      for (let c = range.s.c; c <= range.e.c; c++) {
+        const addr = XLSX.utils.encode_cell({ r, c });
+        const cell = ws[addr];
+        if (cell && cell.v !== undefined && cell.v !== null && String(cell.v).trim() !== '') {
+          cellCount++;
+          const val = String(cell.v).trim().toLowerCase();
+          if (['name', 'donor', 'mobile', 'phone', 'amount', 'paid', 'amount paid'].includes(val)) {
+            hasNameLike = true;
+          }
+        }
+      }
+      if (cellCount >= 3 && hasNameLike) return r;
+    }
+    return 0;
+  }
+
+  function parseSheet(ws) {
+    const headerRowIdx = findHeaderRow(ws);
+    const range = XLSX.utils.decode_range(ws['!ref'] || 'A1');
+
+    const headers = [];
+    for (let c = range.s.c; c <= range.e.c; c++) {
+      const addr = XLSX.utils.encode_cell({ r: headerRowIdx, c });
+      const cell = ws[addr];
+      const val = (cell && cell.v !== undefined) ? String(cell.v).trim() : '';
+      headers.push(val || ('Col_' + c));
+    }
+
+    const rows = [];
+    for (let r = headerRowIdx + 1; r <= range.e.r; r++) {
+      const row = {};
+      let hasData = false;
+      for (let c = range.s.c; c <= range.e.c; c++) {
+        const addr = XLSX.utils.encode_cell({ r, c });
+        const cell = ws[addr];
+        const val = cell ? (cell.v !== undefined ? cell.v : '') : '';
+        row[headers[c - range.s.c]] = val;
+        if (val !== '' && val !== null && val !== undefined) hasData = true;
+      }
+      // Skip completely empty rows and separator rows
+      const nameCol = headers.find(h => h.toLowerCase() === 'name' || h.toLowerCase() === 'donor');
+      const hasName = nameCol && row[nameCol] && String(row[nameCol]).trim() !== '';
+      const phoneCol = headers.find(h => h.toLowerCase() === 'mobile' || h.toLowerCase() === 'phone');
+      const hasPhone = phoneCol && row[phoneCol] && String(row[phoneCol]).trim() !== '';
+      if (hasData && (hasName || hasPhone)) {
+        rows.push(row);
+      }
+    }
+    return { headers, rows, headerRow: headerRowIdx + 1 };
   }
 
   // --- Upload ---
@@ -351,23 +407,22 @@ $currency = htmlspecialchars($settings['currency_code'] ?? 'GBP', ENT_QUOTES, 'U
         setLoading(true, 'Parsing spreadsheet...', 30);
         const wb = XLSX.read(e.target.result, { type: 'array' });
         const ws = wb.Sheets[wb.SheetNames[0]];
-        const json = XLSX.utils.sheet_to_json(ws, { defval: '' });
+        const parsed = parseSheet(ws);
 
-        if (!json || json.length === 0) { alert('No data rows found in the file.'); setLoading(false); return; }
+        if (!parsed.rows || parsed.rows.length === 0) { alert('No data rows found in the file. Check that it has Name/Mobile columns.'); setLoading(false); return; }
 
-        xlData = json;
-        const headers = Object.keys(json[0]);
-        columnMap = autoDetectColumns(headers);
+        xlData = parsed.rows;
+        columnMap = autoDetectColumns(parsed.headers);
 
         const detected = Object.entries(columnMap).filter(([k,v]) => v).map(([k,v]) => k);
         if (!columnMap.name && !columnMap.phone) {
-          alert('Could not detect Name or Phone columns. Please check your Excel headers.');
+          alert('Could not detect Name or Phone columns. Found headers: ' + parsed.headers.join(', '));
           setLoading(false);
           return;
         }
 
         el('autoDetectBadge').classList.remove('d-none');
-        el('fileDetails').textContent = (file.size / 1024).toFixed(1) + ' KB · ' + json.length + ' rows · Detected: ' + detected.join(', ');
+        el('fileDetails').textContent = (file.size / 1024).toFixed(1) + ' KB · ' + parsed.rows.length + ' rows (header at row ' + parsed.headerRow + ') · Detected: ' + detected.join(', ');
 
         setLoading(true, 'Loading database donors...', 50);
         const res = await fetch('api/data-comparison.php', { credentials: 'same-origin', headers: { 'Accept': 'application/json' } });
