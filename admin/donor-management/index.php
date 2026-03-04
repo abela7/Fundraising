@@ -247,6 +247,23 @@ $db = db();
                     </div>
 
                     <div class="col-12 col-md-6 col-lg-4">
+                        <a href="deleted-pledges.php" class="text-decoration-none">
+                            <div class="feature-card card h-100 border-0 shadow-sm">
+                                <div class="card-body p-4">
+                                    <div class="d-flex align-items-center mb-2">
+                                        <div class="feature-icon bg-danger-subtle text-danger me-2">
+                                            <i class="fas fa-trash-alt"></i>
+                                        </div>
+                                        <h6 class="mb-0">Deleted Pledges History</h6>
+                                    </div>
+                                    <p class="card-text text-muted small">View history of deleted pledges (name, amount, date).</p>
+                                    <span class="badge bg-secondary badge-sm">Audit</span>
+                                </div>
+                            </div>
+                        </a>
+                    </div>
+
+                    <div class="col-12 col-md-6 col-lg-4">
                         <div class="feature-card card h-100 border-0 shadow-sm" style="opacity: 0.75;">
                             <div class="card-body p-4">
                                 <div class="d-flex align-items-center mb-2">

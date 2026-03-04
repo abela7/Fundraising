@@ -278,12 +278,15 @@ $statLogins = $db->query("SELECT COUNT(*) AS c FROM audit_logs WHERE action='log
                                     </div>
                                     <div class="col-md-4">
                                         <label class="form-label fw-bold">Quick Filters</label>
-                                        <div class="d-flex gap-2">
+                                        <div class="d-flex gap-2 flex-wrap">
                                             <a href="?action=approve" class="btn btn-sm btn-outline-success flex-fill">
                                                 <i class="fas fa-check me-1"></i>Approvals
                                             </a>
                                             <a href="?action=login" class="btn btn-sm btn-outline-info flex-fill">
                                                 <i class="fas fa-sign-in-alt me-1"></i>Logins
+                                            </a>
+                                            <a href="?action=delete&q=pledge" class="btn btn-sm btn-outline-danger flex-fill">
+                                                <i class="fas fa-trash me-1"></i>Pledge Deletions
                                             </a>
                                         </div>
                                     </div>
