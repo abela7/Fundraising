@@ -415,6 +415,11 @@ $filter_payment_method = (string)($_GET['filter_payment_method'] ?? '');
 $filter_payment_method = strtolower(trim($filter_payment_method));
 $filter_payment_method = in_array($filter_payment_method, $allowed_payment_methods, true) ? $filter_payment_method : '';
 
+$allowed_data_sources = ['old_system', 'new_system'];
+$filter_data_source = (string)($_GET['filter_data_source'] ?? '');
+$filter_data_source = strtolower(trim($filter_data_source));
+$filter_data_source = in_array($filter_data_source, $allowed_data_sources, true) ? $filter_data_source : '';
+
 // Determine default behavior based on user role
 if ($is_admin_user) {
     // Admins see ALL donors by default (unless they explicitly filter by agent)
@@ -446,6 +451,7 @@ if (!empty($filter_errors)) {
 
 // Get donors list with payment plan details
 $donors = [];
+$has_data_source = false;
 try {
     $user_id = (int)$current_user['id'];
     
@@ -456,6 +462,12 @@ try {
         $payment_columns[] = $col['Field'];
     }
     $payment_ref_col = in_array('transaction_ref', $payment_columns) ? 'transaction_ref' : 'reference';
+
+    $has_data_source = false;
+    $ds_check = $db->query("SHOW COLUMNS FROM donors LIKE 'data_source'");
+    if ($ds_check && $ds_check->num_rows > 0) {
+        $has_data_source = true;
+    }
     
     // Build WHERE conditions
     $where_conditions = [];
@@ -548,7 +560,14 @@ try {
         $params[] = $filter_payment_method;
         $types .= 's';
     }
-    
+
+    // Data source filter (old vs new system)
+    if ($has_data_source && $filter_data_source !== '') {
+        $where_conditions[] = "d.data_source = ?";
+        $params[] = $filter_data_source;
+        $types .= 's';
+    }
+
     // Search filter - search in name, phone, and reference numbers from pledges/payments
     if (!empty($search_term)) {
         $search_param = "%{$search_term}%";
@@ -601,6 +620,7 @@ try {
             d.preferred_language, d.preferred_payment_method, d.source, 
             d.total_pledged, d.total_paid, d.balance, d.payment_status, 
             d.created_at, d.updated_at, d.has_active_plan, d.active_payment_plan_id,
+            " . ($has_data_source ? "d.data_source," : "'new_system' AS data_source,") . "
             d.last_payment_date, d.last_sms_sent_at, d.login_count, d.admin_notes,
             d.registered_by_user_id, d.pledge_count, d.payment_count, d.achievement_badge,
             d.donor_type, d.agent_id,
@@ -1071,6 +1091,19 @@ unset($donor); // Break reference
                                         <option value="card" <?php echo $filter_payment_method === 'card' ? 'selected' : ''; ?>>Card</option>
                                     </select>
                                 </div>
+
+                                <?php if ($has_data_source): ?>
+                                <div class="col-12 col-sm-6 col-lg-3">
+                                    <label class="form-label small fw-bold mb-1">
+                                        <i class="fas fa-database me-1"></i>Data Source
+                                    </label>
+                                    <select class="form-select form-select-sm" id="filter_data_source" name="filter_data_source">
+                                        <option value="">All</option>
+                                        <option value="old_system" <?php echo $filter_data_source === 'old_system' ? 'selected' : ''; ?>>Old data</option>
+                                        <option value="new_system" <?php echo $filter_data_source === 'new_system' ? 'selected' : ''; ?>>New</option>
+                                    </select>
+                                </div>
+                                <?php endif; ?>
                                 
                                 <div class="col-12 mt-2">
                                     <div class="d-flex flex-wrap gap-2 align-items-center">
@@ -1125,6 +1158,11 @@ unset($donor); // Break reference
                                                         echo '≤ £' . number_format($filter_balance_max, 2);
                                                     }
                                                 ?>
+                                            </span>
+                                        <?php endif; ?>
+                                        <?php if ($has_data_source && $filter_data_source !== ''): ?>
+                                            <span class="badge <?php echo $filter_data_source === 'old_system' ? 'bg-warning text-dark' : 'bg-info'; ?>">
+                                                <i class="fas fa-database me-1"></i>Data: <?php echo $filter_data_source === 'old_system' ? 'Old' : 'New'; ?>
                                             </span>
                                         <?php endif; ?>
                                         <?php if ($filter_donor_type !== ''): ?>
@@ -1186,7 +1224,14 @@ unset($donor); // Break reference
                                     <?php $counter = 1; foreach ($donors as $donor): ?>
                                     <tr class="donor-row" style="cursor: pointer;" data-donor='<?php echo htmlspecialchars(json_encode($donor), ENT_QUOTES); ?>' title="Click to view details">
                                         <td data-label="#" class="text-muted fw-bold"><?php echo $counter++; ?></td>
-                                        <td data-label="Name" class="fw-bold"><?php echo htmlspecialchars($donor['name']); ?></td>
+                                        <td data-label="Name" class="fw-bold">
+                                            <?php echo htmlspecialchars($donor['name']); ?>
+                                            <?php if ($has_data_source && !empty($donor['data_source']) && $donor['data_source'] === 'old_system'): ?>
+                                            <span class="badge ms-1" style="font-size: 0.6rem; background: #fcd34d; color: #92400e;">Old</span>
+                                            <?php elseif ($has_data_source && !empty($donor['data_source'])): ?>
+                                            <span class="badge ms-1" style="font-size: 0.6rem; background: #34d399; color: #065f46;">New</span>
+                                            <?php endif; ?>
+                                        </td>
                                         <td data-label="Type">
                                             <?php if ($donor['donor_type'] === 'pledge'): ?>
                                                 <span class="badge bg-warning text-dark">Pledge</span>
