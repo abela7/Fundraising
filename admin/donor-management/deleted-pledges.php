@@ -12,6 +12,7 @@ require_admin();
 require_once __DIR__ . '/../includes/resilient_db_loader.php';
 
 $db = db();
+$current_user = current_user();
 $page_title = 'Deleted Pledges History';
 
 // Check if table exists
@@ -21,51 +22,64 @@ $table_exists = ($table_check && $table_check->num_rows > 0);
 $records = [];
 $total_count = 0;
 $total_amount = 0;
+$total_pages = 1;
+$load_error = '';
 $page = max(1, (int)($_GET['page'] ?? 1));
 $per_page = 25;
 $search = trim((string)($_GET['q'] ?? ''));
 
 if ($table_exists) {
-    $where = [];
-    $params = [];
-    $types = '';
-    if ($search !== '' && strlen($search) >= 2) {
-        $where[] = "(dp.donor_name LIKE ? OR dp.pledge_id = ?)";
-        $params[] = '%' . $search . '%';
-        $params[] = is_numeric($search) ? (int)$search : 0;
-        $types .= 'si';
-    }
-    $where_sql = $where ? 'WHERE ' . implode(' AND ', $where) : '';
+    try {
+        $where = [];
+        $params = [];
+        $types = '';
+        if ($search !== '' && strlen($search) >= 2) {
+            $where[] = "(dp.donor_name LIKE ? OR dp.pledge_id = ?)";
+            $params[] = '%' . $search . '%';
+            $params[] = is_numeric($search) ? (int)$search : 0;
+            $types .= 'si';
+        }
+        $where_sql = $where ? 'WHERE ' . implode(' AND ', $where) : '';
 
-    $count_sql = "SELECT COUNT(*) as c, COALESCE(SUM(amount), 0) as total FROM deleted_pledges dp $where_sql";
-    $cnt_stmt = $db->prepare($count_sql);
-    if ($types !== '') {
-        $cnt_stmt->bind_param($types, ...$params);
-    }
-    $cnt_stmt->execute();
-    $cnt_row = $cnt_stmt->get_result()->fetch_assoc();
-    $total_count = (int)($cnt_row['c'] ?? 0);
-    $total_amount = (float)($cnt_row['total'] ?? 0);
-    $cnt_stmt->close();
+        $count_sql = "SELECT COUNT(*) as c, COALESCE(SUM(amount), 0) as total FROM deleted_pledges dp $where_sql";
+        $cnt_stmt = $db->prepare($count_sql);
+        if ($types !== '') {
+            $p0 = $params[0];
+            $p1 = $params[1];
+            $cnt_stmt->bind_param($types, $p0, $p1);
+        }
+        $cnt_stmt->execute();
+        $cnt_row = $cnt_stmt->get_result()->fetch_assoc();
+        $total_count = (int)($cnt_row['c'] ?? 0);
+        $total_amount = (float)($cnt_row['total'] ?? 0);
+        $cnt_stmt->close();
 
-    $offset = ($page - 1) * $per_page;
-    $total_pages = (int)ceil($total_count / $per_page);
+        $offset = ($page - 1) * $per_page;
+        $total_pages = max(1, (int)ceil($total_count / $per_page));
 
-    $sql = "SELECT dp.*, u.name as deleted_by_name
-            FROM deleted_pledges dp
-            LEFT JOIN users u ON u.id = dp.deleted_by
-            $where_sql
-            ORDER BY dp.deleted_at DESC
-            LIMIT ? OFFSET ?";
-    $stmt = $db->prepare($sql);
-    if ($types !== '') {
-        $stmt->bind_param($types . 'ii', ...array_merge($params, [$per_page, $offset]));
-    } else {
-        $stmt->bind_param('ii', $per_page, $offset);
+        $limit_val = $per_page;
+        $offset_val = $offset;
+
+        $sql = "SELECT dp.*, u.name as deleted_by_name
+                FROM deleted_pledges dp
+                LEFT JOIN users u ON u.id = dp.deleted_by
+                $where_sql
+                ORDER BY dp.deleted_at DESC
+                LIMIT ? OFFSET ?";
+        $stmt = $db->prepare($sql);
+        if ($types !== '') {
+            $p0 = $params[0];
+            $p1 = $params[1];
+            $stmt->bind_param($types . 'ii', $p0, $p1, $limit_val, $offset_val);
+        } else {
+            $stmt->bind_param('ii', $limit_val, $offset_val);
+        }
+        $stmt->execute();
+        $records = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+        $stmt->close();
+    } catch (Throwable $e) {
+        $load_error = 'Error loading deleted pledges: ' . htmlspecialchars($e->getMessage());
     }
-    $stmt->execute();
-    $records = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
-    $stmt->close();
 }
 ?>
 <!DOCTYPE html>
@@ -106,11 +120,16 @@ if ($table_exists) {
                     </div>
                 </div>
 
+                <?php if ($load_error): ?>
+                <div class="alert alert-danger">
+                    <i class="fas fa-exclamation-triangle me-2"></i><?php echo $load_error; ?>
+                </div>
+                <?php endif; ?>
                 <?php if (!$table_exists): ?>
                 <div class="alert alert-info">
                     <i class="fas fa-info-circle me-2"></i>No deleted pledges recorded yet. The history table is created when the first pledge is deleted.
                 </div>
-                <?php else: ?>
+                <?php elseif (!$load_error): ?>
 
                 <div class="card shadow-sm mb-4">
                     <div class="card-body">
@@ -215,5 +234,8 @@ if ($table_exists) {
         </main>
     </div>
 </div>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="../assets/admin.js"></script>
+<script src="assets/donor-management.js"></script>
 </body>
 </html>
