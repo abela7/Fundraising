@@ -111,11 +111,19 @@ $page_title = 'Outstanding Pledged - Detail';
                 <div class="ptp-filter-bar animate-fade-in">
                     <div class="form-label mb-2"><i class="fas fa-filter me-1"></i>Filters</div>
                     <div class="row g-2 align-items-end">
-                        <div class="col-12 col-md-6">
+                        <div class="col-12 col-md-5">
                             <label class="form-label">Donor (name, phone)</label>
                             <input type="text" class="form-control form-control-sm" id="filterDonor" placeholder="Search...">
                         </div>
-                        <div class="col-12 col-md-2 d-flex gap-2">
+                        <div class="col-12 col-md-4 d-flex align-items-end">
+                            <div class="form-check mt-2 mt-md-0">
+                                <input class="form-check-input" type="checkbox" id="filterBalanceMismatch" title="Show only donors where stored balance differs from calculated">
+                                <label class="form-check-label small" for="filterBalanceMismatch">
+                                    <i class="fas fa-exclamation-triangle text-warning me-1"></i>Balance mismatch only
+                                </label>
+                            </div>
+                        </div>
+                        <div class="col-12 col-md-3 d-flex gap-2">
                             <button class="btn btn-primary btn-sm flex-fill" id="applyFilters"><i class="fas fa-search me-1"></i>Apply</button>
                             <button class="btn btn-outline-secondary btn-sm" id="clearFilters"><i class="fas fa-times me-1"></i>Clear</button>
                         </div>
@@ -177,7 +185,7 @@ $page_title = 'Outstanding Pledged - Detail';
 
                 <div class="alert ptp-alert-enhanced ptp-alert-warning d-none mt-3" id="noDataAlert" role="alert">
                     <i class="fas fa-info-circle"></i>
-                    <span><strong>No donors with outstanding balance found.</strong> Try adjusting your filters.</span>
+                    <span id="noDataMessage"><strong>No donors with outstanding balance found.</strong> Try adjusting your filters.</span>
                 </div>
 
                 <div class="alert ptp-alert-enhanced ptp-alert-danger d-none mt-3" id="errorAlert" role="alert">
@@ -253,6 +261,7 @@ $page_title = 'Outstanding Pledged - Detail';
     params.set('sort_order', sortState.sortOrder);
     const donor = document.getElementById('filterDonor').value.trim();
     if (donor) params.set('donor', donor);
+    if (document.getElementById('filterBalanceMismatch').checked) params.set('balance_mismatch', '1');
     return 'api/outstanding-pledged.php?' + params.toString();
   }
 
@@ -290,7 +299,12 @@ $page_title = 'Outstanding Pledged - Detail';
 
     const rows = data.rows || [];
     if (rows.length === 0) {
-      body.innerHTML = '<tr><td colspan="7"><div class="ptp-empty-state"><i class="fas fa-inbox"></i><p>No donors with outstanding balance match your filters.</p><button type="button" class="btn btn-sm btn-outline-primary mt-2" onclick="document.getElementById(\'clearFilters\').click()"><i class="fas fa-times me-1"></i>Clear Filters</button></div></td></tr>';
+      const mismatchOnly = document.getElementById('filterBalanceMismatch').checked;
+      const msg = mismatchOnly
+        ? 'No donors with balance mismatch found. Stored balance matches calculated for all filtered donors.'
+        : 'No donors with outstanding balance match your filters.';
+      document.getElementById('noDataMessage').innerHTML = `<strong>${msg}</strong>`;
+      body.innerHTML = '<tr><td colspan="7"><div class="ptp-empty-state"><i class="fas fa-inbox"></i><p>' + msg + '</p><button type="button" class="btn btn-sm btn-outline-primary mt-2" onclick="document.getElementById(\'clearFilters\').click()"><i class="fas fa-times me-1"></i>Clear Filters</button></div></td></tr>';
       noDataAlert.classList.remove('d-none');
       errorAlert.classList.add('d-none');
       return;
@@ -518,6 +532,7 @@ $page_title = 'Outstanding Pledged - Detail';
     params.set('sort_order', sortState.sortOrder);
     const donor = document.getElementById('filterDonor').value.trim();
     if (donor) params.set('donor', donor);
+    if (document.getElementById('filterBalanceMismatch').checked) params.set('balance_mismatch', '1');
 
     fetch('api/outstanding-pledged.php?' + params.toString(), { method: 'GET', credentials: 'same-origin', headers: { 'Accept': 'application/json' } })
       .then(r => r.json())
@@ -548,8 +563,10 @@ $page_title = 'Outstanding Pledged - Detail';
   }
 
   document.getElementById('applyFilters').addEventListener('click', () => load(1));
+  document.getElementById('filterBalanceMismatch').addEventListener('change', () => load(1));
   document.getElementById('clearFilters').addEventListener('click', () => {
     document.getElementById('filterDonor').value = '';
+    document.getElementById('filterBalanceMismatch').checked = false;
     load(1);
   });
   document.getElementById('perPage').addEventListener('change', () => load(1));

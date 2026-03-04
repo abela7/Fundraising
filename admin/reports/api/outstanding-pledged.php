@@ -13,6 +13,7 @@ try {
     $db = db();
 
     $donorSearch = trim($_GET['donor'] ?? '');
+    $balanceMismatchOnly = !empty($_GET['balance_mismatch']);
     $page = max(1, (int)($_GET['page'] ?? 1));
     $perPage = min(100, max(10, (int)($_GET['per_page'] ?? 25)));
     $offset = ($page - 1) * $perPage;
@@ -51,6 +52,23 @@ try {
         $params[] = $searchParam;
         $params[] = $searchParam;
         $types .= 'ss';
+    }
+
+    $hasPledgePayments = $db->query("SHOW TABLES LIKE 'pledge_payments'")->num_rows > 0;
+    $paymentsHasDonorId = $db->query("SHOW COLUMNS FROM payments LIKE 'donor_id'")->num_rows > 0;
+
+    if ($balanceMismatchOnly) {
+        $payCond = $paymentsHasDonorId
+            ? "(donor_phone = d.phone OR donor_id = d.id)"
+            : "donor_phone = d.phone";
+        $ppSub = $hasPledgePayments
+            ? " + COALESCE((SELECT SUM(amount) FROM pledge_payments WHERE donor_id = d.id AND status = 'confirmed'), 0)"
+            : "";
+        $where[] = "ABS(d.balance - (
+            COALESCE((SELECT SUM(amount) FROM pledges WHERE donor_id = d.id AND status = 'approved'), 0)
+            - COALESCE((SELECT SUM(amount) FROM payments WHERE {$payCond} AND status = 'approved'), 0)
+            {$ppSub}
+        )) > 0.01";
     }
 
     $whereClause = 'WHERE ' . implode(' AND ', $where);
@@ -132,7 +150,7 @@ try {
         'per_page' => $perPage,
         'total_pages' => $totalPages,
         'rows' => $rows,
-        'filters' => ['donor' => $donorSearch],
+        'filters' => ['donor' => $donorSearch, 'balance_mismatch' => $balanceMismatchOnly],
     ]);
 
 } catch (Exception $e) {
