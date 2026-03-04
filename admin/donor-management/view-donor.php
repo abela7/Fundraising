@@ -770,6 +770,52 @@ try {
         }
     }
 
+    // 8. Calculation breakdown (for Pledged, Paid, Balance transparency)
+    $calc_pledges = [];
+    $calc_payments_direct = [];
+    $calc_pledge_payments = [];
+    $pledge_breakdown_stmt = $db->prepare("SELECT id, amount, status, created_at FROM pledges WHERE donor_id = ? AND status = 'approved' ORDER BY created_at ASC");
+    $pledge_breakdown_stmt->bind_param('i', $donor_id);
+    $pledge_breakdown_stmt->execute();
+    $pr = $pledge_breakdown_stmt->get_result();
+    while ($row = $pr->fetch_assoc()) {
+        $calc_pledges[] = $row;
+    }
+    $pledge_breakdown_stmt->close();
+
+    $pay_phone = $donor['phone'] ?? '';
+    $pay_date_col = in_array('payment_date', $payment_columns) ? 'payment_date' : (in_array('received_at', $payment_columns) ? 'received_at' : 'created_at');
+    $pay_direct_stmt = $db->prepare("SELECT id, amount, status, {$pay_date_col} as payment_date FROM payments WHERE (donor_phone = ? OR donor_id = ?) AND status = 'approved' ORDER BY {$pay_date_col} ASC");
+    $pay_direct_stmt->bind_param('si', $pay_phone, $donor_id);
+    $pay_direct_stmt->execute();
+    $pdr = $pay_direct_stmt->get_result();
+    while ($row = $pdr->fetch_assoc()) {
+        $calc_payments_direct[] = $row;
+    }
+    $pay_direct_stmt->close();
+
+    $pp_date_col = 'payment_date';
+    if ($has_pledge_payments) {
+        $pp_col_check = $db->query("SHOW COLUMNS FROM pledge_payments LIKE 'payment_date'");
+        if (!$pp_col_check || $pp_col_check->num_rows === 0) {
+            $pp_date_col = 'created_at';
+        }
+        $pp_stmt = $db->prepare("SELECT id, amount, status, {$pp_date_col} as payment_date FROM pledge_payments WHERE donor_id = ? AND status = 'confirmed' ORDER BY {$pp_date_col} ASC");
+        $pp_stmt->bind_param('i', $donor_id);
+        $pp_stmt->execute();
+        $ppr = $pp_stmt->get_result();
+        while ($row = $ppr->fetch_assoc()) {
+            $calc_pledge_payments[] = $row;
+        }
+        $pp_stmt->close();
+    }
+
+    $calc_pledged_total = array_sum(array_column($calc_pledges, 'amount'));
+    $calc_direct_total = array_sum(array_column($calc_payments_direct, 'amount'));
+    $calc_pp_total = array_sum(array_column($calc_pledge_payments, 'amount'));
+    $calc_paid_total = $calc_direct_total + $calc_pp_total;
+    $calc_balance = max(0, $calc_pledged_total - $calc_paid_total);
+
 } catch (Exception $e) {
     die("Error loading donor profile: " . $e->getMessage());
 }
@@ -2955,6 +3001,69 @@ function formatDateTime($date) {
                         <button type="button" class="fin-edit-btn" data-bs-toggle="modal" data-bs-target="#editFinancialsModal" title="Edit">
                             <i class="fas fa-pen"></i>
                         </button>
+                    </div>
+
+                    <!-- Calculation Breakdown (how Pledged, Paid, Outstanding are derived) -->
+                    <div class="mt-3">
+                        <button class="btn btn-sm btn-outline-secondary w-100 text-start d-flex align-items-center justify-content-between" type="button" data-bs-toggle="collapse" data-bs-target="#calcBreakdown" aria-expanded="false">
+                            <span><i class="fas fa-calculator me-2"></i>How Pledged, Paid &amp; Outstanding are calculated</span>
+                            <i class="fas fa-chevron-down"></i>
+                        </button>
+                        <div class="collapse mt-2" id="calcBreakdown">
+                            <div class="card card-body bg-light small">
+                                <div class="row g-3">
+                                    <div class="col-md-4">
+                                        <strong class="text-primary">Pledged</strong>
+                                        <p class="mb-1 text-muted">Sum of approved pledges:</p>
+                                        <?php if (empty($calc_pledges)): ?>
+                                            <p class="mb-0">— No approved pledges</p>
+                                        <?php else: ?>
+                                            <ul class="list-unstyled mb-0">
+                                                <?php foreach ($calc_pledges as $p): ?>
+                                                    <li>Pledge #<?php echo (int)$p['id']; ?>: <?php echo formatMoney($p['amount']); ?> <span class="text-muted">(<?php echo formatDate($p['created_at']); ?>)</span></li>
+                                                <?php endforeach; ?>
+                                            </ul>
+                                            <p class="mb-0 mt-1 fw-bold">Total: <?php echo formatMoney($calc_pledged_total); ?></p>
+                                        <?php endif; ?>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <strong class="text-success">Paid</strong>
+                                        <p class="mb-1 text-muted">Approved payments + confirmed pledge payments:</p>
+                                        <?php if (empty($calc_payments_direct) && empty($calc_pledge_payments)): ?>
+                                            <p class="mb-0">— No payments</p>
+                                        <?php else: ?>
+                                            <?php if (!empty($calc_payments_direct)): ?>
+                                                <span class="text-muted">Direct payments:</span>
+                                                <ul class="list-unstyled mb-1">
+                                                    <?php foreach ($calc_payments_direct as $pd): ?>
+                                                        <li>Payment #<?php echo (int)$pd['id']; ?>: <?php echo formatMoney($pd['amount']); ?> <span class="text-muted">(<?php echo formatDate($pd['payment_date']); ?>)</span></li>
+                                                    <?php endforeach; ?>
+                                                </ul>
+                                                <span class="text-muted">Subtotal: <?php echo formatMoney($calc_direct_total); ?></span><br>
+                                            <?php endif; ?>
+                                            <?php if (!empty($calc_pledge_payments)): ?>
+                                                <span class="text-muted">Pledge payments:</span>
+                                                <ul class="list-unstyled mb-1">
+                                                    <?php foreach ($calc_pledge_payments as $pp): ?>
+                                                        <li>Pledge payment #<?php echo (int)$pp['id']; ?>: <?php echo formatMoney($pp['amount']); ?> <span class="text-muted">(<?php echo formatDate($pp['payment_date']); ?>)</span></li>
+                                                    <?php endforeach; ?>
+                                                </ul>
+                                                <span class="text-muted">Subtotal: <?php echo formatMoney($calc_pp_total); ?></span><br>
+                                            <?php endif; ?>
+                                            <p class="mb-0 mt-1 fw-bold">Total: <?php echo formatMoney($calc_paid_total); ?></p>
+                                        <?php endif; ?>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <strong class="text-warning">Outstanding</strong>
+                                        <p class="mb-1 text-muted">Pledged − Paid:</p>
+                                        <p class="mb-0"><?php echo formatMoney($calc_pledged_total); ?> − <?php echo formatMoney($calc_paid_total); ?> = <strong><?php echo formatMoney($calc_balance); ?></strong></p>
+                                        <?php if (abs((float)$donor['balance'] - $calc_balance) > 0.01): ?>
+                                            <p class="mb-0 mt-2 text-danger small"><i class="fas fa-exclamation-triangle me-1"></i>Stored balance (<?php echo formatMoney($donor['balance']); ?>) differs from calculated. Use Recalculate to sync.</p>
+                                        <?php endif; ?>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
