@@ -186,10 +186,18 @@ $page_title = 'Call: ' . $donor->name;
             letter-spacing: 0.5px;
             padding: 0.2rem 0.5rem;
             margin-left: 0.5rem;
-            background: rgba(255, 255, 255, 0.25);
-            border: 1px solid rgba(255, 255, 255, 0.4);
             border-radius: 4px;
             vertical-align: middle;
+        }
+        .donor-source-tag--old {
+            background: rgba(245, 158, 11, 0.9);
+            color: #92400e;
+            border: 1px solid rgba(255, 255, 255, 0.5);
+        }
+        .donor-source-tag--new {
+            background: rgba(255, 255, 255, 0.25);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.4);
         }
         
         /* Info Grid - Compact */
@@ -514,8 +522,8 @@ $page_title = 'Call: ' . $donor->name;
                     <h2>
                         <i class="fas fa-user-circle"></i>
                         <?php echo htmlspecialchars($donor->name); ?>
-                        <?php if (!empty($donor->data_source) && $donor->data_source === 'old_system'): ?>
-                        <span class="donor-source-tag">Old data</span>
+                        <?php if (!empty($donor->data_source)): ?>
+                        <span class="donor-source-tag donor-source-tag--<?php echo $donor->data_source === 'old_system' ? 'old' : 'new'; ?>"><?php echo $donor->data_source === 'old_system' ? 'Old data' : 'New'; ?></span>
                         <?php endif; ?>
                     </h2>
                     <a href="tel:<?php echo htmlspecialchars($donor->phone); ?>" class="phone-link">
