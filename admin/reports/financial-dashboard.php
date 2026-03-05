@@ -139,18 +139,20 @@ $page_title = 'Financial Dashboard';
                     </div>
 
                     <div class="col-xl-3 col-md-6">
-                        <div class="card border-0 shadow-sm h-100 kpi-card">
-                            <div class="card-body">
-                                <div class="d-flex align-items-center">
-                                    <div class="icon-circle bg-success text-white"><i class="fas fa-check-circle"></i></div>
-                                    <div class="ms-3 flex-grow-1">
-                                        <div class="kpi-label text-success fw-bold">Total Paid</div>
-                                        <div class="kpi-value" id="kpiTotalPaid">—</div>
-                                        <div class="kpi-sub">Direct + pledge payments</div>
+                        <a href="total-paid.php" class="text-decoration-none text-body d-block">
+                            <div class="card border-0 shadow-sm h-100 kpi-card clickable-card">
+                                <div class="card-body">
+                                    <div class="d-flex align-items-center">
+                                        <div class="icon-circle bg-success text-white"><i class="fas fa-check-circle"></i></div>
+                                        <div class="ms-3 flex-grow-1">
+                                            <div class="kpi-label text-success fw-bold">Total Paid</div>
+                                            <div class="kpi-value" id="kpiTotalPaid">—</div>
+                                            <div class="kpi-sub">Direct + pledge payments <i class="fas fa-external-link-alt ms-1 small opacity-75"></i></div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
-                        </div>
+                        </a>
                     </div>
 
                     <div class="col-xl-3 col-md-6">
