@@ -15,6 +15,12 @@ if (!in_array($status, ['paying', 'completed'], true)) {
 }
 
 $donorSearch = trim($_GET['donor'] ?? '');
+$pledgedMin = $_GET['pledged_min'] !== '' && $_GET['pledged_min'] !== null ? (float)$_GET['pledged_min'] : null;
+$pledgedMax = $_GET['pledged_max'] !== '' && $_GET['pledged_max'] !== null ? (float)$_GET['pledged_max'] : null;
+$paidMin = $_GET['paid_min'] !== '' && $_GET['paid_min'] !== null ? (float)$_GET['paid_min'] : null;
+$paidMax = $_GET['paid_max'] !== '' && $_GET['paid_max'] !== null ? (float)$_GET['paid_max'] : null;
+$balanceMin = $_GET['balance_min'] !== '' && $_GET['balance_min'] !== null ? (float)$_GET['balance_min'] : null;
+$balanceMax = $_GET['balance_max'] !== '' && $_GET['balance_max'] !== null ? (float)$_GET['balance_max'] : null;
 $page = max(1, (int)($_GET['page'] ?? 1));
 $perPage = min(100, max(10, (int)($_GET['per_page'] ?? 25)));
 $offset = ($page - 1) * $perPage;
@@ -62,6 +68,36 @@ try {
         $params[] = $searchParam;
         $params[] = $searchParam;
         $types .= 'ss';
+    }
+    if ($pledgedMin !== null && $pledgedMin >= 0) {
+        $where[] = 'd.total_pledged >= ?';
+        $params[] = $pledgedMin;
+        $types .= 'd';
+    }
+    if ($pledgedMax !== null && $pledgedMax > 0) {
+        $where[] = 'd.total_pledged <= ?';
+        $params[] = $pledgedMax;
+        $types .= 'd';
+    }
+    if ($paidMin !== null && $paidMin >= 0) {
+        $where[] = 'd.total_paid >= ?';
+        $params[] = $paidMin;
+        $types .= 'd';
+    }
+    if ($paidMax !== null && $paidMax > 0) {
+        $where[] = 'd.total_paid <= ?';
+        $params[] = $paidMax;
+        $types .= 'd';
+    }
+    if ($balanceMin !== null && $balanceMin >= 0) {
+        $where[] = 'd.balance >= ?';
+        $params[] = $balanceMin;
+        $types .= 'd';
+    }
+    if ($balanceMax !== null && $balanceMax > 0) {
+        $where[] = 'd.balance <= ?';
+        $params[] = $balanceMax;
+        $types .= 'd';
     }
 
     $whereClause = 'WHERE ' . implode(' AND ', $where);
@@ -132,7 +168,15 @@ try {
         'per_page' => $perPage,
         'total_pages' => $totalPages,
         'rows' => $rows,
-        'filters' => ['donor' => $donorSearch],
+        'filters' => [
+            'donor' => $donorSearch,
+            'pledged_min' => $pledgedMin,
+            'pledged_max' => $pledgedMax,
+            'paid_min' => $paidMin,
+            'paid_max' => $paidMax,
+            'balance_min' => $balanceMin,
+            'balance_max' => $balanceMax,
+        ],
     ]);
 
 } catch (Exception $e) {

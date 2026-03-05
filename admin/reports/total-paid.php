@@ -70,6 +70,10 @@ $page_title = 'Total Paid - Detail';
         .tp-pagination-wrapper { padding: 1rem 20px; border-top: 1px solid var(--gray-100); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem; }
         .tp-empty-state { text-align: center; padding: 48px 20px; color: var(--gray-500); }
         .tp-empty-state i { font-size: 2.5rem; color: var(--gray-300); margin-bottom: 12px; display: block; }
+        .tp-sortable { cursor: pointer; user-select: none; }
+        .tp-sortable:hover { color: var(--primary) !important; }
+        .tp-sortable .tp-sort-icon { margin-left: 4px; opacity: 0.5; font-size: 0.65rem; }
+        .tp-sortable.tp-sort-active .tp-sort-icon { opacity: 1; color: var(--primary); }
     </style>
 </head>
 <body>
@@ -128,16 +132,42 @@ $page_title = 'Total Paid - Detail';
                 </ul>
 
                 <div class="tp-filter-bar">
+                    <div class="form-label mb-2" style="font-size:0.75rem; font-weight:600; color:var(--gray-500)"><i class="fas fa-filter me-1"></i>Filters</div>
                     <div class="row g-2 align-items-end">
-                        <div class="col-12 col-md-6">
+                        <div class="col-12 col-md-3">
                             <label class="form-label" style="font-size:0.75rem; font-weight:600; color:var(--gray-500)">Donor (name, phone)</label>
                             <input type="text" class="form-control form-control-sm" id="filterDonor" placeholder="Search...">
                         </div>
                         <div class="col-12 col-md-2">
-                            <button class="btn btn-primary btn-sm w-100" id="applyFilters"><i class="fas fa-search me-1"></i>Apply</button>
+                            <label class="form-label" style="font-size:0.75rem; font-weight:600; color:var(--gray-500)">Date from</label>
+                            <input type="date" class="form-control form-control-sm" id="filterDateFrom" placeholder="YYYY-MM-DD">
                         </div>
                         <div class="col-12 col-md-2">
-                            <button class="btn btn-outline-secondary btn-sm w-100" id="clearFilters"><i class="fas fa-times me-1"></i>Clear</button>
+                            <label class="form-label" style="font-size:0.75rem; font-weight:600; color:var(--gray-500)">Date to</label>
+                            <input type="date" class="form-control form-control-sm" id="filterDateTo" placeholder="YYYY-MM-DD">
+                        </div>
+                        <div class="col-12 col-md-2">
+                            <label class="form-label" style="font-size:0.75rem; font-weight:600; color:var(--gray-500)">Amount min</label>
+                            <input type="number" class="form-control form-control-sm" id="filterAmountMin" placeholder="Min" step="0.01" min="0">
+                        </div>
+                        <div class="col-12 col-md-2">
+                            <label class="form-label" style="font-size:0.75rem; font-weight:600; color:var(--gray-500)">Amount max</label>
+                            <input type="number" class="form-control form-control-sm" id="filterAmountMax" placeholder="Max" step="0.01" min="0">
+                        </div>
+                        <div class="col-12 col-md-2">
+                            <label class="form-label" style="font-size:0.75rem; font-weight:600; color:var(--gray-500)">Payment method</label>
+                            <select class="form-select form-select-sm" id="filterPaymentMethod">
+                                <option value="">All</option>
+                                <option value="bank_transfer">Bank Transfer</option>
+                                <option value="card">Card</option>
+                                <option value="cash">Cash</option>
+                                <option value="cheque">Cheque</option>
+                                <option value="other">Other</option>
+                            </select>
+                        </div>
+                        <div class="col-12 col-md-2 d-flex gap-2">
+                            <button class="btn btn-primary btn-sm flex-fill" id="applyFilters"><i class="fas fa-search me-1"></i>Apply</button>
+                            <button class="btn btn-outline-secondary btn-sm" id="clearFilters"><i class="fas fa-times me-1"></i>Clear</button>
                         </div>
                     </div>
                 </div>
@@ -154,7 +184,14 @@ $page_title = 'Total Paid - Detail';
                             <div class="table-responsive">
                                 <table class="table table-hover align-middle mb-0">
                                     <thead class="table-light">
-                                        <tr><th>#</th><th>Donor</th><th class="text-end">Amount</th><th>Method</th><th>Date</th><th></th></tr>
+                                        <tr>
+                                            <th>#</th>
+                                            <th class="tp-sortable" data-sort-by="donor" data-tab="direct">Donor<span class="tp-sort-icon"></span></th>
+                                            <th class="text-end tp-sortable" data-sort-by="amount" data-tab="direct">Amount<span class="tp-sort-icon"></span></th>
+                                            <th class="tp-sortable" data-sort-by="method" data-tab="direct">Method<span class="tp-sort-icon"></span></th>
+                                            <th class="tp-sortable" data-sort-by="date" data-tab="direct">Date<span class="tp-sort-icon"></span></th>
+                                            <th></th>
+                                        </tr>
                                     </thead>
                                     <tbody id="directBody"><tr><td colspan="6" class="text-center py-4 text-muted"><div class="spinner-border spinner-border-sm me-2"></div>Loading...</td></tr></tbody>
                                 </table>
@@ -176,7 +213,14 @@ $page_title = 'Total Paid - Detail';
                             <div class="table-responsive">
                                 <table class="table table-hover align-middle mb-0">
                                     <thead class="table-light">
-                                        <tr><th>#</th><th>Donor</th><th class="text-end">Amount</th><th>Method</th><th>Date</th><th></th></tr>
+                                        <tr>
+                                            <th>#</th>
+                                            <th class="tp-sortable" data-sort-by="donor" data-tab="pledge">Donor<span class="tp-sort-icon"></span></th>
+                                            <th class="text-end tp-sortable" data-sort-by="amount" data-tab="pledge">Amount<span class="tp-sort-icon"></span></th>
+                                            <th class="tp-sortable" data-sort-by="method" data-tab="pledge">Method<span class="tp-sort-icon"></span></th>
+                                            <th class="tp-sortable" data-sort-by="date" data-tab="pledge">Date<span class="tp-sort-icon"></span></th>
+                                            <th></th>
+                                        </tr>
                                     </thead>
                                     <tbody id="pledgeBody"><tr><td colspan="6" class="text-center py-4 text-muted"><div class="spinner-border spinner-border-sm me-2"></div>Loading...</td></tr></tbody>
                                 </table>
@@ -198,8 +242,45 @@ $page_title = 'Total Paid - Detail';
 <script>
 (function(){
   const CURRENCY = <?php echo json_encode($currency); ?>;
+  const sortState = { direct: { sortBy: 'date', sortOrder: 'desc' }, pledge: { sortBy: 'date', sortOrder: 'desc' } };
   function fmtMoney(n) { try { return new Intl.NumberFormat(undefined, { style: 'currency', currency: CURRENCY, maximumFractionDigits: 2 }).format(Number(n) || 0); } catch(_) { return CURRENCY + ' ' + (Number(n) || 0).toFixed(2); } }
   function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+  function buildParams(page, tab) {
+    const p = new URLSearchParams({ page: page || 1, per_page: tab === 'direct' ? document.getElementById('perPageDirect').value : document.getElementById('perPagePledge').value });
+    const donor = document.getElementById('filterDonor').value.trim();
+    if (donor) p.set('donor', donor);
+    const dateFrom = document.getElementById('filterDateFrom').value.trim();
+    if (dateFrom) p.set('date_from', dateFrom);
+    const dateTo = document.getElementById('filterDateTo').value.trim();
+    if (dateTo) p.set('date_to', dateTo);
+    const amountMin = document.getElementById('filterAmountMin').value.trim();
+    if (amountMin) p.set('amount_min', amountMin);
+    const amountMax = document.getElementById('filterAmountMax').value.trim();
+    if (amountMax) p.set('amount_max', amountMax);
+    const method = document.getElementById('filterPaymentMethod').value;
+    if (method) p.set('payment_method', method);
+    const st = sortState[tab];
+    p.set('sort_by', st.sortBy);
+    p.set('sort_order', st.sortOrder);
+    return p;
+  }
+
+  function updateSortHeaders(tab) {
+    document.querySelectorAll('.tp-sortable[data-tab="' + tab + '"]').forEach(th => {
+      const col = th.dataset.sortBy;
+      th.classList.remove('tp-sort-active');
+      const icon = th.querySelector('.tp-sort-icon');
+      if (icon) {
+        if (col === sortState[tab].sortBy) {
+          th.classList.add('tp-sort-active');
+          icon.innerHTML = sortState[tab].sortOrder === 'asc' ? '<i class="fas fa-sort-up"></i>' : '<i class="fas fa-sort-down"></i>';
+        } else {
+          icon.innerHTML = '<i class="fas fa-sort" style="opacity:0.4"></i>';
+        }
+      }
+    });
+  }
 
   function paginate(ulId, page, total, fn) {
     const ul = document.getElementById(ulId);
@@ -213,10 +294,7 @@ $page_title = 'Total Paid - Detail';
   }
 
   function loadDirect(page) {
-    const donor = document.getElementById('filterDonor').value.trim();
-    const perPage = document.getElementById('perPageDirect').value;
-    const p = new URLSearchParams({ page: page || 1, per_page: perPage });
-    if (donor) p.set('donor', donor);
+    const p = buildParams(page, 'direct');
     fetch('api/direct-payments.php?' + p.toString(), { credentials: 'same-origin', headers: { Accept: 'application/json' } })
       .then(r => { if (!(r.headers.get('Content-Type') || '').includes('application/json')) throw new Error('Non-JSON response'); return r.json(); })
       .then(d => {
@@ -238,10 +316,7 @@ $page_title = 'Total Paid - Detail';
   }
 
   function loadPledge(page) {
-    const donor = document.getElementById('filterDonor').value.trim();
-    const perPage = document.getElementById('perPagePledge').value;
-    const p = new URLSearchParams({ page: page || 1, per_page: perPage });
-    if (donor) p.set('donor', donor);
+    const p = buildParams(page, 'pledge');
     fetch('api/paid-towards-pledges.php?' + p.toString(), { credentials: 'same-origin', headers: { Accept: 'application/json' } })
       .then(r => { if (!(r.headers.get('Content-Type') || '').includes('application/json')) throw new Error('Non-JSON response'); return r.json(); })
       .then(d => {
@@ -269,10 +344,29 @@ $page_title = 'Total Paid - Detail';
   }
 
   document.getElementById('applyFilters').addEventListener('click', () => { loadDirect(1); loadPledge(1); });
-  document.getElementById('clearFilters').addEventListener('click', () => { document.getElementById('filterDonor').value = ''; loadDirect(1); loadPledge(1); });
+  document.getElementById('clearFilters').addEventListener('click', () => {
+    document.getElementById('filterDonor').value = '';
+    document.getElementById('filterDateFrom').value = '';
+    document.getElementById('filterDateTo').value = '';
+    document.getElementById('filterAmountMin').value = '';
+    document.getElementById('filterAmountMax').value = '';
+    document.getElementById('filterPaymentMethod').value = '';
+    loadDirect(1);
+    loadPledge(1);
+  });
   document.getElementById('perPageDirect').addEventListener('change', () => loadDirect(1));
   document.getElementById('perPagePledge').addEventListener('change', () => loadPledge(1));
   document.getElementById('filterDonor').addEventListener('keydown', e => { if (e.key === 'Enter') { loadDirect(1); loadPledge(1); } });
+  document.querySelectorAll('.tp-sortable').forEach(th => {
+    th.addEventListener('click', () => {
+      const tab = th.dataset.tab;
+      const col = th.dataset.sortBy;
+      if (sortState[tab].sortBy === col) sortState[tab].sortOrder = sortState[tab].sortOrder === 'asc' ? 'desc' : 'asc';
+      else { sortState[tab].sortBy = col; sortState[tab].sortOrder = ['amount','date'].includes(col) ? 'desc' : 'asc'; }
+      updateSortHeaders(tab);
+      if (tab === 'direct') loadDirect(1); else loadPledge(1);
+    });
+  });
 
   document.querySelectorAll('#paidTabs button[data-bs-toggle="tab"]').forEach(btn => {
     btn.addEventListener('shown.bs.tab', e => {
@@ -283,9 +377,8 @@ $page_title = 'Total Paid - Detail';
   document.getElementById('exportCsvBtn').addEventListener('click', () => {
     const activeTab = document.querySelector('#paidTabs .nav-link.active');
     const isDirect = activeTab && activeTab.id === 'tab-direct-btn';
-    const donor = document.getElementById('filterDonor').value.trim();
-    const p = new URLSearchParams({ page: 1, per_page: 99999 });
-    if (donor) p.set('donor', donor);
+    const p = buildParams(1, isDirect ? 'direct' : 'pledge');
+    p.set('per_page', '99999');
     const url = isDirect ? 'api/direct-payments.php?' + p.toString() : 'api/paid-towards-pledges.php?' + p.toString();
     fetch(url, { credentials: 'same-origin', headers: { Accept: 'application/json' } })
       .then(r => r.json())
@@ -304,6 +397,8 @@ $page_title = 'Total Paid - Detail';
       .catch(() => alert('Export failed.'));
   });
 
+  updateSortHeaders('direct');
+  updateSortHeaders('pledge');
   loadDirect(1);
   loadPledge(1);
 })();

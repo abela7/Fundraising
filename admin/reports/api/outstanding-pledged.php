@@ -22,6 +22,10 @@ try {
 
     $donorSearch = trim($_GET['donor'] ?? '');
     $balanceMismatchOnly = !empty($_GET['balance_mismatch']);
+    $pledgedMin = $_GET['pledged_min'] !== '' && $_GET['pledged_min'] !== null ? (float)$_GET['pledged_min'] : null;
+    $pledgedMax = $_GET['pledged_max'] !== '' && $_GET['pledged_max'] !== null ? (float)$_GET['pledged_max'] : null;
+    $balanceMin = $_GET['balance_min'] !== '' && $_GET['balance_min'] !== null ? (float)$_GET['balance_min'] : null;
+    $balanceMax = $_GET['balance_max'] !== '' && $_GET['balance_max'] !== null ? (float)$_GET['balance_max'] : null;
     $page = max(1, (int)($_GET['page'] ?? 1));
     $perPage = min(100, max(10, (int)($_GET['per_page'] ?? 25)));
     $offset = ($page - 1) * $perPage;
@@ -66,6 +70,26 @@ try {
         // Balance > pledged is impossible (outstanding cannot exceed what was pledged) — indicates data error
         $where[] = "d.balance > d.total_pledged";
     }
+    if ($pledgedMin !== null && $pledgedMin >= 0) {
+        $where[] = "d.total_pledged >= ?";
+        $params[] = $pledgedMin;
+        $types .= 'd';
+    }
+    if ($pledgedMax !== null && $pledgedMax > 0) {
+        $where[] = "d.total_pledged <= ?";
+        $params[] = $pledgedMax;
+        $types .= 'd';
+    }
+    if ($balanceMin !== null && $balanceMin >= 0) {
+        $where[] = "d.balance >= ?";
+        $params[] = $balanceMin;
+        $types .= 'd';
+    }
+    if ($balanceMax !== null && $balanceMax > 0) {
+        $where[] = "d.balance <= ?";
+        $params[] = $balanceMax;
+        $types .= 'd';
+    }
 
     $whereClause = 'WHERE ' . implode(' AND ', $where);
 
@@ -92,7 +116,7 @@ try {
     } else {
         $donorSum = (float)($db->query($donorSumSql)->fetch_assoc()['donor_sum'] ?? 0);
     }
-    $totalOutstanding = ($donorSearch !== '' || $balanceMismatchOnly) ? $donorSum : $canonicalOutstanding;
+    $totalOutstanding = ($donorSearch !== '' || $balanceMismatchOnly || $pledgedMin !== null || $pledgedMax !== null || $balanceMin !== null || $balanceMax !== null) ? $donorSum : $canonicalOutstanding;
 
     $orderBy = "{$orderColumn} {$sortOrder}, d.name ASC";
     $cols = "d.id, d.name, d.phone, d.total_pledged, d.total_paid, d.balance";
@@ -149,7 +173,14 @@ try {
         'per_page' => $perPage,
         'total_pages' => $totalPages,
         'rows' => $rows,
-        'filters' => ['donor' => $donorSearch, 'balance_mismatch' => $balanceMismatchOnly],
+        'filters' => [
+            'donor' => $donorSearch,
+            'balance_mismatch' => $balanceMismatchOnly,
+            'pledged_min' => $pledgedMin,
+            'pledged_max' => $pledgedMax,
+            'balance_min' => $balanceMin,
+            'balance_max' => $balanceMax,
+        ],
     ]);
 
 } catch (Exception $e) {

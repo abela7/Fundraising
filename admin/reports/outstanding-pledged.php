@@ -111,19 +111,35 @@ $page_title = 'Outstanding Pledged - Detail';
                 <div class="ptp-filter-bar animate-fade-in">
                     <div class="form-label mb-2"><i class="fas fa-filter me-1"></i>Filters</div>
                     <div class="row g-2 align-items-end">
-                        <div class="col-12 col-md-5">
+                        <div class="col-12 col-md-3">
                             <label class="form-label">Donor (name, phone)</label>
                             <input type="text" class="form-control form-control-sm" id="filterDonor" placeholder="Search...">
                         </div>
-                        <div class="col-12 col-md-4 d-flex align-items-end">
+                        <div class="col-12 col-md-2">
+                            <label class="form-label">Pledged min</label>
+                            <input type="number" class="form-control form-control-sm" id="filterPledgedMin" placeholder="Min" step="0.01" min="0">
+                        </div>
+                        <div class="col-12 col-md-2">
+                            <label class="form-label">Pledged max</label>
+                            <input type="number" class="form-control form-control-sm" id="filterPledgedMax" placeholder="Max" step="0.01" min="0">
+                        </div>
+                        <div class="col-12 col-md-2">
+                            <label class="form-label">Outstanding min</label>
+                            <input type="number" class="form-control form-control-sm" id="filterBalanceMin" placeholder="Min" step="0.01" min="0">
+                        </div>
+                        <div class="col-12 col-md-2">
+                            <label class="form-label">Outstanding max</label>
+                            <input type="number" class="form-control form-control-sm" id="filterBalanceMax" placeholder="Max" step="0.01" min="0">
+                        </div>
+                        <div class="col-12 col-md-2 d-flex align-items-end">
                             <div class="form-check mt-2 mt-md-0">
                                 <input class="form-check-input" type="checkbox" id="filterBalanceMismatch" title="Show only donors where balance exceeds pledged (data error)">
                                 <label class="form-check-label small" for="filterBalanceMismatch">
-                                    <i class="fas fa-exclamation-triangle text-warning me-1"></i>Balance &gt; pledged only
+                                    <i class="fas fa-exclamation-triangle text-warning me-1"></i>Balance &gt; pledged
                                 </label>
                             </div>
                         </div>
-                        <div class="col-12 col-md-3 d-flex gap-2">
+                        <div class="col-12 col-md-2 d-flex gap-2">
                             <button class="btn btn-primary btn-sm flex-fill" id="applyFilters"><i class="fas fa-search me-1"></i>Apply</button>
                             <button class="btn btn-outline-secondary btn-sm" id="clearFilters"><i class="fas fa-times me-1"></i>Clear</button>
                         </div>
@@ -262,6 +278,14 @@ $page_title = 'Outstanding Pledged - Detail';
     const donor = document.getElementById('filterDonor').value.trim();
     if (donor) params.set('donor', donor);
     if (document.getElementById('filterBalanceMismatch').checked) params.set('balance_mismatch', '1');
+    const pledgedMin = document.getElementById('filterPledgedMin').value.trim();
+    if (pledgedMin) params.set('pledged_min', pledgedMin);
+    const pledgedMax = document.getElementById('filterPledgedMax').value.trim();
+    if (pledgedMax) params.set('pledged_max', pledgedMax);
+    const balanceMin = document.getElementById('filterBalanceMin').value.trim();
+    if (balanceMin) params.set('balance_min', balanceMin);
+    const balanceMax = document.getElementById('filterBalanceMax').value.trim();
+    if (balanceMax) params.set('balance_max', balanceMax);
     return 'api/outstanding-pledged.php?' + params.toString();
   }
 
@@ -533,6 +557,14 @@ $page_title = 'Outstanding Pledged - Detail';
     const donor = document.getElementById('filterDonor').value.trim();
     if (donor) params.set('donor', donor);
     if (document.getElementById('filterBalanceMismatch').checked) params.set('balance_mismatch', '1');
+    const pledgedMin = document.getElementById('filterPledgedMin').value.trim();
+    if (pledgedMin) params.set('pledged_min', pledgedMin);
+    const pledgedMax = document.getElementById('filterPledgedMax').value.trim();
+    if (pledgedMax) params.set('pledged_max', pledgedMax);
+    const balanceMin = document.getElementById('filterBalanceMin').value.trim();
+    if (balanceMin) params.set('balance_min', balanceMin);
+    const balanceMax = document.getElementById('filterBalanceMax').value.trim();
+    if (balanceMax) params.set('balance_max', balanceMax);
 
     fetch('api/outstanding-pledged.php?' + params.toString(), { method: 'GET', credentials: 'same-origin', headers: { 'Accept': 'application/json' } })
       .then(r => r.json())
@@ -566,6 +598,10 @@ $page_title = 'Outstanding Pledged - Detail';
   document.getElementById('filterBalanceMismatch').addEventListener('change', () => load(1));
   document.getElementById('clearFilters').addEventListener('click', () => {
     document.getElementById('filterDonor').value = '';
+    document.getElementById('filterPledgedMin').value = '';
+    document.getElementById('filterPledgedMax').value = '';
+    document.getElementById('filterBalanceMin').value = '';
+    document.getElementById('filterBalanceMax').value = '';
     document.getElementById('filterBalanceMismatch').checked = false;
     load(1);
   });

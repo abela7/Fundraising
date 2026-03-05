@@ -25,6 +25,8 @@ try {
     $dateTo = trim($_GET['date_to'] ?? '');
     $donorSearch = trim($_GET['donor'] ?? '');
     $paymentMethod = trim($_GET['payment_method'] ?? '');
+    $amountMin = $_GET['amount_min'] !== '' && $_GET['amount_min'] !== null ? (float)$_GET['amount_min'] : null;
+    $amountMax = $_GET['amount_max'] !== '' && $_GET['amount_max'] !== null ? (float)$_GET['amount_max'] : null;
     $page = max(1, (int)($_GET['page'] ?? 1));
     $perPage = min(100, max(10, (int)($_GET['per_page'] ?? 25)));
     $offset = ($page - 1) * $perPage;
@@ -37,6 +39,7 @@ try {
         'donor' => 'd.name',
         'amount' => 'pp.amount',
         'method' => 'pp.payment_method',
+        'date' => 'pp.payment_date',
         'payment_date' => 'pp.payment_date',
         'reference' => 'pp.reference_number',
         'approved_by' => 'approver.name',
@@ -78,6 +81,16 @@ try {
             $params[] = $paymentMethod;
             $types .= 's';
         }
+    }
+    if ($amountMin !== null && $amountMin > 0) {
+        $where[] = "pp.amount >= ?";
+        $params[] = $amountMin;
+        $types .= 'd';
+    }
+    if ($amountMax !== null && $amountMax > 0) {
+        $where[] = "pp.amount <= ?";
+        $params[] = $amountMax;
+        $types .= 'd';
     }
 
     $whereClause = 'WHERE ' . implode(' AND ', $where);
@@ -221,6 +234,8 @@ try {
             'date_to' => $dateTo,
             'donor' => $donorSearch,
             'payment_method' => $paymentMethod,
+            'amount_min' => $amountMin,
+            'amount_max' => $amountMax,
         ],
     ]);
 

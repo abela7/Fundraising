@@ -63,6 +63,11 @@ $page_title = 'Source Tables - Pledges & Pledge Payments';
         .ptp-data-card .table tbody td { padding: 10px 16px; font-size: 0.875rem; }
         .ptp-data-card .table tbody tr:hover { background: #f8f9fa; }
         .ptp-pagination-wrapper { padding: 1rem 20px; border-top: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem; }
+        .st-filter-bar { background: #fff; border: 1px solid #dee2e6; border-radius: 12px; padding: 16px 20px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+        .st-sortable { cursor: pointer; user-select: none; }
+        .st-sortable:hover { color: var(--primary) !important; }
+        .st-sortable .st-sort-icon { margin-left: 4px; opacity: 0.5; font-size: 0.65rem; }
+        .st-sortable.st-sort-active .st-sort-icon { opacity: 1; color: var(--primary); }
     </style>
 </head>
 <body>
@@ -144,15 +149,46 @@ $page_title = 'Source Tables - Pledges & Pledge Payments';
                             <h6 class="mb-0"><i class="fas fa-table me-2"></i>pledges (status = 'approved')</h6>
                             <a href="../donor-management/index.php" class="btn btn-sm btn-primary"><i class="fas fa-plus me-1"></i>Add Pledge</a>
                         </div>
+                        <div class="st-filter-bar mb-3">
+                            <div class="row g-2 align-items-end">
+                                <div class="col-12 col-md-3">
+                                    <label class="form-label" style="font-size:0.75rem; font-weight:600; color:#6c757d">Donor</label>
+                                    <input type="text" class="form-control form-control-sm" id="pledgeSearch" placeholder="Search donor...">
+                                </div>
+                                <div class="col-12 col-md-2">
+                                    <label class="form-label" style="font-size:0.75rem; font-weight:600; color:#6c757d">Date from</label>
+                                    <input type="date" class="form-control form-control-sm" id="pledgeDateFrom">
+                                </div>
+                                <div class="col-12 col-md-2">
+                                    <label class="form-label" style="font-size:0.75rem; font-weight:600; color:#6c757d">Date to</label>
+                                    <input type="date" class="form-control form-control-sm" id="pledgeDateTo">
+                                </div>
+                                <div class="col-12 col-md-2">
+                                    <label class="form-label" style="font-size:0.75rem; font-weight:600; color:#6c757d">Per page</label>
+                                    <select class="form-select form-select-sm" id="pledgePerPage">
+                                        <option value="10">10</option><option value="25" selected>25</option><option value="50">50</option><option value="100">100</option>
+                                    </select>
+                                </div>
+                                <div class="col-12 col-md-2 d-flex gap-2">
+                                    <button class="btn btn-primary btn-sm flex-fill" id="pledgeApply"><i class="fas fa-search me-1"></i>Apply</button>
+                                    <button class="btn btn-outline-secondary btn-sm" id="pledgeClear"><i class="fas fa-times me-1"></i>Clear</button>
+                                </div>
+                            </div>
+                        </div>
                         <div class="ptp-data-card">
                             <div class="ptp-table-header">
                                 <span>Source: pledges</span>
-                                <input type="text" class="form-control form-control-sm" id="pledgeSearch" placeholder="Search donor..." style="max-width: 200px;">
                             </div>
                             <div class="table-responsive">
                                 <table class="table table-hover align-middle mb-0">
                                     <thead class="table-light">
-                                        <tr><th>#</th><th>Donor</th><th class="text-end">Amount</th><th>Date</th><th></th></tr>
+                                        <tr>
+                                            <th>#</th>
+                                            <th class="st-sortable" data-sort-by="donor" data-tab="pledges">Donor<span class="st-sort-icon"></span></th>
+                                            <th class="text-end st-sortable" data-sort-by="amount" data-tab="pledges">Amount<span class="st-sort-icon"></span></th>
+                                            <th class="st-sortable" data-sort-by="pledge_date" data-tab="pledges">Date<span class="st-sort-icon"></span></th>
+                                            <th></th>
+                                        </tr>
                                     </thead>
                                     <tbody id="pledgesBody"><tr><td colspan="5" class="text-center py-4 text-muted"><div class="spinner-border spinner-border-sm me-2"></div>Loading...</td></tr></tbody>
                                 </table>
@@ -170,15 +206,58 @@ $page_title = 'Source Tables - Pledges & Pledge Payments';
                             <h6 class="mb-0"><i class="fas fa-table me-2"></i>pledge_payments (status = 'confirmed')</h6>
                             <a href="../donations/index.php" class="btn btn-sm btn-success"><i class="fas fa-plus me-1"></i>Add Payment</a>
                         </div>
+                        <div class="st-filter-bar mb-3">
+                            <div class="row g-2 align-items-end">
+                                <div class="col-12 col-md-3">
+                                    <label class="form-label" style="font-size:0.75rem; font-weight:600; color:#6c757d">Donor</label>
+                                    <input type="text" class="form-control form-control-sm" id="ppSearch" placeholder="Search donor...">
+                                </div>
+                                <div class="col-12 col-md-2">
+                                    <label class="form-label" style="font-size:0.75rem; font-weight:600; color:#6c757d">Date from</label>
+                                    <input type="date" class="form-control form-control-sm" id="ppDateFrom">
+                                </div>
+                                <div class="col-12 col-md-2">
+                                    <label class="form-label" style="font-size:0.75rem; font-weight:600; color:#6c757d">Date to</label>
+                                    <input type="date" class="form-control form-control-sm" id="ppDateTo">
+                                </div>
+                                <div class="col-12 col-md-2">
+                                    <label class="form-label" style="font-size:0.75rem; font-weight:600; color:#6c757d">Method</label>
+                                    <select class="form-select form-select-sm" id="ppMethod">
+                                        <option value="">All</option>
+                                        <option value="bank_transfer">Bank Transfer</option>
+                                        <option value="card">Card</option>
+                                        <option value="cash">Cash</option>
+                                        <option value="cheque">Cheque</option>
+                                        <option value="other">Other</option>
+                                    </select>
+                                </div>
+                                <div class="col-12 col-md-2">
+                                    <label class="form-label" style="font-size:0.75rem; font-weight:600; color:#6c757d">Per page</label>
+                                    <select class="form-select form-select-sm" id="ppPerPage">
+                                        <option value="10">10</option><option value="25" selected>25</option><option value="50">50</option><option value="100">100</option>
+                                    </select>
+                                </div>
+                                <div class="col-12 col-md-2 d-flex gap-2">
+                                    <button class="btn btn-primary btn-sm flex-fill" id="ppApply"><i class="fas fa-search me-1"></i>Apply</button>
+                                    <button class="btn btn-outline-secondary btn-sm" id="ppClear"><i class="fas fa-times me-1"></i>Clear</button>
+                                </div>
+                            </div>
+                        </div>
                         <div class="ptp-data-card">
                             <div class="ptp-table-header">
                                 <span>Source: pledge_payments</span>
-                                <input type="text" class="form-control form-control-sm" id="ppSearch" placeholder="Search donor..." style="max-width: 200px;">
                             </div>
                             <div class="table-responsive">
                                 <table class="table table-hover align-middle mb-0">
                                     <thead class="table-light">
-                                        <tr><th>#</th><th>Donor</th><th class="text-end">Amount</th><th>Method</th><th>Date</th><th></th></tr>
+                                        <tr>
+                                            <th>#</th>
+                                            <th class="st-sortable" data-sort-by="donor" data-tab="pp">Donor<span class="st-sort-icon"></span></th>
+                                            <th class="text-end st-sortable" data-sort-by="amount" data-tab="pp">Amount<span class="st-sort-icon"></span></th>
+                                            <th class="st-sortable" data-sort-by="method" data-tab="pp">Method<span class="st-sort-icon"></span></th>
+                                            <th class="st-sortable" data-sort-by="date" data-tab="pp">Date<span class="st-sort-icon"></span></th>
+                                            <th></th>
+                                        </tr>
                                     </thead>
                                     <tbody id="ppBody"><tr><td colspan="6" class="text-center py-4 text-muted"><div class="spinner-border spinner-border-sm me-2"></div>Loading...</td></tr></tbody>
                                 </table>
@@ -200,15 +279,54 @@ $page_title = 'Source Tables - Pledges & Pledge Payments';
 <script>
 (function(){
   const CURRENCY = <?php echo json_encode($currency); ?>;
+  const sortState = { pledges: { sortBy: 'pledge_date', sortOrder: 'desc' }, pp: { sortBy: 'date', sortOrder: 'desc' } };
   function fmtMoney(n) {
     try { return new Intl.NumberFormat(undefined, { style: 'currency', currency: CURRENCY, maximumFractionDigits: 2 }).format(Number(n) || 0); } catch(_) { return CURRENCY + ' ' + (Number(n) || 0).toFixed(2); }
   }
   function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
-  function loadPledges(page) {
+  function buildPledgeParams(page) {
+    const p = new URLSearchParams({ page: page || 1, per_page: document.getElementById('pledgePerPage').value, sort_by: sortState.pledges.sortBy, sort_order: sortState.pledges.sortOrder });
     const donor = document.getElementById('pledgeSearch').value.trim();
-    const params = new URLSearchParams({ page: page || 1, per_page: 25 });
-    if (donor) params.set('donor', donor);
+    if (donor) p.set('donor', donor);
+    const dateFrom = document.getElementById('pledgeDateFrom').value.trim();
+    if (dateFrom) p.set('date_from', dateFrom);
+    const dateTo = document.getElementById('pledgeDateTo').value.trim();
+    if (dateTo) p.set('date_to', dateTo);
+    return p;
+  };
+
+  function buildPPParams(page) {
+    const p = new URLSearchParams({ page: page || 1, per_page: document.getElementById('ppPerPage').value, sort_by: sortState.pp.sortBy, sort_order: sortState.pp.sortOrder });
+    const donor = document.getElementById('ppSearch').value.trim();
+    if (donor) p.set('donor', donor);
+    const dateFrom = document.getElementById('ppDateFrom').value.trim();
+    if (dateFrom) p.set('date_from', dateFrom);
+    const dateTo = document.getElementById('ppDateTo').value.trim();
+    if (dateTo) p.set('date_to', dateTo);
+    const method = document.getElementById('ppMethod').value;
+    if (method) p.set('payment_method', method);
+    return p;
+  };
+
+  function updateSortHeaders(tab) {
+    document.querySelectorAll('.st-sortable[data-tab="' + tab + '"]').forEach(th => {
+      const col = th.dataset.sortBy;
+      th.classList.remove('st-sort-active');
+      const icon = th.querySelector('.st-sort-icon');
+      if (icon) {
+        if (col === sortState[tab].sortBy) {
+          th.classList.add('st-sort-active');
+          icon.innerHTML = sortState[tab].sortOrder === 'asc' ? '<i class="fas fa-sort-up"></i>' : '<i class="fas fa-sort-down"></i>';
+        } else {
+          icon.innerHTML = '<i class="fas fa-sort" style="opacity:0.4"></i>';
+        }
+      }
+    });
+  }
+
+  function loadPledges(page) {
+    const params = buildPledgeParams(page);
     fetch('api/total-pledged-approved.php?' + params, { credentials: 'same-origin', headers: { Accept: 'application/json' } })
       .then(r => {
         const ct = r.headers.get('Content-Type') || '';
@@ -252,9 +370,7 @@ $page_title = 'Source Tables - Pledges & Pledge Payments';
   }
 
   function loadPP(page) {
-    const donor = document.getElementById('ppSearch').value.trim();
-    const params = new URLSearchParams({ page: page || 1, per_page: 25 });
-    if (donor) params.set('donor', donor);
+    const params = buildPPParams(page);
     fetch('api/paid-towards-pledges.php?' + params, { credentials: 'same-origin', headers: { Accept: 'application/json' } })
       .then(r => {
         const ct = r.headers.get('Content-Type') || '';
@@ -311,8 +427,38 @@ $page_title = 'Source Tables - Pledges & Pledge Payments';
     ul.querySelectorAll('a[data-p]').forEach(a => { a.addEventListener('click', e => { e.preventDefault(); fn(parseInt(a.dataset.p, 10)); }); });
   }
 
-  document.getElementById('pledgeSearch').addEventListener('keydown', e => { if (e.key === 'Enter') loadPledges(1); });
-  document.getElementById('ppSearch').addEventListener('keydown', e => { if (e.key === 'Enter') loadPP(1); });
+  document.getElementById('pledgeApply').addEventListener('click', () => loadPledges(1));
+  document.getElementById('pledgeClear').addEventListener('click', () => {
+    document.getElementById('pledgeSearch').value = '';
+    document.getElementById('pledgeDateFrom').value = '';
+    document.getElementById('pledgeDateTo').value = '';
+    document.getElementById('pledgePerPage').value = '25';
+    loadPledges(1);
+  });
+  document.getElementById('ppApply').addEventListener('click', () => loadPP(1));
+  document.getElementById('ppClear').addEventListener('click', () => {
+    document.getElementById('ppSearch').value = '';
+    document.getElementById('ppDateFrom').value = '';
+    document.getElementById('ppDateTo').value = '';
+    document.getElementById('ppMethod').value = '';
+    document.getElementById('ppPerPage').value = '25';
+    loadPP(1);
+  });
+  document.getElementById('pledgePerPage').addEventListener('change', () => loadPledges(1));
+  document.getElementById('ppPerPage').addEventListener('change', () => loadPP(1));
+  document.getElementById('pledgeSearch').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); loadPledges(1); } });
+  document.getElementById('ppSearch').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); loadPP(1); } });
+
+  document.querySelectorAll('.st-sortable').forEach(th => {
+    th.addEventListener('click', () => {
+      const tab = th.dataset.tab;
+      const col = th.dataset.sortBy;
+      if (sortState[tab].sortBy === col) sortState[tab].sortOrder = sortState[tab].sortOrder === 'asc' ? 'desc' : 'asc';
+      else { sortState[tab].sortBy = col; sortState[tab].sortOrder = ['amount','pledge_date','date'].includes(col) ? 'desc' : 'asc'; }
+      updateSortHeaders(tab);
+      if (tab === 'pledges') loadPledges(1); else loadPP(1);
+    });
+  });
 
   document.querySelectorAll('#sourceTabs button[data-bs-toggle="tab"]').forEach(btn => {
     btn.addEventListener('shown.bs.tab', e => {
@@ -321,6 +467,8 @@ $page_title = 'Source Tables - Pledges & Pledge Payments';
     });
   });
 
+  updateSortHeaders('pledges');
+  updateSortHeaders('pp');
   loadPledges(1);
   loadPP(1);
 })();

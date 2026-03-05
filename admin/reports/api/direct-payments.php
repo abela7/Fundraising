@@ -24,6 +24,11 @@ try {
     $has_donor_id = in_array('donor_id', $payment_columns);
 
     $donorSearch = trim($_GET['donor'] ?? '');
+    $dateFrom = trim($_GET['date_from'] ?? '');
+    $dateTo = trim($_GET['date_to'] ?? '');
+    $amountMin = $_GET['amount_min'] !== '' && $_GET['amount_min'] !== null ? (float)$_GET['amount_min'] : null;
+    $amountMax = $_GET['amount_max'] !== '' && $_GET['amount_max'] !== null ? (float)$_GET['amount_max'] : null;
+    $paymentMethod = trim($_GET['payment_method'] ?? '');
     $page = max(1, (int)($_GET['page'] ?? 1));
     $perPage = min(100, max(10, (int)($_GET['per_page'] ?? 25)));
     $offset = ($page - 1) * $perPage;
@@ -55,6 +60,34 @@ try {
         $params[] = $sp;
         $params[] = $sp;
         $types .= 'ssss';
+    }
+    if ($dateFrom !== '') {
+        $where[] = "p.{$date_col} >= ?";
+        $params[] = $dateFrom . ' 00:00:00';
+        $types .= 's';
+    }
+    if ($dateTo !== '') {
+        $where[] = "p.{$date_col} <= ?";
+        $params[] = $dateTo . ' 23:59:59';
+        $types .= 's';
+    }
+    if ($amountMin !== null && $amountMin > 0) {
+        $where[] = "p.amount >= ?";
+        $params[] = $amountMin;
+        $types .= 'd';
+    }
+    if ($amountMax !== null && $amountMax > 0) {
+        $where[] = "p.amount <= ?";
+        $params[] = $amountMax;
+        $types .= 'd';
+    }
+    if ($paymentMethod !== '') {
+        $validMethods = ['bank_transfer', 'card', 'cash', 'cheque', 'other'];
+        if (in_array($paymentMethod, $validMethods, true)) {
+            $where[] = "p.{$method_col} = ?";
+            $params[] = $paymentMethod;
+            $types .= 's';
+        }
     }
 
     $whereClause = 'WHERE ' . implode(' AND ', $where);
@@ -160,7 +193,14 @@ try {
         'per_page' => $perPage,
         'total_pages' => $totalPages,
         'rows' => $rows,
-        'filters' => ['donor' => $donorSearch],
+        'filters' => [
+            'donor' => $donorSearch,
+            'date_from' => $dateFrom,
+            'date_to' => $dateTo,
+            'amount_min' => $amountMin,
+            'amount_max' => $amountMax,
+            'payment_method' => $paymentMethod,
+        ],
     ]);
 
 } catch (Exception $e) {

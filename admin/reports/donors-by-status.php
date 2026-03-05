@@ -65,6 +65,8 @@ $page_title = ($activeStatus === 'paying' ? 'Donors Paying' : 'Donors Completed'
         .dbs-empty-state i { font-size: 2.5rem; color: var(--gray-300); margin-bottom: 12px; display: block; }
         .dbs-sortable { cursor: pointer; user-select: none; }
         .dbs-sortable:hover { color: var(--primary) !important; }
+        .dbs-sortable .dbs-sort-icon { margin-left: 4px; opacity: 0.5; font-size: 0.65rem; }
+        .dbs-sortable.dbs-sort-active .dbs-sort-icon { opacity: 1; color: var(--primary); }
     </style>
 </head>
 <body>
@@ -116,16 +118,39 @@ $page_title = ($activeStatus === 'paying' ? 'Donors Paying' : 'Donors Completed'
                 </div>
 
                 <div class="dbs-filter-bar">
+                    <div class="form-label mb-2" style="font-size:0.75rem; font-weight:600; color:var(--gray-500)"><i class="fas fa-filter me-1"></i>Filters</div>
                     <div class="row g-2 align-items-end">
-                        <div class="col-12 col-md-6">
+                        <div class="col-12 col-md-3">
                             <label class="form-label" style="font-size:0.75rem; font-weight:600; color:var(--gray-500)">Donor (name, phone)</label>
                             <input type="text" class="form-control form-control-sm" id="filterDonor" placeholder="Search...">
                         </div>
                         <div class="col-12 col-md-2">
-                            <button class="btn btn-primary btn-sm w-100" id="applyFilters"><i class="fas fa-search me-1"></i>Apply</button>
+                            <label class="form-label" style="font-size:0.75rem; font-weight:600; color:var(--gray-500)">Pledged min</label>
+                            <input type="number" class="form-control form-control-sm" id="filterPledgedMin" placeholder="Min" step="0.01" min="0">
                         </div>
                         <div class="col-12 col-md-2">
-                            <button class="btn btn-outline-secondary btn-sm w-100" id="clearFilters"><i class="fas fa-times me-1"></i>Clear</button>
+                            <label class="form-label" style="font-size:0.75rem; font-weight:600; color:var(--gray-500)">Pledged max</label>
+                            <input type="number" class="form-control form-control-sm" id="filterPledgedMax" placeholder="Max" step="0.01" min="0">
+                        </div>
+                        <div class="col-12 col-md-2">
+                            <label class="form-label" style="font-size:0.75rem; font-weight:600; color:var(--gray-500)">Paid min</label>
+                            <input type="number" class="form-control form-control-sm" id="filterPaidMin" placeholder="Min" step="0.01" min="0">
+                        </div>
+                        <div class="col-12 col-md-2">
+                            <label class="form-label" style="font-size:0.75rem; font-weight:600; color:var(--gray-500)">Paid max</label>
+                            <input type="number" class="form-control form-control-sm" id="filterPaidMax" placeholder="Max" step="0.01" min="0">
+                        </div>
+                        <div class="col-12 col-md-2">
+                            <label class="form-label" style="font-size:0.75rem; font-weight:600; color:var(--gray-500)">Balance min</label>
+                            <input type="number" class="form-control form-control-sm" id="filterBalanceMin" placeholder="Min" step="0.01" min="0">
+                        </div>
+                        <div class="col-12 col-md-2">
+                            <label class="form-label" style="font-size:0.75rem; font-weight:600; color:var(--gray-500)">Balance max</label>
+                            <input type="number" class="form-control form-control-sm" id="filterBalanceMax" placeholder="Max" step="0.01" min="0">
+                        </div>
+                        <div class="col-12 col-md-2 d-flex gap-2">
+                            <button class="btn btn-primary btn-sm flex-fill" id="applyFilters"><i class="fas fa-search me-1"></i>Apply</button>
+                            <button class="btn btn-outline-secondary btn-sm" id="clearFilters"><i class="fas fa-times me-1"></i>Clear</button>
                         </div>
                     </div>
                 </div>
@@ -145,10 +170,10 @@ $page_title = ($activeStatus === 'paying' ? 'Donors Paying' : 'Donors Completed'
                             <thead class="table-light">
                                 <tr>
                                     <th>#</th>
-                                    <th class="dbs-sortable" data-sort-by="donor">Donor</th>
-                                    <th class="text-end dbs-sortable" data-sort-by="pledged">Pledged</th>
-                                    <th class="text-end dbs-sortable" data-sort-by="paid">Paid</th>
-                                    <th class="text-end dbs-sortable" data-sort-by="balance">Outstanding</th>
+                                    <th class="dbs-sortable" data-sort-by="donor">Donor<span class="dbs-sort-icon"></span></th>
+                                    <th class="text-end dbs-sortable" data-sort-by="pledged">Pledged<span class="dbs-sort-icon"></span></th>
+                                    <th class="text-end dbs-sortable" data-sort-by="paid">Paid<span class="dbs-sort-icon"></span></th>
+                                    <th class="text-end dbs-sortable" data-sort-by="balance">Outstanding<span class="dbs-sort-icon"></span></th>
                                     <th></th>
                                 </tr>
                             </thead>
@@ -194,7 +219,35 @@ $page_title = ($activeStatus === 'paying' ? 'Donors Paying' : 'Donors Completed'
     p.set('sort_order', sortState.sortOrder);
     const donor = document.getElementById('filterDonor').value.trim();
     if (donor) p.set('donor', donor);
+    const pledgedMin = document.getElementById('filterPledgedMin').value.trim();
+    if (pledgedMin) p.set('pledged_min', pledgedMin);
+    const pledgedMax = document.getElementById('filterPledgedMax').value.trim();
+    if (pledgedMax) p.set('pledged_max', pledgedMax);
+    const paidMin = document.getElementById('filterPaidMin').value.trim();
+    if (paidMin) p.set('paid_min', paidMin);
+    const paidMax = document.getElementById('filterPaidMax').value.trim();
+    if (paidMax) p.set('paid_max', paidMax);
+    const balanceMin = document.getElementById('filterBalanceMin').value.trim();
+    if (balanceMin) p.set('balance_min', balanceMin);
+    const balanceMax = document.getElementById('filterBalanceMax').value.trim();
+    if (balanceMax) p.set('balance_max', balanceMax);
     return 'api/donors-by-status.php?' + p.toString();
+  }
+
+  function updateSortHeaders() {
+    document.querySelectorAll('.dbs-sortable').forEach(th => {
+      const col = th.dataset.sortBy;
+      th.classList.remove('dbs-sort-active');
+      const icon = th.querySelector('.dbs-sort-icon');
+      if (icon) {
+        if (col === sortState.sortBy) {
+          th.classList.add('dbs-sort-active');
+          icon.innerHTML = sortState.sortOrder === 'asc' ? '<i class="fas fa-sort-up"></i>' : '<i class="fas fa-sort-down"></i>';
+        } else {
+          icon.innerHTML = '<i class="fas fa-sort" style="opacity:0.4"></i>';
+        }
+      }
+    });
   }
 
   function load(page) {
@@ -266,20 +319,38 @@ $page_title = ($activeStatus === 'paying' ? 'Donors Paying' : 'Donors Completed'
   document.getElementById('applyFilters').addEventListener('click', () => load(1));
   document.getElementById('clearFilters').addEventListener('click', () => {
     document.getElementById('filterDonor').value = '';
+    document.getElementById('filterPledgedMin').value = '';
+    document.getElementById('filterPledgedMax').value = '';
+    document.getElementById('filterPaidMin').value = '';
+    document.getElementById('filterPaidMax').value = '';
+    document.getElementById('filterBalanceMin').value = '';
+    document.getElementById('filterBalanceMax').value = '';
     load(1);
   });
   document.getElementById('perPage').addEventListener('change', () => load(1));
   document.getElementById('filterDonor').addEventListener('keydown', e => { if (e.key === 'Enter') load(1); });
 
   document.getElementById('exportCsvBtn').addEventListener('click', () => {
+    const donor = document.getElementById('filterDonor').value.trim();
+    const pledgedMin = document.getElementById('filterPledgedMin').value.trim();
+    const pledgedMax = document.getElementById('filterPledgedMax').value.trim();
+    const paidMin = document.getElementById('filterPaidMin').value.trim();
+    const paidMax = document.getElementById('filterPaidMax').value.trim();
+    const balanceMin = document.getElementById('filterBalanceMin').value.trim();
+    const balanceMax = document.getElementById('filterBalanceMax').value.trim();
     const p = new URLSearchParams();
     p.set('status', STATUS);
     p.set('page', '1');
     p.set('per_page', '99999');
     p.set('sort_by', sortState.sortBy);
     p.set('sort_order', sortState.sortOrder);
-    const donor = document.getElementById('filterDonor').value.trim();
     if (donor) p.set('donor', donor);
+    if (pledgedMin) p.set('pledged_min', pledgedMin);
+    if (pledgedMax) p.set('pledged_max', pledgedMax);
+    if (paidMin) p.set('paid_min', paidMin);
+    if (paidMax) p.set('paid_max', paidMax);
+    if (balanceMin) p.set('balance_min', balanceMin);
+    if (balanceMax) p.set('balance_max', balanceMax);
     fetch('api/donors-by-status.php?' + p.toString(), { credentials: 'same-origin', headers: { Accept: 'application/json' } })
       .then(r => r.json())
       .then(d => {
@@ -302,10 +373,12 @@ $page_title = ($activeStatus === 'paying' ? 'Donors Paying' : 'Donors Completed'
       const col = th.dataset.sortBy;
       if (sortState.sortBy === col) sortState.sortOrder = sortState.sortOrder === 'asc' ? 'desc' : 'asc';
       else { sortState.sortBy = col; sortState.sortOrder = ['balance','pledged','paid'].includes(col) ? 'desc' : 'asc'; }
+      updateSortHeaders();
       load(1);
     });
   });
 
+  updateSortHeaders();
   load(1);
 })();
 </script>
