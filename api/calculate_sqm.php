@@ -4,6 +4,24 @@ header('Content-Type: application/json');
 error_reporting(0); // Suppress PHP errors from output
 ini_set('display_errors', '0');
 
+// Simple rate limiting: max 120 requests per IP per minute (called per contribution item)
+$ip = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
+$cacheDir = sys_get_temp_dir() . '/projector_rl';
+if (!is_dir($cacheDir)) @mkdir($cacheDir, 0700, true);
+$cacheFile = $cacheDir . '/' . md5($ip) . '_sqm.json';
+$now = time();
+$window = 60;
+$maxRequests = 120;
+$data = file_exists($cacheFile) ? (json_decode(file_get_contents($cacheFile), true) ?? []) : [];
+$data = array_filter($data, fn($t) => $t > $now - $window);
+if (count($data) >= $maxRequests) {
+    http_response_code(429);
+    echo json_encode(['success' => false, 'error' => 'Too many requests']);
+    exit();
+}
+$data[] = $now;
+file_put_contents($cacheFile, json_encode(array_values($data)));
+
 try {
     require_once __DIR__ . '/../config/db.php';
     
@@ -89,7 +107,6 @@ try {
     echo json_encode([
         'success' => false,
         'error' => 'Calculation error',
-        'details' => $e->getMessage() // For debugging, remove in production
     ]);
 }
 ?>
