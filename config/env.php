@@ -55,12 +55,10 @@ if (isLocalEnvironment()) {
         define('ENVIRONMENT', 'local_custom');
     } else {
         // LIVE SERVER - Use production database
-        // Credentials must be set via environment variables or config/env.local.php
-        // See config/env.local.sample.php for setup instructions
         if (!defined('DB_HOST')) define('DB_HOST', $_ENV['DB_HOST'] ?? 'localhost');
-        if (!defined('DB_USER')) define('DB_USER', $_ENV['DB_USER'] ?? '');
-        if (!defined('DB_PASS')) define('DB_PASS', $_ENV['DB_PASS'] ?? '');
-        if (!defined('DB_NAME')) define('DB_NAME', $_ENV['DB_NAME'] ?? '');
+        if (!defined('DB_USER')) define('DB_USER', $_ENV['DB_USER'] ?? 'abunetdg_abela');
+        if (!defined('DB_PASS')) define('DB_PASS', $_ENV['DB_PASS'] ?? '2424@Admin');
+        if (!defined('DB_NAME')) define('DB_NAME', $_ENV['DB_NAME'] ?? 'abunetdg_fundraising');
         define('ENVIRONMENT', 'production');
     }
 }
