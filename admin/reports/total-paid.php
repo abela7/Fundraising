@@ -222,10 +222,10 @@ $page_title = 'Total Paid - Detail';
       .then(d => {
         const body = document.getElementById('directBody');
         const rows = d.rows || [];
+        const start = (d.page - 1) * d.per_page + 1;
         if (rows.length === 0) {
           body.innerHTML = '<tr><td colspan="6"><div class="tp-empty-state"><i class="fas fa-inbox"></i><p>No direct payments found.</p></div></td></tr>';
         } else {
-          const start = (d.page - 1) * d.per_page + 1;
           body.innerHTML = rows.map((r, i) => {
             const link = r.donor_id ? '../donor-management/view-donor.php?id=' + r.donor_id : '#';
             return '<tr><td>' + (start + i) + '</td><td><a href="' + link + '" class="tp-donor-link">' + esc(r.donor_name || '—') + '</a>' + (r.donor_phone ? '<br><small style="color:var(--gray-400)">' + esc(r.donor_phone) + '</small>' : '') + '</td><td class="text-end fw-semibold text-success">' + esc(fmtMoney(r.amount)) + '</td><td>' + esc(r.payment_method || '—') + '</td><td>' + esc(r.payment_date ? r.payment_date.slice(0, 10) : '—') + '</td><td>' + (r.donor_id ? '<a href="' + link + '" class="btn btn-sm btn-outline-primary"><i class="fas fa-user"></i></a>' : '') + '</td></tr>';
@@ -253,10 +253,10 @@ $page_title = 'Total Paid - Detail';
         }
         const body = document.getElementById('pledgeBody');
         const rows = d.rows || [];
+        const start = (d.page - 1) * d.per_page + 1;
         if (rows.length === 0) {
           body.innerHTML = '<tr><td colspan="6"><div class="tp-empty-state"><i class="fas fa-inbox"></i><p>No pledge payments found.</p></div></td></tr>';
         } else {
-          const start = (d.page - 1) * d.per_page + 1;
           body.innerHTML = rows.map((r, i) => {
             const link = r.donor_id ? '../donor-management/view-donor.php?id=' + r.donor_id : '#';
             return '<tr><td>' + (start + i) + '</td><td><a href="' + link + '" class="tp-donor-link">' + esc(r.donor_name || '—') + '</a>' + (r.donor_phone ? '<br><small style="color:var(--gray-400)">' + esc(r.donor_phone) + '</small>' : '') + '</td><td class="text-end fw-semibold text-success">' + esc(fmtMoney(r.amount)) + '</td><td>' + esc(r.payment_method || '—') + '</td><td>' + esc(r.payment_date ? r.payment_date.slice(0, 10) : '—') + '</td><td>' + (r.donor_id ? '<a href="' + link + '" class="btn btn-sm btn-outline-primary"><i class="fas fa-user"></i></a>' : '') + '</td></tr>';

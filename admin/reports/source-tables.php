@@ -226,10 +226,10 @@ $page_title = 'Source Tables - Pledges & Pledge Payments';
         }
         const body = document.getElementById('pledgesBody');
         const rows = d.rows || [];
+        const start = (d.page - 1) * d.per_page + 1;
         if (rows.length === 0) {
           body.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-muted">No approved pledges found.</td></tr>';
         } else {
-          const start = (d.page - 1) * d.per_page + 1;
           body.innerHTML = rows.map((r, i) => {
             const link = r.donor_id ? `../donor-management/view-donor.php?id=${r.donor_id}` : '#';
             return `<tr>
@@ -272,10 +272,10 @@ $page_title = 'Source Tables - Pledges & Pledge Payments';
         }
         const body = document.getElementById('ppBody');
         const rows = d.rows || [];
+        const start = (d.page - 1) * d.per_page + 1;
         if (rows.length === 0) {
           body.innerHTML = '<tr><td colspan="6" class="text-center py-4 text-muted">No confirmed pledge payments found.</td></tr>';
         } else {
-          const start = (d.page - 1) * d.per_page + 1;
           body.innerHTML = rows.map((r, i) => {
             const link = r.donor_id ? `../donor-management/view-donor.php?id=${r.donor_id}` : '#';
             return `<tr>
