@@ -1900,13 +1900,21 @@ function phonesMatch(phoneA, phoneB) {
 function isAssignedToKesisBirhanu(data) {
     if (!data) return false;
 
-    return phonesMatch(data.assigned_agent_phone, KESIS_BIRHANU_PHONE);
+    const assignedAgentName = String(data.assigned_agent_name || '')
+        .trim()
+        .toLowerCase()
+        .replace(/\s+/g, ' ');
+    const kesisName = KESIS_BIRHANU_NAME
+        .trim()
+        .toLowerCase()
+        .replace(/\s+/g, ' ');
+
+    return phonesMatch(data.assigned_agent_phone, KESIS_BIRHANU_PHONE)
+        || assignedAgentName === kesisName;
 }
 
 function getRoutingTarget(data) {
-    const assignedAgentPhone = normalizePhoneForComparison(data?.assigned_agent_phone || '');
-    const hasAssignedAgent = assignedAgentPhone !== '';
-    const routedToKesis = isAssignedToKesisBirhanu(data) || !hasAssignedAgent;
+    const routedToKesis = isAssignedToKesisBirhanu(data);
     const assignedName = routedToKesis
         ? (data?.assigned_agent_name || KESIS_BIRHANU_NAME)
         : (data?.assigned_agent_name || '');
