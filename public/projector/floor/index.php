@@ -83,158 +83,37 @@
   /* Clean floor map - removed all UI elements */
 
   .shape{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-weight:800;
+    color:#fff;
+    opacity:.78;
+    font-size:max(12px, min(1.2em, calc(var(--m) * 0.4)));
+    user-select:none;
     position: relative;
-    display: flex;
-    align-items: stretch;
-    justify-content: stretch;
-    border-radius: calc(var(--m) * 0.22);
     overflow: hidden;
-    user-select: none;
-    border: 1px solid rgba(148, 163, 184, 0.16);
-    background:
-      linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(15, 23, 42, 0.1)),
-      rgba(71, 85, 105, 0.52);
-    box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.06),
-      0 18px 40px rgba(2, 6, 23, 0.28);
-    transition: transform 0.35s ease, box-shadow 0.35s ease, border-color 0.35s ease;
-    --shape-fill: rgba(226, 202, 24, 0.7);
-    --shape-fill-opacity: 0.16;
-    --shape-progress: 0%;
   }
 
-  .shape::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background:
-      radial-gradient(circle at top left, rgba(255, 255, 255, 0.16), transparent 30%),
-      linear-gradient(140deg, var(--shape-fill), rgba(15, 23, 42, 0.06) 72%);
-    opacity: var(--shape-fill-opacity);
-    transition: opacity 0.35s ease, background 0.35s ease;
-    pointer-events: none;
-    z-index: 0;
-  }
-
-  .shape::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    border: 1px solid rgba(255, 255, 255, 0.03);
-    border-radius: inherit;
-    pointer-events: none;
-    z-index: 3;
-  }
-
-  .shape.has-coverage {
-    border-color: rgba(255, 255, 255, 0.22);
-    box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.08),
-      0 22px 48px rgba(2, 6, 23, 0.34);
-  }
-
-  .shape.is-minimal {
-    --shape-fill-opacity: 0.08;
-  }
-
-  .A{ background-color: rgba(100, 116, 139, 0.48) } .B{ background-color: rgba(100, 116, 139, 0.48) } .C{ background-color: rgba(100, 116, 139, 0.48) }
-  .D{ background-color: rgba(100, 116, 139, 0.48) } .E{ background-color: rgba(100, 116, 139, 0.48) } .F{ background-color: rgba(100, 116, 139, 0.48) } .G{ background-color: rgba(100, 116, 139, 0.48) }
+  .A{ background:#8B8680 } .B{ background:#8B8680 } .C{ background:#8B8680 }
+  .D{ background:#8B8680 } .E{ background:#8B8680 } .F{ background:#8B8680 } .G{ background:#8B8680 }
 
   .meter-container,
   .half-tile,
   .grid-tile-quarter,
   .quarter-tile {
-    background-color: rgba(255, 255, 255, 0.04) !important;
-    border-color: rgba(255, 255, 255, 0.05) !important;
+    background-color: #F5F5F5 !important;
+    border-color: rgba(0, 0, 0, 0.35) !important;
   }
 
   .grid-tile-quarter:hover,
   .quarter-tile:hover {
-    background-color: rgba(255, 255, 255, 0.08) !important;
+    background-color: #FFFFFF !important;
   }
 
-  .shape-report {
-    position: absolute;
-    inset: 0;
-    z-index: 2;
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-    padding: calc(var(--m) * 0.26);
-    pointer-events: none;
-  }
-
-  .shape-report-head {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 8px;
-  }
-
-  .shape-report-tag {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 6px 10px;
-    border-radius: 999px;
-    background: rgba(15, 23, 42, 0.68);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    box-shadow: 0 6px 16px rgba(2, 6, 23, 0.16);
-  }
-
-  .shape-report-block {
-    font-size: calc(var(--m) * 0.28);
-    letter-spacing: 0.18em;
-    text-transform: uppercase;
-    color: #cbd5e1;
-    font-weight: 700;
-  }
-
-  .shape-report-share {
-    font-size: calc(var(--m) * 0.28);
-    font-weight: 700;
-    color: #f8fafc;
-  }
-
-  .shape-report-body {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    align-self: flex-start;
-    max-width: 88%;
-  }
-
-  .shape-report-value {
-    font-size: calc(var(--m) * 0.62);
-    line-height: 0.95;
-    font-weight: 800;
-    color: #ffffff;
-    text-shadow: 0 8px 20px rgba(2, 6, 23, 0.28);
-  }
-
-  .shape-report-meta {
-    font-size: calc(var(--m) * 0.24);
-    color: rgba(226, 232, 240, 0.88);
-    font-weight: 600;
-    line-height: 1.35;
-  }
-
-  .shape-report-progress {
-    position: relative;
-    width: 100%;
-    height: 8px;
-    border-radius: 999px;
-    overflow: hidden;
-    background: rgba(15, 23, 42, 0.42);
-    border: 1px solid rgba(255, 255, 255, 0.06);
-  }
-
-  .shape-report-progress-fill {
-    width: var(--shape-progress);
-    height: 100%;
-    border-radius: inherit;
-    background: linear-gradient(90deg, rgba(255, 255, 255, 0.3), var(--shape-fill));
-    transition: width 0.45s ease;
+  .shape-report,
+  .report-hero {
+    display: none !important;
   }
 
   /* Totals: A=108, B=9, C=16, D=120, E=120, F=20, G=120 => 513 */
