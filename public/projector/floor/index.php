@@ -102,13 +102,7 @@
   .half-tile,
   .grid-tile-quarter,
   .quarter-tile {
-    background-color: #F5F5F5 !important;
     border-color: rgba(0, 0, 0, 0.35) !important;
-  }
-
-  .grid-tile-quarter:hover,
-  .quarter-tile:hover {
-    background-color: #FFFFFF !important;
   }
 
   .shape-report,

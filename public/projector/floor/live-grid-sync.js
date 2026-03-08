@@ -161,6 +161,7 @@ document.addEventListener('DOMContentLoaded', () => {
             this.getQuarterCells().forEach(cell => {
                 cell.style.transition = 'background-color 0.35s ease, opacity 0.3s ease';
                 cell.style.backgroundColor = '#F5F5F5';
+                cell.dataset.originalColor = '#F5F5F5';
                 cell.style.opacity = '1';
                 cell.style.boxShadow = 'none';
                 cell.style.filter = 'none';
@@ -207,6 +208,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (this.currentFilter === 'pledged' || this.currentFilter === 'paid' || this.currentFilter === 'blocked') {
                 allCells.forEach(cell => {
                     cell.style.backgroundColor = '#6b7280';
+                    cell.dataset.originalColor = '#6b7280';
                     cell.style.opacity = '0.22';
                 });
             }
@@ -225,7 +227,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     allocatedIds.add(cellData.cell_id);
 
                     if (this.shouldHighlightStatus(cellData.status)) {
-                        cellElement.style.backgroundColor = this.getHighlightColor(cellData.status);
+                        const color = this.getHighlightColor(cellData.status);
+                        cellElement.style.backgroundColor = color;
+                        cellElement.dataset.originalColor = color;
                         cellElement.style.opacity = '1';
                         cellElement.style.boxShadow = '0 0 0 1px rgba(255,255,255,0.18) inset, 0 0 12px rgba(255,255,255,0.18)';
                         cellElement.style.filter = 'saturate(1.15) brightness(1.02)';
@@ -240,10 +244,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 allCells.forEach(cell => {
                     if (!allocatedIds.has(cell.id)) {
                         cell.style.backgroundColor = '#d1d5db';
+                        cell.dataset.originalColor = '#d1d5db';
                         cell.style.boxShadow = '0 0 0 1px rgba(255,255,255,0.14) inset';
                         cell.classList.add('cell-available');
                     } else {
                         cell.style.backgroundColor = '#4b5563';
+                        cell.dataset.originalColor = '#4b5563';
                         cell.style.opacity = '0.18';
                     }
                 });
@@ -251,6 +257,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 allCells.forEach(cell => {
                     if (!allocatedIds.has(cell.id)) {
                         cell.style.backgroundColor = '#F5F5F5';
+                        cell.dataset.originalColor = '#F5F5F5';
                     }
                 });
             }
