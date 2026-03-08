@@ -162,6 +162,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 cell.style.transition = 'background-color 0.35s ease, opacity 0.3s ease';
                 cell.style.backgroundColor = '#F5F5F5';
                 cell.style.opacity = '1';
+                cell.style.boxShadow = 'none';
+                cell.style.filter = 'none';
                 cell.classList.remove('cell-allocated', 'cell-pledged', 'cell-paid', 'cell-blocked', 'cell-available');
             });
         },
@@ -199,7 +201,15 @@ document.addEventListener('DOMContentLoaded', () => {
         updateGrid(allocatedData) {
             this.resetCellStyles();
 
+            const allCells = this.getQuarterCells();
             const allocatedIds = new Set();
+
+            if (this.currentFilter === 'pledged' || this.currentFilter === 'paid' || this.currentFilter === 'blocked') {
+                allCells.forEach(cell => {
+                    cell.style.backgroundColor = '#6b7280';
+                    cell.style.opacity = '0.22';
+                });
+            }
 
             Object.values(allocatedData || {}).forEach(cells => {
                 if (!Array.isArray(cells)) {
@@ -216,22 +226,29 @@ document.addEventListener('DOMContentLoaded', () => {
 
                     if (this.shouldHighlightStatus(cellData.status)) {
                         cellElement.style.backgroundColor = this.getHighlightColor(cellData.status);
+                        cellElement.style.opacity = '1';
+                        cellElement.style.boxShadow = '0 0 0 1px rgba(255,255,255,0.18) inset, 0 0 12px rgba(255,255,255,0.18)';
+                        cellElement.style.filter = 'saturate(1.15) brightness(1.02)';
                         cellElement.classList.add(`cell-${cellData.status}`);
+                    } else if (this.currentFilter !== 'total' && this.currentFilter !== 'available') {
+                        cellElement.style.opacity = '0.16';
                     }
                 });
             });
 
             if (this.currentFilter === 'available') {
-                this.getQuarterCells().forEach(cell => {
+                allCells.forEach(cell => {
                     if (!allocatedIds.has(cell.id)) {
-                        cell.style.backgroundColor = this.colors.available;
+                        cell.style.backgroundColor = '#d1d5db';
+                        cell.style.boxShadow = '0 0 0 1px rgba(255,255,255,0.14) inset';
                         cell.classList.add('cell-available');
                     } else {
+                        cell.style.backgroundColor = '#4b5563';
                         cell.style.opacity = '0.18';
                     }
                 });
             } else {
-                this.getQuarterCells().forEach(cell => {
+                allCells.forEach(cell => {
                     if (!allocatedIds.has(cell.id)) {
                         cell.style.backgroundColor = '#F5F5F5';
                     }
