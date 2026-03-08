@@ -1,47 +1,61 @@
-/**
- * Live Grid Synchronization Script
- *
- * This script connects the visual floor plan grid with the live database status.
- * It is designed to be clean, professional, and decoupled from the grid generation logic.
- *
- * Responsibilities:
- * 1. Fetch allocation data from the API endpoint.
- * 2. Reset the visual state of all cells.
- * 3. Apply 'pledged' (orange) and 'paid' (green) styles to the correct cells.
- * 4. Poll for live updates at a regular interval.
- * 5. Provide clear console logs for debugging.
- */
 document.addEventListener('DOMContentLoaded', () => {
     const GridSync = {
         apiUrl: null,
         pollInterval: 2000,
-        gridReady: false,
         currentFilter: 'total',
         latestGridData: {},
         latestSummary: null,
         lastRefreshCheck: 0,
-        colors: {
-            pledged: '#f59e0b',
-            paid: '#22c55e',
-            blocked: '#a855f7',
-            available: '#38bdf8'
+        rectangleOrder: ['A', 'B', 'C', 'D', 'E', 'F', 'G'],
+        rectangleTotals: {
+            A: 108,
+            B: 9,
+            C: 16,
+            D: 120,
+            E: 120,
+            F: 20,
+            G: 120
         },
         filterMeta: {
-            total: { label: 'Total Coverage' },
-            pledged: { label: 'Pledged Coverage' },
-            paid: { label: 'Paid Coverage' },
-            blocked: { label: 'Blocked Area' },
-            available: { label: 'Available Area' }
+            total: {
+                label: 'Total Coverage',
+                hero: 'Floor Coverage',
+                color: '#e2ca18',
+                amountLabel: 'covered value'
+            },
+            pledged: {
+                label: 'Pledged View',
+                hero: 'Pledged Report',
+                color: '#f59e0b',
+                amountLabel: 'pledged value'
+            },
+            paid: {
+                label: 'Paid View',
+                hero: 'Paid Report',
+                color: '#22c55e',
+                amountLabel: 'paid value'
+            },
+            blocked: {
+                label: 'Blocked View',
+                hero: 'Blocked Report',
+                color: '#a855f7',
+                amountLabel: 'blocked value'
+            },
+            available: {
+                label: 'Available View',
+                hero: 'Open Area Report',
+                color: '#38bdf8',
+                amountLabel: 'open value'
+            }
         },
 
         init() {
-            console.log('GridSync: Initializing...');
+            console.log('GridSync: Initializing block report mode...');
             this.resolveApiUrl();
-            console.log('GridSync: Using API URL ->', this.apiUrl);
+            this.setupFilterControls();
+
             this.waitForGridCreation().then(() => {
-                console.log('GridSync: Grid is ready. Starting synchronization.');
-                this.gridReady = true;
-                this.setupFilterControls();
+                this.ensureBlockReports();
                 this.startPolling();
                 this.setupRefreshSignals();
             });
@@ -105,7 +119,6 @@ document.addEventListener('DOMContentLoaded', () => {
             this.applyFilterBtn.addEventListener('click', () => {
                 const selected = this.filterInputs.find(input => input.checked);
                 this.currentFilter = selected ? selected.value : 'total';
-                console.log('GridSync: Applied filter ->', this.currentFilter);
                 this.render();
                 closePanel();
             });
@@ -128,7 +141,6 @@ document.addEventListener('DOMContentLoaded', () => {
             setInterval(() => {
                 const lastRefresh = localStorage.getItem('floorMapRefresh');
                 if (lastRefresh && parseInt(lastRefresh, 10) > this.lastRefreshCheck) {
-                    console.log('GridSync: Aggressive polling detected localStorage change.');
                     this.lastRefreshCheck = parseInt(lastRefresh, 10);
                     this.fetchAndUpdate();
                 }
@@ -137,146 +149,78 @@ document.addEventListener('DOMContentLoaded', () => {
 
         setupRefreshSignals() {
             window.addEventListener('storage', event => {
-                console.log('GridSync: Storage event detected', event.key, event.newValue);
                 if (event.key === 'floorMapRefresh' && event.newValue) {
-                    console.log('GridSync: Immediate refresh triggered by admin action.');
                     this.fetchAndUpdate();
                 }
             });
 
             window.refreshFloorMap = () => {
-                console.log('GridSync: Direct refresh triggered');
                 this.fetchAndUpdate();
             };
 
             window.addEventListener('focus', () => {
                 const lastRefresh = localStorage.getItem('floorMapRefresh');
                 if (lastRefresh && (Date.now() - parseInt(lastRefresh, 10)) < 10000) {
-                    console.log('GridSync: Refresh on focus due to recent admin action');
                     this.fetchAndUpdate();
                 }
             });
-
-            console.log('GridSync: Refresh signals setup complete');
         },
 
         async fetchAndUpdate() {
-            console.log('GridSync: Fetching latest grid status...');
-
             try {
-                if (!this.apiUrl) {
-                    this.resolveApiUrl();
-                }
-
                 const response = await fetch(this.apiUrl);
                 if (!response.ok) {
                     throw new Error(`API request failed with status ${response.status}`);
                 }
 
                 const data = await response.json();
-
                 if (data.success && data.data && data.data.grid_cells) {
                     this.latestGridData = data.data.grid_cells;
                     this.latestSummary = data.data.summary || null;
-                    console.log(`GridSync: Received ${Object.keys(this.latestGridData).length} rectangles with allocations.`);
                     this.render();
-                } else {
-                    console.error('GridSync: API response was not successful or grid data is missing.', data);
                 }
             } catch (error) {
-                console.error('GridSync: Error fetching or parsing data:', error);
+                console.error('GridSync: Error fetching block report data:', error);
             }
         },
 
-        render() {
-            this.updateGrid(this.latestGridData);
-            this.updateStatsCard(this.latestSummary, this.latestGridData);
-        },
+        ensureBlockReports() {
+            this.rectangleOrder.forEach(rectangleId => {
+                const shape = document.querySelector(`.shape.${rectangleId}`);
+                if (!shape || shape.querySelector('.shape-report')) {
+                    return;
+                }
 
-        getQuarterCells() {
-            return Array.from(document.querySelectorAll('.grid-tile-quarter, .quarter-tile'));
-        },
-
-        resetCellStyles() {
-            this.getQuarterCells().forEach(cell => {
-                cell.style.transition = 'background-color 0.5s ease, opacity 0.3s ease';
-                cell.style.backgroundColor = '';
-                cell.style.opacity = '';
-                cell.classList.remove('cell-allocated', 'cell-pledged', 'cell-paid', 'cell-blocked', 'cell-available');
+                const report = document.createElement('div');
+                report.className = 'shape-report';
+                report.innerHTML = `
+                    <div class="shape-report-head">
+                        <div class="shape-report-tag">
+                            <span class="shape-report-block">Block ${rectangleId}</span>
+                        </div>
+                        <div class="shape-report-share" data-role="share">0%</div>
+                    </div>
+                    <div class="shape-report-body">
+                        <div class="shape-report-value" data-role="value">0.00m²</div>
+                        <div class="shape-report-meta" data-role="meta">Waiting for live report...</div>
+                        <div class="shape-report-progress">
+                            <div class="shape-report-progress-fill"></div>
+                        </div>
+                    </div>
+                `;
+                shape.appendChild(report);
             });
         },
 
-        shouldHighlightStatus(status) {
-            switch (this.currentFilter) {
-                case 'pledged':
-                    return status === 'pledged';
-                case 'paid':
-                    return status === 'paid';
-                case 'blocked':
-                    return status === 'blocked';
-                case 'total':
-                default:
-                    return status === 'pledged' || status === 'paid';
-            }
+        getAllGridTiles() {
+            return Array.from(document.querySelectorAll('.grid-tile-quarter, .quarter-tile'));
         },
 
-        colorForStatus(status) {
-            if (status === 'pledged') {
-                return this.colors.pledged;
-            }
-            if (status === 'paid') {
-                return this.colors.paid;
-            }
-            if (status === 'blocked') {
-                return this.colors.blocked;
-            }
-            return this.colors.available;
-        },
-
-        updateGrid(allocatedData) {
-            console.time('GridSync: Update Duration');
-            this.resetCellStyles();
-
-            const quarterCells = this.getQuarterCells();
-            const allocatedIds = new Set();
-            let highlightedCount = 0;
-
-            for (const rectangleId in allocatedData) {
-                const cells = allocatedData[rectangleId];
-                if (!Array.isArray(cells)) {
-                    continue;
-                }
-
-                cells.forEach(cellData => {
-                    const cellElement = document.getElementById(cellData.cell_id);
-                    if (!cellElement || !cellElement.matches('.grid-tile-quarter, .quarter-tile')) {
-                        return;
-                    }
-
-                    allocatedIds.add(cellData.cell_id);
-
-                    if (this.shouldHighlightStatus(cellData.status)) {
-                        cellElement.style.backgroundColor = this.colorForStatus(cellData.status);
-                        cellElement.style.opacity = '0.95';
-                        cellElement.classList.add(`cell-${cellData.status}`);
-                        highlightedCount++;
-                    }
-                });
-            }
-
-            if (this.currentFilter === 'available') {
-                quarterCells.forEach(cell => {
-                    if (!allocatedIds.has(cell.id)) {
-                        cell.style.backgroundColor = this.colors.available;
-                        cell.style.opacity = '0.85';
-                        cell.classList.add('cell-available');
-                        highlightedCount++;
-                    }
-                });
-            }
-
-            console.log(`GridSync: Applied "${this.currentFilter}" filter to ${highlightedCount} cells`);
-            console.timeEnd('GridSync: Update Duration');
+        softenGridTexture() {
+            this.getAllGridTiles().forEach(tile => {
+                tile.style.backgroundColor = '';
+                tile.style.opacity = '0.32';
+            });
         },
 
         getAreaSize(cellData) {
@@ -294,95 +238,177 @@ document.addEventListener('DOMContentLoaded', () => {
             return 0.25;
         },
 
-        calculateMetrics(summary, allocatedData) {
-            const totalArea = parseFloat(summary?.total_area_sqm ?? 0);
-            let pledgedArea = 0;
-            let paidArea = 0;
-            let blockedArea = 0;
+        calculateRectangleMetrics() {
+            const metrics = {};
 
-            Object.values(allocatedData || {}).forEach(cells => {
-                if (!Array.isArray(cells)) {
+            this.rectangleOrder.forEach(rectangleId => {
+                const totalArea = this.rectangleTotals[rectangleId];
+                metrics[rectangleId] = {
+                    totalArea,
+                    pledgedArea: 0,
+                    paidArea: 0,
+                    blockedArea: 0,
+                    availableArea: totalArea,
+                    selectedArea: 0,
+                    progressPct: 0,
+                    value: 0
+                };
+            });
+
+            Object.entries(this.latestGridData || {}).forEach(([rectangleId, cells]) => {
+                if (!metrics[rectangleId] || !Array.isArray(cells)) {
                     return;
                 }
 
                 cells.forEach(cellData => {
                     const areaSize = this.getAreaSize(cellData);
-
                     if (cellData.status === 'pledged') {
-                        pledgedArea += areaSize;
+                        metrics[rectangleId].pledgedArea += areaSize;
                     } else if (cellData.status === 'paid') {
-                        paidArea += areaSize;
+                        metrics[rectangleId].paidArea += areaSize;
                     } else if (cellData.status === 'blocked') {
-                        blockedArea += areaSize;
+                        metrics[rectangleId].blockedArea += areaSize;
                     }
                 });
             });
 
-            const totalCoveredArea = pledgedArea + paidArea;
-            const availableArea = Math.max(totalArea - totalCoveredArea - blockedArea, 0);
+            this.rectangleOrder.forEach(rectangleId => {
+                const block = metrics[rectangleId];
+                const coveredArea = block.pledgedArea + block.paidArea;
+                block.availableArea = Math.max(block.totalArea - coveredArea - block.blockedArea, 0);
 
-            switch (this.currentFilter) {
-                case 'pledged':
-                    return { coveredArea: pledgedArea, totalArea };
-                case 'paid':
-                    return { coveredArea: paidArea, totalArea };
-                case 'blocked':
-                    return { coveredArea: blockedArea, totalArea };
-                case 'available':
-                    return { coveredArea: availableArea, totalArea };
-                case 'total':
-                default:
-                    return { coveredArea: totalCoveredArea, totalArea };
+                if (this.currentFilter === 'pledged') {
+                    block.selectedArea = block.pledgedArea;
+                } else if (this.currentFilter === 'paid') {
+                    block.selectedArea = block.paidArea;
+                } else if (this.currentFilter === 'blocked') {
+                    block.selectedArea = block.blockedArea;
+                } else if (this.currentFilter === 'available') {
+                    block.selectedArea = block.availableArea;
+                } else {
+                    block.selectedArea = coveredArea;
+                }
+
+                block.progressPct = block.totalArea > 0
+                    ? (block.selectedArea / block.totalArea) * 100
+                    : 0;
+                block.value = block.selectedArea * 400;
+            });
+
+            return metrics;
+        },
+
+        getOverallMetrics(rectangleMetrics) {
+            return this.rectangleOrder.reduce((totals, rectangleId) => {
+                const block = rectangleMetrics[rectangleId];
+                totals.totalArea += block.totalArea;
+                totals.selectedArea += block.selectedArea;
+                totals.value += block.value;
+                return totals;
+            }, { totalArea: 0, selectedArea: 0, value: 0 });
+        },
+
+        formatCurrency(value) {
+            return new Intl.NumberFormat('en-GB', {
+                style: 'currency',
+                currency: 'GBP',
+                maximumFractionDigits: 0
+            }).format(value);
+        },
+
+        formatCompactArea(value) {
+            return `${value.toFixed(2)}m²`;
+        },
+
+        renderBlocks(rectangleMetrics) {
+            const filterColor = this.filterMeta[this.currentFilter].color;
+
+            this.rectangleOrder.forEach(rectangleId => {
+                const shape = document.querySelector(`.shape.${rectangleId}`);
+                const report = shape?.querySelector('.shape-report');
+                const block = rectangleMetrics[rectangleId];
+
+                if (!shape || !report || !block) {
+                    return;
+                }
+
+                const intensity = Math.max(0, Math.min(block.progressPct / 100, 1));
+                const opacity = block.selectedArea > 0 ? (0.14 + intensity * 0.62) : 0.08;
+
+                shape.style.setProperty('--shape-fill', filterColor);
+                shape.style.setProperty('--shape-fill-opacity', opacity.toFixed(2));
+                shape.style.setProperty('--shape-progress', `${Math.max(block.progressPct, block.selectedArea > 0 ? 6 : 0).toFixed(1)}%`);
+                shape.classList.toggle('has-coverage', block.selectedArea > 0.01);
+                shape.classList.toggle('is-minimal', block.selectedArea <= 0.01);
+                shape.style.transform = `translateY(${(1 - intensity) * 4}px)`;
+
+                report.querySelector('[data-role="share"]').textContent = `${block.progressPct.toFixed(1)}%`;
+                report.querySelector('[data-role="value"]').textContent = this.formatCompactArea(block.selectedArea);
+                report.querySelector('[data-role="meta"]').textContent =
+                    `${this.formatCurrency(block.value)} · ${this.formatCompactArea(block.totalArea)} block size`;
+            });
+        },
+
+        updateHero(overallMetrics) {
+            const heroValue = document.getElementById('reportHeroValue');
+            const heroMeta = document.getElementById('reportHeroMeta');
+            const filter = this.filterMeta[this.currentFilter];
+            const percentage = overallMetrics.totalArea > 0
+                ? (overallMetrics.selectedArea / overallMetrics.totalArea) * 100
+                : 0;
+
+            if (heroValue) {
+                heroValue.textContent = filter.hero;
+            }
+
+            if (heroMeta) {
+                heroMeta.textContent = `${this.formatCompactArea(overallMetrics.selectedArea)} · ${this.formatCurrency(overallMetrics.value)} · ${percentage.toFixed(1)}% of floor`;
             }
         },
 
-        updateStatsCard(summary, allocatedData) {
-            if (!summary) {
-                return;
-            }
-
+        updateStatsCard(overallMetrics) {
             const coveredAreaElement = document.getElementById('covered-area');
             const totalAreaElement = document.getElementById('total-area');
             const progressFillElement = document.getElementById('progress-fill');
             const percentageElement = document.getElementById('coverage-percentage');
             const coverageLabelElement = document.getElementById('coverage-label');
-
-            const metrics = this.calculateMetrics(summary, allocatedData);
-            const coveredArea = metrics.coveredArea;
-            const totalArea = metrics.totalArea;
-            const percentage = totalArea > 0 ? (coveredArea / totalArea) * 100 : 0;
-            const filterLabel = this.filterMeta[this.currentFilter]?.label || 'Coverage';
+            const filter = this.filterMeta[this.currentFilter];
+            const percentage = overallMetrics.totalArea > 0
+                ? (overallMetrics.selectedArea / overallMetrics.totalArea) * 100
+                : 0;
 
             if (coveredAreaElement) {
-                coveredAreaElement.textContent = coveredArea.toFixed(2);
+                coveredAreaElement.textContent = overallMetrics.selectedArea.toFixed(2);
             }
 
             if (totalAreaElement) {
-                totalAreaElement.textContent = totalArea.toFixed(2);
+                totalAreaElement.textContent = overallMetrics.totalArea.toFixed(2);
             }
 
             if (coverageLabelElement) {
-                coverageLabelElement.textContent = filterLabel;
+                coverageLabelElement.textContent = filter.label;
             }
 
             if (progressFillElement) {
                 progressFillElement.style.width = `${percentage}%`;
-                progressFillElement.style.backgroundColor = this.currentFilter === 'paid'
-                    ? this.colors.paid
-                    : this.currentFilter === 'pledged'
-                        ? this.colors.pledged
-                        : this.currentFilter === 'blocked'
-                            ? this.colors.blocked
-                            : this.currentFilter === 'available'
-                                ? this.colors.available
-                                : '#e2ca18';
+                progressFillElement.style.backgroundColor = filter.color;
             }
 
             if (percentageElement) {
                 percentageElement.textContent = `${percentage.toFixed(1)}%`;
             }
+        },
 
-            console.log(`GridSync: Stats updated - ${coveredArea.toFixed(2)}m² of ${totalArea.toFixed(2)}m² (${this.currentFilter})`);
+        render() {
+            this.ensureBlockReports();
+            this.softenGridTexture();
+
+            const rectangleMetrics = this.calculateRectangleMetrics();
+            const overallMetrics = this.getOverallMetrics(rectangleMetrics);
+
+            this.renderBlocks(rectangleMetrics);
+            this.updateHero(overallMetrics);
+            this.updateStatsCard(overallMetrics);
         }
     };
 

@@ -29,8 +29,12 @@
   body{
     display: flex; align-items: center; justify-content: center;
     padding: 0; margin: 0; min-height: 100vh;
-    background: #131A2D; /* Dark blue background */
+    background:
+      radial-gradient(circle at top left, rgba(59, 130, 246, 0.18), transparent 28%),
+      radial-gradient(circle at top right, rgba(14, 165, 233, 0.14), transparent 24%),
+      linear-gradient(180deg, #091122 0%, #101a31 54%, #0d1426 100%);
     font-family: system-ui, -apple-system, sans-serif;
+    overflow: hidden;
   }
 
   .game-container{
@@ -40,7 +44,7 @@
     width: 100vw; 
     min-height: 100vh;
     position: relative;
-    padding: 20px;
+    padding: 24px 20px;
     box-sizing: border-box;
   }
 
@@ -51,6 +55,7 @@
     position: relative;
     max-width: 95vw; max-height: 95vh;
     width: fit-content; height: fit-content;
+    isolation: isolate;
     .main-section {
             width: 100%;
             height: 100%;
@@ -77,14 +82,160 @@
 
   /* Clean floor map - removed all UI elements */
 
-  .shape{ 
-    display:flex; align-items:center; justify-content:center; 
-    font-weight:800; color:#fff; opacity:.78;
-    font-size: max(12px, min(1.2em, calc(var(--m) * 0.4)));
-    user-select: none; 
+  .shape{
+    position: relative;
+    display: flex;
+    align-items: stretch;
+    justify-content: stretch;
+    border-radius: calc(var(--m) * 0.22);
+    overflow: hidden;
+    user-select: none;
+    border: 1px solid rgba(148, 163, 184, 0.16);
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(15, 23, 42, 0.1)),
+      rgba(71, 85, 105, 0.52);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.06),
+      0 18px 40px rgba(2, 6, 23, 0.28);
+    transition: transform 0.35s ease, box-shadow 0.35s ease, border-color 0.35s ease;
+    --shape-fill: rgba(226, 202, 24, 0.7);
+    --shape-fill-opacity: 0.16;
+    --shape-progress: 0%;
   }
-  .A{ background:#8B8680 } .B{ background:#8B8680 } .C{ background:#8B8680 }
-  .D{ background:#8B8680 } .E{ background:#8B8680 } .F{ background:#8B8680 } .G{ background:#8B8680 }
+
+  .shape::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background:
+      radial-gradient(circle at top left, rgba(255, 255, 255, 0.16), transparent 30%),
+      linear-gradient(140deg, var(--shape-fill), rgba(15, 23, 42, 0.06) 72%);
+    opacity: var(--shape-fill-opacity);
+    transition: opacity 0.35s ease, background 0.35s ease;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .shape::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border: 1px solid rgba(255, 255, 255, 0.03);
+    border-radius: inherit;
+    pointer-events: none;
+    z-index: 3;
+  }
+
+  .shape.has-coverage {
+    border-color: rgba(255, 255, 255, 0.22);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.08),
+      0 22px 48px rgba(2, 6, 23, 0.34);
+  }
+
+  .shape.is-minimal {
+    --shape-fill-opacity: 0.08;
+  }
+
+  .A{ background-color: rgba(100, 116, 139, 0.48) } .B{ background-color: rgba(100, 116, 139, 0.48) } .C{ background-color: rgba(100, 116, 139, 0.48) }
+  .D{ background-color: rgba(100, 116, 139, 0.48) } .E{ background-color: rgba(100, 116, 139, 0.48) } .F{ background-color: rgba(100, 116, 139, 0.48) } .G{ background-color: rgba(100, 116, 139, 0.48) }
+
+  .meter-container,
+  .half-tile,
+  .grid-tile-quarter,
+  .quarter-tile {
+    background-color: rgba(255, 255, 255, 0.04) !important;
+    border-color: rgba(255, 255, 255, 0.05) !important;
+  }
+
+  .grid-tile-quarter:hover,
+  .quarter-tile:hover {
+    background-color: rgba(255, 255, 255, 0.08) !important;
+  }
+
+  .shape-report {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: calc(var(--m) * 0.26);
+    pointer-events: none;
+  }
+
+  .shape-report-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  .shape-report-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 10px;
+    border-radius: 999px;
+    background: rgba(15, 23, 42, 0.68);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: 0 6px 16px rgba(2, 6, 23, 0.16);
+  }
+
+  .shape-report-block {
+    font-size: calc(var(--m) * 0.28);
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: #cbd5e1;
+    font-weight: 700;
+  }
+
+  .shape-report-share {
+    font-size: calc(var(--m) * 0.28);
+    font-weight: 700;
+    color: #f8fafc;
+  }
+
+  .shape-report-body {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    align-self: flex-start;
+    max-width: 88%;
+  }
+
+  .shape-report-value {
+    font-size: calc(var(--m) * 0.62);
+    line-height: 0.95;
+    font-weight: 800;
+    color: #ffffff;
+    text-shadow: 0 8px 20px rgba(2, 6, 23, 0.28);
+  }
+
+  .shape-report-meta {
+    font-size: calc(var(--m) * 0.24);
+    color: rgba(226, 232, 240, 0.88);
+    font-weight: 600;
+    line-height: 1.35;
+  }
+
+  .shape-report-progress {
+    position: relative;
+    width: 100%;
+    height: 8px;
+    border-radius: 999px;
+    overflow: hidden;
+    background: rgba(15, 23, 42, 0.42);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+  }
+
+  .shape-report-progress-fill {
+    width: var(--shape-progress);
+    height: 100%;
+    border-radius: inherit;
+    background: linear-gradient(90deg, rgba(255, 255, 255, 0.3), var(--shape-fill));
+    transition: width 0.45s ease;
+  }
 
   /* Totals: A=108, B=9, C=16, D=120, E=120, F=20, G=120 => 513 */
 
@@ -295,6 +446,8 @@
     left: 12px;
     z-index: 1105;
     width: min(320px, calc(100vw - 24px));
+    max-height: calc(100vh - 84px);
+    overflow-y: auto;
     background: rgba(15, 23, 42, 0.96);
     border: 1px solid rgba(255, 255, 255, 0.12);
     border-radius: 14px;
@@ -302,6 +455,46 @@
     color: #e2e8f0;
     box-shadow: 0 24px 48px rgba(2, 6, 23, 0.5);
     backdrop-filter: blur(14px);
+  }
+
+  .report-hero {
+    position: fixed;
+    top: 12px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 1100;
+    min-width: min(460px, calc(100vw - 180px));
+    max-width: min(620px, calc(100vw - 180px));
+    padding: 14px 18px;
+    border-radius: 18px;
+    background: rgba(7, 12, 24, 0.72);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: 0 20px 40px rgba(2, 6, 23, 0.35);
+    backdrop-filter: blur(16px);
+    text-align: center;
+  }
+
+  .report-hero-kicker {
+    font-size: 0.72rem;
+    letter-spacing: 0.28em;
+    text-transform: uppercase;
+    color: #94a3b8;
+    margin-bottom: 6px;
+    font-weight: 700;
+  }
+
+  .report-hero-value {
+    font-size: clamp(1.05rem, 1.5vw, 1.4rem);
+    color: #f8fafc;
+    font-weight: 800;
+    letter-spacing: 0.02em;
+  }
+
+  .report-hero-meta {
+    margin-top: 6px;
+    color: #cbd5e1;
+    font-size: 0.84rem;
+    font-weight: 600;
   }
 
   .filter-panel[hidden] {
@@ -429,12 +622,40 @@
       width: min(320px, calc(100vw - 16px));
       padding: 14px;
     }
+    .report-hero {
+      top: auto;
+      bottom: 18px;
+      left: 18px;
+      right: 18px;
+      transform: none;
+      min-width: 0;
+      max-width: none;
+      padding: 12px 14px;
+      text-align: left;
+    }
+    .shape-report {
+      padding: calc(var(--m) * 0.18);
+    }
+    .shape-report-value {
+      font-size: calc(var(--m) * 0.46);
+    }
+    .shape-report-meta,
+    .shape-report-block,
+    .shape-report-share {
+      font-size: calc(var(--m) * 0.2);
+    }
   }
 
   /* All UI elements removed for clean game design */
 </style>
 </head>
 <body>
+  <div class="report-hero" id="reportHero">
+    <div class="report-hero-kicker">Live Floor Report</div>
+    <div class="report-hero-value" id="reportHeroValue">Total Coverage</div>
+    <div class="report-hero-meta" id="reportHeroMeta">Loading live block summary...</div>
+  </div>
+
   <button class="filter-btn" id="filterToggleBtn" title="Filter Floor View">
     <i class="fas fa-filter"></i>
     <span class="label">Filter</span>
