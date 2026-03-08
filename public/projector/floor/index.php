@@ -257,147 +257,6 @@
     font-size: 1rem; 
   }
 
-  .filter-btn {
-    position: fixed;
-    top: 12px;
-    left: 12px;
-    z-index: 1100;
-    background: rgba(15, 23, 42, 0.72);
-    color: #fff;
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    border-radius: 10px;
-    padding: 8px 10px;
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 0.9rem;
-    cursor: pointer;
-    backdrop-filter: blur(10px);
-    transition: opacity 0.25s ease, transform 0.2s ease, background 0.2s ease;
-    opacity: 0.85;
-    font-family: system-ui, -apple-system, sans-serif;
-  }
-
-  .filter-btn:hover,
-  .filter-btn.is-open {
-    opacity: 1;
-    transform: translateY(-1px);
-    background: rgba(30, 41, 59, 0.92);
-  }
-
-  .filter-btn i {
-    font-size: 1rem;
-  }
-
-  .filter-panel {
-    position: fixed;
-    top: 60px;
-    left: 12px;
-    z-index: 1105;
-    width: min(320px, calc(100vw - 24px));
-    background: rgba(15, 23, 42, 0.96);
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    border-radius: 14px;
-    padding: 16px;
-    color: #e2e8f0;
-    box-shadow: 0 24px 48px rgba(2, 6, 23, 0.5);
-    backdrop-filter: blur(14px);
-  }
-
-  .filter-panel[hidden] {
-    display: none;
-  }
-
-  .filter-panel-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    margin-bottom: 12px;
-  }
-
-  .filter-panel-title {
-    font-size: 0.95rem;
-    font-weight: 700;
-    color: #f8fafc;
-  }
-
-  .filter-panel-subtitle {
-    font-size: 0.78rem;
-    color: #94a3b8;
-    margin-top: 3px;
-  }
-
-  .filter-close-btn {
-    border: none;
-    background: transparent;
-    color: #94a3b8;
-    font-size: 0.95rem;
-    cursor: pointer;
-  }
-
-  .filter-options {
-    display: grid;
-    gap: 10px;
-    margin-bottom: 14px;
-  }
-
-  .filter-option {
-    display: flex;
-    align-items: flex-start;
-    gap: 10px;
-    padding: 10px 12px;
-    border: 1px solid rgba(148, 163, 184, 0.2);
-    border-radius: 10px;
-    background: rgba(30, 41, 59, 0.5);
-    cursor: pointer;
-    transition: border-color 0.2s ease, background 0.2s ease;
-  }
-
-  .filter-option:hover {
-    border-color: rgba(226, 202, 24, 0.55);
-    background: rgba(51, 65, 85, 0.72);
-  }
-
-  .filter-option input {
-    margin-top: 3px;
-    accent-color: #e2ca18;
-  }
-
-  .filter-option-title {
-    font-size: 0.88rem;
-    font-weight: 600;
-    color: #f8fafc;
-  }
-
-  .filter-option-note {
-    font-size: 0.76rem;
-    color: #94a3b8;
-    margin-top: 3px;
-  }
-
-  .filter-actions {
-    display: flex;
-    justify-content: flex-end;
-  }
-
-  .filter-apply-btn {
-    border: none;
-    border-radius: 10px;
-    padding: 9px 14px;
-    background: #e2ca18;
-    color: #0f172a;
-    font-size: 0.84rem;
-    font-weight: 700;
-    cursor: pointer;
-    transition: transform 0.2s ease, opacity 0.2s ease;
-  }
-
-  .filter-apply-btn:hover {
-    opacity: 0.95;
-    transform: translateY(-1px);
-  }
-
   @media (max-width: 768px) {
     .fullscreen-btn { 
       padding: 6px 8px; 
@@ -417,83 +276,12 @@
     .refresh-btn i { 
       font-size: 0.9rem; 
     }
-    .filter-btn {
-      top: 8px;
-      left: 8px;
-      padding: 6px 8px;
-      font-size: 0.8rem;
-    }
-    .filter-panel {
-      top: 52px;
-      left: 8px;
-      width: min(320px, calc(100vw - 16px));
-      padding: 14px;
-    }
   }
 
   /* All UI elements removed for clean game design */
 </style>
 </head>
 <body>
-  <button class="filter-btn" id="filterToggleBtn" title="Filter Floor View">
-    <i class="fas fa-filter"></i>
-    <span class="label">Filter</span>
-  </button>
-
-  <div class="filter-panel" id="filterPanel" hidden>
-    <div class="filter-panel-header">
-      <div>
-        <div class="filter-panel-title">Floor Filter</div>
-        <div class="filter-panel-subtitle">Choose which shading to show.</div>
-      </div>
-      <button type="button" class="filter-close-btn" id="filterCloseBtn" aria-label="Close filter">
-        <i class="fas fa-times"></i>
-      </button>
-    </div>
-
-    <div class="filter-options">
-      <label class="filter-option">
-        <input type="radio" name="floorFilter" value="total" checked>
-        <span>
-          <span class="filter-option-title">Total</span>
-          <span class="filter-option-note">Show pledged and paid area together.</span>
-        </span>
-      </label>
-      <label class="filter-option">
-        <input type="radio" name="floorFilter" value="pledged">
-        <span>
-          <span class="filter-option-title">Pledged</span>
-          <span class="filter-option-note">Highlight only pledged area.</span>
-        </span>
-      </label>
-      <label class="filter-option">
-        <input type="radio" name="floorFilter" value="paid">
-        <span>
-          <span class="filter-option-title">Paid</span>
-          <span class="filter-option-note">Highlight only paid area.</span>
-        </span>
-      </label>
-      <label class="filter-option">
-        <input type="radio" name="floorFilter" value="blocked">
-        <span>
-          <span class="filter-option-title">Blocked</span>
-          <span class="filter-option-note">Show reserved or blocked cells only.</span>
-        </span>
-      </label>
-      <label class="filter-option">
-        <input type="radio" name="floorFilter" value="available">
-        <span>
-          <span class="filter-option-title">Available</span>
-          <span class="filter-option-note">Highlight the remaining open area.</span>
-        </span>
-      </label>
-    </div>
-
-    <div class="filter-actions">
-      <button type="button" class="filter-apply-btn" id="applyFilterBtn">Apply</button>
-    </div>
-  </div>
-
   <button class="fullscreen-btn" id="fullscreenBtn" title="Toggle Fullscreen (F)">
     <i class="fas fa-expand"></i>
     <span class="label">Fullscreen</span>
@@ -519,7 +307,7 @@
         <div class="coverage-numbers">
           <span id="covered-area">0.00</span>m² / <span id="total-area">513.00</span>m² Per Floor
         </div>
-        <div class="coverage-label" id="coverage-label">Total Coverage</div>
+        <div class="coverage-label">Coverage Progress</div>
         <div class="progress-bar">
           <div class="progress-fill" id="progress-fill"></div>
         </div>

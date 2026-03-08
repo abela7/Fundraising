@@ -78,8 +78,6 @@ try {
             // The frontend expects a specific structure, let's match it.
             $groupedData[$rectId][] = [
                 'cell_id' => $cell['cell_id'],
-                'cell_type' => $cell['cell_type'],
-                'area_size' => (float)$cell['area_size'],
                 'status'  => $cell['status'],
                 'donor'   => $cell['donor_name'],
                 'amount'  => (float)$cell['amount']
