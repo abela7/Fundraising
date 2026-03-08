@@ -29,12 +29,8 @@
   body{
     display: flex; align-items: center; justify-content: center;
     padding: 0; margin: 0; min-height: 100vh;
-    background:
-      radial-gradient(circle at top left, rgba(59, 130, 246, 0.18), transparent 28%),
-      radial-gradient(circle at top right, rgba(14, 165, 233, 0.14), transparent 24%),
-      linear-gradient(180deg, #091122 0%, #101a31 54%, #0d1426 100%);
+    background: #131A2D; /* Dark blue background */
     font-family: system-ui, -apple-system, sans-serif;
-    overflow: hidden;
   }
 
   .game-container{
@@ -44,7 +40,7 @@
     width: 100vw; 
     min-height: 100vh;
     position: relative;
-    padding: 24px 20px;
+    padding: 20px;
     box-sizing: border-box;
   }
 
@@ -55,7 +51,6 @@
     position: relative;
     max-width: 95vw; max-height: 95vh;
     width: fit-content; height: fit-content;
-    isolation: isolate;
     .main-section {
             width: 100%;
             height: 100%;
@@ -82,33 +77,14 @@
 
   /* Clean floor map - removed all UI elements */
 
-  .shape{
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    font-weight:800;
-    color:#fff;
-    opacity:.78;
-    font-size:max(12px, min(1.2em, calc(var(--m) * 0.4)));
-    user-select:none;
-    position: relative;
-    overflow: hidden;
+  .shape{ 
+    display:flex; align-items:center; justify-content:center; 
+    font-weight:800; color:#fff; opacity:.78;
+    font-size: max(12px, min(1.2em, calc(var(--m) * 0.4)));
+    user-select: none; 
   }
-
   .A{ background:#8B8680 } .B{ background:#8B8680 } .C{ background:#8B8680 }
   .D{ background:#8B8680 } .E{ background:#8B8680 } .F{ background:#8B8680 } .G{ background:#8B8680 }
-
-  .meter-container,
-  .half-tile,
-  .grid-tile-quarter,
-  .quarter-tile {
-    border-color: rgba(0, 0, 0, 0.35) !important;
-  }
-
-  .shape-report,
-  .report-hero {
-    display: none !important;
-  }
 
   /* Totals: A=108, B=9, C=16, D=120, E=120, F=20, G=120 => 513 */
 
@@ -319,8 +295,6 @@
     left: 12px;
     z-index: 1105;
     width: min(320px, calc(100vw - 24px));
-    max-height: calc(100vh - 84px);
-    overflow-y: auto;
     background: rgba(15, 23, 42, 0.96);
     border: 1px solid rgba(255, 255, 255, 0.12);
     border-radius: 14px;
@@ -328,46 +302,6 @@
     color: #e2e8f0;
     box-shadow: 0 24px 48px rgba(2, 6, 23, 0.5);
     backdrop-filter: blur(14px);
-  }
-
-  .report-hero {
-    position: fixed;
-    top: 12px;
-    left: 50%;
-    transform: translateX(-50%);
-    z-index: 1100;
-    min-width: min(460px, calc(100vw - 180px));
-    max-width: min(620px, calc(100vw - 180px));
-    padding: 14px 18px;
-    border-radius: 18px;
-    background: rgba(7, 12, 24, 0.72);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    box-shadow: 0 20px 40px rgba(2, 6, 23, 0.35);
-    backdrop-filter: blur(16px);
-    text-align: center;
-  }
-
-  .report-hero-kicker {
-    font-size: 0.72rem;
-    letter-spacing: 0.28em;
-    text-transform: uppercase;
-    color: #94a3b8;
-    margin-bottom: 6px;
-    font-weight: 700;
-  }
-
-  .report-hero-value {
-    font-size: clamp(1.05rem, 1.5vw, 1.4rem);
-    color: #f8fafc;
-    font-weight: 800;
-    letter-spacing: 0.02em;
-  }
-
-  .report-hero-meta {
-    margin-top: 6px;
-    color: #cbd5e1;
-    font-size: 0.84rem;
-    font-weight: 600;
   }
 
   .filter-panel[hidden] {
@@ -495,40 +429,12 @@
       width: min(320px, calc(100vw - 16px));
       padding: 14px;
     }
-    .report-hero {
-      top: auto;
-      bottom: 18px;
-      left: 18px;
-      right: 18px;
-      transform: none;
-      min-width: 0;
-      max-width: none;
-      padding: 12px 14px;
-      text-align: left;
-    }
-    .shape-report {
-      padding: calc(var(--m) * 0.18);
-    }
-    .shape-report-value {
-      font-size: calc(var(--m) * 0.46);
-    }
-    .shape-report-meta,
-    .shape-report-block,
-    .shape-report-share {
-      font-size: calc(var(--m) * 0.2);
-    }
   }
 
   /* All UI elements removed for clean game design */
 </style>
 </head>
 <body>
-  <div class="report-hero" id="reportHero">
-    <div class="report-hero-kicker">Live Floor Report</div>
-    <div class="report-hero-value" id="reportHeroValue">Total Coverage</div>
-    <div class="report-hero-meta" id="reportHeroMeta">Loading live block summary...</div>
-  </div>
-
   <button class="filter-btn" id="filterToggleBtn" title="Filter Floor View">
     <i class="fas fa-filter"></i>
     <span class="label">Filter</span>
@@ -1761,7 +1667,7 @@ document.addEventListener('DOMContentLoaded', function() {
 </script>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
-<script src="live-grid-sync.js?v=<?php echo urlencode((string)filemtime(__DIR__ . '/live-grid-sync.js')); ?>" defer></script>
+<script src="live-grid-sync.js" defer></script>
 
 <script>
 // Fullscreen functionality
