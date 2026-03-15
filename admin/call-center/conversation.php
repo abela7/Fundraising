@@ -287,6 +287,28 @@ $page_title = 'Live Call';
         .fab-container {
             display: none !important;
         }
+
+        /* Skip Button */
+        .btn-skip {
+            font-size: 0.8125rem;
+            color: #94a3b8;
+            border: 1px dashed #cbd5e1;
+            background: transparent;
+            padding: 0.375rem 0.875rem;
+            border-radius: 20px;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+
+        .btn-skip:hover {
+            color: #0a6286;
+            border-color: #0a6286;
+            background: #f0f9ff;
+        }
+
+        .btn-skip i {
+            font-size: 0.75rem;
+        }
         
         /* Steps Wizard */
         .step-container {
@@ -820,13 +842,18 @@ $page_title = 'Live Call';
                                 </div>
                                 <?php endif; ?>
                                 
-                                <div class="mt-4 d-flex justify-content-between">
+                                <div class="mt-4 d-flex justify-content-between align-items-center">
                                     <button type="button" class="btn btn-outline-secondary" onclick="window.location.href='../donor-management/donors.php'">
                                         <i class="fas fa-times me-2"></i>Cancel Call
                                     </button>
-                                    <button type="button" class="btn btn-primary btn-lg" id="btnStep1Next" disabled onclick="goToStep(2)">
-                                        Next Step <i class="fas fa-arrow-right ms-2"></i>
-                                    </button>
+                                    <div class="d-flex align-items-center gap-2">
+                                        <button type="button" class="btn btn-skip" onclick="goToStep(2)" title="Skip verification - donor is in a rush">
+                                            Skip <i class="fas fa-forward ms-1"></i>
+                                        </button>
+                                        <button type="button" class="btn btn-primary btn-lg" id="btnStep1Next" disabled onclick="goToStep(2)">
+                                            Next Step <i class="fas fa-arrow-right ms-2"></i>
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -857,15 +884,18 @@ $page_title = 'Live Call';
                                     </div>
                                 </div>
                                 
-                                <div class="mt-4 d-flex justify-content-between">
+                                <div class="mt-4 d-flex justify-content-between align-items-center">
                                     <button type="button" class="btn btn-outline-secondary" onclick="goToStep(1)">
                                         <i class="fas fa-arrow-left me-2"></i>Back
+                                    </button>
+                                    <button type="button" class="btn btn-skip" onclick="skipToPaymentReady()" title="Skip to payment plan - donor wants to pay now">
+                                        Skip to Payment <i class="fas fa-forward ms-1"></i>
                                     </button>
                                 </div>
                             </div>
                         </div>
                     </div>
-                    
+
                     <!-- Step 3: Payment Verification (Already Paid) -->
                     <div class="step-container" id="step3">
                         <div class="step-card">
@@ -1167,13 +1197,18 @@ $page_title = 'Live Call';
                                     </div>
                                 </div>
                                 
-                                <div class="mt-4 d-flex justify-content-between">
+                                <div class="mt-4 d-flex justify-content-between align-items-center">
                                     <button type="button" class="btn btn-outline-secondary" onclick="goToDonorInfoBack()">
                                         <i class="fas fa-arrow-left me-2"></i>Back
                                     </button>
-                                    <button type="button" class="btn btn-primary btn-lg" id="btnStep4Next" onclick="proceedFromDonorInfo()">
-                                        Next Step <i class="fas fa-arrow-right ms-2"></i>
-                                    </button>
+                                    <div class="d-flex align-items-center gap-2">
+                                        <button type="button" class="btn btn-skip" onclick="skipFromDonorInfo()" title="Skip donor info collection">
+                                            Skip <i class="fas fa-forward ms-1"></i>
+                                        </button>
+                                        <button type="button" class="btn btn-primary btn-lg" id="btnStep4Next" onclick="proceedFromDonorInfo()">
+                                            Next Step <i class="fas fa-arrow-right ms-2"></i>
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -1210,10 +1245,13 @@ $page_title = 'Live Call';
                                     </div>
                                 </div>
                                 <input type="hidden" name="ready_to_pay" id="readyToPayInput">
-                                
-                                <div class="mt-4 d-flex justify-content-between">
+
+                                <div class="mt-4 d-flex justify-content-between align-items-center">
                                     <button type="button" class="btn btn-outline-secondary" onclick="goToStep(4)">
                                         <i class="fas fa-arrow-left me-2"></i>Back
+                                    </button>
+                                    <button type="button" class="btn btn-skip" onclick="selectReadiness('yes')" title="Skip - donor is ready to pay">
+                                        Ready to Pay <i class="fas fa-forward ms-1"></i>
                                     </button>
                                 </div>
                             </div>
@@ -1937,12 +1975,30 @@ function proceedFromDonorInfo() {
         goToStep(3);
         return;
     }
-    
+
     goToStep(5);
 }
-    
+
 function goToDonorInfoBack() {
     goToStep(2);
+}
+
+// Skip helpers for fast-tracking calls
+function skipToPaymentReady() {
+    // Skip Step 2 (payment status) + Step 4 (donor info) — donor hasn't paid, go straight to payment plan
+    document.getElementById('donorAlreadyPaidInput').value = 'no';
+    document.getElementById('readyToPayInput').value = 'yes';
+    goToStep(6);
+}
+
+function skipFromDonorInfo() {
+    // Skip donor info collection — proceed based on payment status
+    const donorAlreadyPaid = document.getElementById('donorAlreadyPaidInput').value === 'yes';
+    if (donorAlreadyPaid) {
+        goToStep(3);
+    } else {
+        goToStep(5);
+    }
 }
     
     // Payment Method Selection
