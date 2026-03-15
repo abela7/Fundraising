@@ -1,27 +1,8 @@
 <?php
 declare(strict_types=1);
 require_once __DIR__ . '/../../shared/auth.php';
-require_once __DIR__ . '/../../config/db.php';
 require_login();
 require_admin();
-
-require_once __DIR__ . '/../../shared/IntelligentGridAllocator.php';
-
-$db = db();
-$allocator = new IntelligentGridAllocator($db);
-$stats = $allocator->getAllocationStats();
-
-$total_cells     = (int)($stats['total_cells'] ?? 0);
-$pledged_cells   = (int)($stats['pledged_cells'] ?? 0);
-$paid_cells      = (int)($stats['paid_cells'] ?? 0);
-$available_cells = (int)($stats['available_cells'] ?? 0);
-$allocated_cells = $pledged_cells + $paid_cells;
-$total_area      = (float)($stats['total_possible_area'] ?? 0);
-$allocated_area  = (float)($stats['total_allocated_area'] ?? 0);
-$pledged_area    = $pledged_cells * 0.25;
-$paid_area       = $paid_cells * 0.25;
-$available_area  = $available_cells * 0.25;
-$progress        = $total_area > 0 ? ($allocated_area / $total_area) * 100 : 0;
 
 $page_title = 'Floor Grid Report';
 ?>
@@ -172,30 +153,30 @@ $page_title = 'Floor Grid Report';
                 <div class="row g-2 mb-3">
                     <div class="col-6 col-md-3">
                         <div class="stat-box" id="statAll">
-                            <div class="stat-num" style="color:#1e293b;"><?php echo number_format($allocated_area, 2); ?><small class="fw-normal" style="font-size:0.6em;">m²</small></div>
-                            <div class="stat-lbl">Allocated</div>
-                            <div class="stat-sub"><?php echo $allocated_cells; ?> cells</div>
+                            <div class="stat-num" id="statAllNum" style="color:#1e293b;">--<small class="fw-normal" style="font-size:0.6em;">m²</small></div>
+                            <div class="stat-lbl" id="statAllLabel">Allocated</div>
+                            <div class="stat-sub" id="statAllSub">loading...</div>
                         </div>
                     </div>
                     <div class="col-6 col-md-3">
-                        <div class="stat-box">
-                            <div class="stat-num" style="color:#f97316;"><?php echo number_format($pledged_area, 2); ?><small class="fw-normal" style="font-size:0.6em;">m²</small></div>
+                        <div class="stat-box" id="statPledged">
+                            <div class="stat-num" id="statPledgedNum" style="color:#f97316;">--<small class="fw-normal" style="font-size:0.6em;">m²</small></div>
                             <div class="stat-lbl">Pledged</div>
-                            <div class="stat-sub"><?php echo $pledged_cells; ?> cells</div>
+                            <div class="stat-sub" id="statPledgedSub">loading...</div>
                         </div>
                     </div>
                     <div class="col-6 col-md-3">
-                        <div class="stat-box">
-                            <div class="stat-num" style="color:#22c55e;"><?php echo number_format($paid_area, 2); ?><small class="fw-normal" style="font-size:0.6em;">m²</small></div>
+                        <div class="stat-box" id="statPaid">
+                            <div class="stat-num" id="statPaidNum" style="color:#22c55e;">--<small class="fw-normal" style="font-size:0.6em;">m²</small></div>
                             <div class="stat-lbl">Paid</div>
-                            <div class="stat-sub"><?php echo $paid_cells; ?> cells</div>
+                            <div class="stat-sub" id="statPaidSub">loading...</div>
                         </div>
                     </div>
                     <div class="col-6 col-md-3">
                         <div class="stat-box">
-                            <div class="stat-num" style="color:#94a3b8;"><?php echo number_format($available_area, 2); ?><small class="fw-normal" style="font-size:0.6em;">m²</small></div>
+                            <div class="stat-num" id="statAvailNum" style="color:#94a3b8;">--<small class="fw-normal" style="font-size:0.6em;">m²</small></div>
                             <div class="stat-lbl">Available</div>
-                            <div class="stat-sub"><?php echo $available_cells; ?> cells</div>
+                            <div class="stat-sub" id="statAvailSub">loading...</div>
                         </div>
                     </div>
                 </div>
@@ -204,11 +185,11 @@ $page_title = 'Floor Grid Report';
                 <div class="mb-3">
                     <div class="d-flex justify-content-between mb-1">
                         <span class="small text-muted fw-bold">Progress</span>
-                        <span class="small fw-bold" id="progressPct"><?php echo number_format($progress, 1); ?>%</span>
+                        <span class="small fw-bold" id="progressPct">0.0%</span>
                     </div>
                     <div class="alloc-bar">
-                        <div class="alloc-bar-paid" id="barPaid" style="width:<?php echo $total_cells > 0 ? ($paid_cells / $total_cells) * 100 : 0; ?>%"></div>
-                        <div class="alloc-bar-pledged" id="barPledged" style="width:<?php echo $total_cells > 0 ? ($pledged_cells / $total_cells) * 100 : 0; ?>%"></div>
+                        <div class="alloc-bar-paid" id="barPaid" style="width:0%"></div>
+                        <div class="alloc-bar-pledged" id="barPledged" style="width:0%"></div>
                     </div>
                 </div>
 
@@ -228,24 +209,101 @@ $page_title = 'Floor Grid Report';
 document.addEventListener('DOMContentLoaded', function() {
     const frame = document.getElementById('gridFrame');
     const buttons = document.querySelectorAll('#filterBar .filter-btn');
-    const barPaid = document.getElementById('barPaid');
-    const barPledged = document.getElementById('barPledged');
-    const progressPct = document.getElementById('progressPct');
-    const statAll = document.getElementById('statAll');
-
-    const data = {
-        total_cells: <?php echo $total_cells; ?>,
-        pledged_cells: <?php echo $pledged_cells; ?>,
-        paid_cells: <?php echo $paid_cells; ?>,
-        available_cells: <?php echo $available_cells; ?>,
-        pledged_area: <?php echo $pledged_area; ?>,
-        paid_area: <?php echo $paid_area; ?>,
-        allocated_area: <?php echo $allocated_area; ?>,
-        total_area: <?php echo $total_area; ?>
-    };
+    const apiUrl = '../../api/grid_status.php';
 
     let currentFilter = 'all';
+    let liveData = null; // { summary, grid_cells }
 
+    // --- Fetch live data from API ---
+    function fetchData() {
+        fetch(apiUrl)
+            .then(r => r.json())
+            .then(data => {
+                if (!data.success || !data.data) return;
+
+                // Count effective pledged/paid from actual cell data (considers pledge payments)
+                let pledgedCount = 0, paidCount = 0, blockedCount = 0;
+                const gridCells = data.data.grid_cells || {};
+                for (const rectId in gridCells) {
+                    const cells = gridCells[rectId];
+                    if (!Array.isArray(cells)) continue;
+                    cells.forEach(c => {
+                        if (c.status === 'pledged') pledgedCount++;
+                        else if (c.status === 'paid') paidCount++;
+                        else if (c.status === 'blocked') blockedCount++;
+                    });
+                }
+
+                const summary = data.data.summary || {};
+                const totalCells = parseInt(summary.total_cells || 0);
+                const availableCells = parseInt(summary.available_cells || 0);
+                const totalArea = parseFloat(summary.total_area_sqm || 0);
+                const cellArea = 0.25;
+
+                liveData = {
+                    totalCells: totalCells,
+                    pledgedCells: pledgedCount,
+                    paidCells: paidCount,
+                    availableCells: availableCells,
+                    pledgedArea: pledgedCount * cellArea,
+                    paidArea: paidCount * cellArea,
+                    allocatedArea: (pledgedCount + paidCount) * cellArea,
+                    totalArea: totalArea
+                };
+
+                renderStats(currentFilter);
+            })
+            .catch(err => console.error('Report: API fetch error', err));
+    }
+
+    // --- Render stats based on filter ---
+    function renderStats(filter) {
+        if (!liveData) return;
+        const d = liveData;
+
+        // Always update pledged/paid/available cards
+        document.getElementById('statPledgedNum').innerHTML = d.pledgedArea.toFixed(2) + '<small class="fw-normal" style="font-size:0.6em;">m²</small>';
+        document.getElementById('statPledgedSub').textContent = d.pledgedCells + ' cells';
+
+        document.getElementById('statPaidNum').innerHTML = d.paidArea.toFixed(2) + '<small class="fw-normal" style="font-size:0.6em;">m²</small>';
+        document.getElementById('statPaidSub').textContent = d.paidCells + ' cells';
+
+        document.getElementById('statAvailNum').innerHTML = (d.totalArea - d.allocatedArea).toFixed(2) + '<small class="fw-normal" style="font-size:0.6em;">m²</small>';
+        document.getElementById('statAvailSub').textContent = d.availableCells + ' cells';
+
+        // First card changes based on filter
+        const statAllNum = document.getElementById('statAllNum');
+        const statAllLabel = document.getElementById('statAllLabel');
+        const statAllSub = document.getElementById('statAllSub');
+        const barPaid = document.getElementById('barPaid');
+        const barPledged = document.getElementById('barPledged');
+        const progressPct = document.getElementById('progressPct');
+
+        let area, cells, color, label;
+
+        if (filter === 'pledged') {
+            area = d.pledgedArea; cells = d.pledgedCells; color = '#f97316'; label = 'Pledged';
+            barPaid.style.width = '0%';
+            barPledged.style.width = (d.totalCells > 0 ? (d.pledgedCells / d.totalCells) * 100 : 0) + '%';
+        } else if (filter === 'paid') {
+            area = d.paidArea; cells = d.paidCells; color = '#22c55e'; label = 'Paid';
+            barPledged.style.width = '0%';
+            barPaid.style.width = (d.totalCells > 0 ? (d.paidCells / d.totalCells) * 100 : 0) + '%';
+        } else {
+            area = d.allocatedArea; cells = d.pledgedCells + d.paidCells; color = '#1e293b'; label = 'Allocated';
+            barPaid.style.width = (d.totalCells > 0 ? (d.paidCells / d.totalCells) * 100 : 0) + '%';
+            barPledged.style.width = (d.totalCells > 0 ? (d.pledgedCells / d.totalCells) * 100 : 0) + '%';
+        }
+
+        const pct = d.totalArea > 0 ? (area / d.totalArea) * 100 : 0;
+        progressPct.textContent = pct.toFixed(1) + '%';
+        statAllNum.innerHTML = area.toFixed(2) + '<small class="fw-normal" style="font-size:0.6em;">m²</small>';
+        statAllNum.style.color = color;
+        statAllLabel.textContent = label;
+        statAllSub.textContent = cells + ' cells';
+    }
+
+    // --- Filter button clicks ---
     buttons.forEach(btn => {
         btn.addEventListener('click', function() {
             const filter = this.dataset.filter;
@@ -255,38 +313,17 @@ document.addEventListener('DOMContentLoaded', function() {
             buttons.forEach(b => b.classList.remove('active'));
             this.classList.add('active');
 
-            // Send filter to iframe
+            // Send filter to iframe grid
             frame.contentWindow.postMessage({ type: 'gridFilter', filter: filter }, '*');
 
             // Update stats
-            updateStats(filter);
+            renderStats(filter);
         });
     });
 
-    function updateStats(filter) {
-        let area, cells, pct, color;
-        if (filter === 'pledged') {
-            area = data.pledged_area; cells = data.pledged_cells; color = '#f97316';
-            barPaid.style.width = '0%';
-            barPledged.style.width = (data.total_cells > 0 ? (data.pledged_cells / data.total_cells) * 100 : 0) + '%';
-        } else if (filter === 'paid') {
-            area = data.paid_area; cells = data.paid_cells; color = '#22c55e';
-            barPledged.style.width = '0%';
-            barPaid.style.width = (data.total_cells > 0 ? (data.paid_cells / data.total_cells) * 100 : 0) + '%';
-        } else {
-            area = data.allocated_area; cells = data.pledged_cells + data.paid_cells; color = '#1e293b';
-            barPaid.style.width = (data.total_cells > 0 ? (data.paid_cells / data.total_cells) * 100 : 0) + '%';
-            barPledged.style.width = (data.total_cells > 0 ? (data.pledged_cells / data.total_cells) * 100 : 0) + '%';
-        }
-        pct = data.total_area > 0 ? (area / data.total_area) * 100 : 0;
-        progressPct.textContent = pct.toFixed(1) + '%';
-
-        const label = filter === 'pledged' ? 'Pledged' : filter === 'paid' ? 'Paid' : 'Allocated';
-        statAll.innerHTML =
-            '<div class="stat-num" style="color:' + color + ';">' + area.toFixed(2) + '<small class="fw-normal" style="font-size:0.6em;">m²</small></div>' +
-            '<div class="stat-lbl">' + label + '</div>' +
-            '<div class="stat-sub">' + cells + ' cells</div>';
-    }
+    // --- Initial fetch + poll every 10s ---
+    fetchData();
+    setInterval(fetchData, 10000);
 });
 </script>
 </body>
