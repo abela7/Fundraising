@@ -294,50 +294,98 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action'])) {
             
         } elseif ($action === 'delete_donor') {
             $donor_id = (int)($_POST['donor_id'] ?? 0);
-            
+
             if ($donor_id <= 0) {
                 throw new Exception('Invalid donor ID');
             }
-            
+
             // Get existing donor
             $existing = $db->prepare("SELECT * FROM donors WHERE id = ? FOR UPDATE");
             $existing->bind_param('i', $donor_id);
             $existing->execute();
             $donor = $existing->get_result()->fetch_assoc();
-            
+
             if (!$donor) {
                 throw new Exception('Donor not found');
             }
-            
+
             // Safety check: Don't delete if has pledges or payments
             $check_pledges = $db->prepare("SELECT COUNT(*) as cnt FROM pledges WHERE donor_phone = ?");
             $check_pledges->bind_param('s', $donor['phone']);
             $check_pledges->execute();
             $pledge_count = $check_pledges->get_result()->fetch_assoc()['cnt'];
-            
+
             $check_payments = $db->prepare("SELECT COUNT(*) as cnt FROM payments WHERE donor_phone = ?");
             $check_payments->bind_param('s', $donor['phone']);
             $check_payments->execute();
             $payment_count = $check_payments->get_result()->fetch_assoc()['cnt'];
-            
+
             if ($pledge_count > 0 || $payment_count > 0) {
                 throw new Exception('Cannot delete donor with existing pledges or payments. Please archive instead.');
             }
-            
+
             // Delete donor
             $stmt = $db->prepare("DELETE FROM donors WHERE id = ?");
             $stmt->bind_param('i', $donor_id);
             $stmt->execute();
-            
+
             // Audit log
             $user_id = (int)$current_user['id'];
             $before = json_encode($donor);
             $audit = $db->prepare("INSERT INTO audit_logs(user_id, entity_type, entity_id, action, before_json, source) VALUES(?, 'donor', ?, 'delete', ?, 'admin')");
             $audit->bind_param('iis', $user_id, $donor_id, $before);
             $audit->execute();
-            
+
             $db->commit();
             echo json_encode(['success' => true, 'message' => 'Donor deleted successfully']);
+            exit;
+
+        } elseif ($action === 'update_contact_status') {
+            $donor_id = (int)($_POST['donor_id'] ?? 0);
+            $contact_status = trim($_POST['contact_status'] ?? '');
+
+            if ($donor_id <= 0) {
+                throw new Exception('Invalid donor ID');
+            }
+
+            $allowed_statuses = ['completed', 'phone_not_working', 'not_answering', ''];
+            if (!in_array($contact_status, $allowed_statuses, true)) {
+                throw new Exception('Invalid contact status');
+            }
+
+            // Get existing donor
+            $existing = $db->prepare("SELECT * FROM donors WHERE id = ? FOR UPDATE");
+            $existing->bind_param('i', $donor_id);
+            $existing->execute();
+            $donor = $existing->get_result()->fetch_assoc();
+
+            if (!$donor) {
+                throw new Exception('Donor not found');
+            }
+
+            // Update contact status (empty string = NULL)
+            $status_value = $contact_status === '' ? null : $contact_status;
+            $stmt = $db->prepare("UPDATE donors SET contact_status = ?, updated_at = NOW() WHERE id = ?");
+            $stmt->bind_param('si', $status_value, $donor_id);
+            $stmt->execute();
+
+            // Audit log
+            $user_id = (int)$current_user['id'];
+            $before = json_encode(['contact_status' => $donor['contact_status'] ?? null]);
+            $after = json_encode(['contact_status' => $status_value]);
+            $audit = $db->prepare("INSERT INTO audit_logs(user_id, entity_type, entity_id, action, before_json, after_json, source) VALUES(?, 'donor', ?, 'update_contact_status', ?, ?, 'admin')");
+            $audit->bind_param('iiss', $user_id, $donor_id, $before, $after);
+            $audit->execute();
+
+            $db->commit();
+
+            $status_labels = [
+                'completed' => 'Completed',
+                'phone_not_working' => 'Phone Not Working',
+                'not_answering' => 'Not Answering'
+            ];
+            $label = $status_value ? ($status_labels[$status_value] ?? $status_value) : 'None';
+            echo json_encode(['success' => true, 'message' => 'Contact status updated to: ' . $label, 'contact_status' => $status_value]);
             exit;
         }
         
@@ -632,7 +680,7 @@ try {
             d.created_at, d.updated_at, d.has_active_plan, d.active_payment_plan_id,
             d.last_payment_date, d.last_sms_sent_at, d.login_count, d.admin_notes,
             d.registered_by_user_id, d.pledge_count, d.payment_count, d.achievement_badge,
-            d.donor_type, d.agent_id,
+            d.donor_type, d.agent_id, d.contact_status,
             -- Assigned agent name
             u.name as agent_name,
             -- Registrar name (who registered the donor)
@@ -1636,6 +1684,31 @@ unset($donor); // Break reference
                         </div>
                     </div>
                     
+                    <!-- Contact Status -->
+                    <div class="col-12">
+                        <div class="card border-0 shadow-sm">
+                            <div class="card-header bg-light p-2 p-md-3">
+                                <h6 class="mb-0 small"><i class="fas fa-phone-volume me-2 text-info"></i>Contact Status</h6>
+                            </div>
+                            <div class="card-body p-3">
+                                <div class="d-flex align-items-center gap-3 flex-wrap">
+                                    <div class="flex-grow-1" style="max-width: 300px;">
+                                        <select class="form-select form-select-sm" id="detail_contact_status">
+                                            <option value="">-- No Status --</option>
+                                            <option value="completed">Completed</option>
+                                            <option value="phone_not_working">Phone Number Not Working</option>
+                                            <option value="not_answering">Not Answering</option>
+                                        </select>
+                                    </div>
+                                    <button type="button" class="btn btn-sm btn-info text-white" id="btnUpdateContactStatus">
+                                        <i class="fas fa-save me-1"></i>Update Status
+                                    </button>
+                                    <span id="contactStatusFeedback" class="small"></span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Admin Notes (if any) -->
                     <div class="col-12" id="admin_notes_section" style="display: none;">
                         <div class="card border-0 shadow-sm">
@@ -1917,6 +1990,10 @@ $(document).ready(function() {
         $('#detail_last_sms').text(donor.last_sms_sent_at ? new Date(donor.last_sms_sent_at).toLocaleString() : 'Never');
         $('#detail_login_count').text(donor.login_count || 0);
         
+        // Contact status dropdown
+        $('#detail_contact_status').val(donor.contact_status || '');
+        $('#contactStatusFeedback').text('');
+
         // Admin notes
         if (donor.admin_notes && donor.admin_notes.trim() !== '') {
             $('#detail_admin_notes').text(donor.admin_notes);
@@ -1984,6 +2061,44 @@ $(document).ready(function() {
         }
     });
     
+    // Update Contact Status
+    $('#btnUpdateContactStatus').click(function() {
+        if (!currentDonorData) return;
+
+        const btn = $(this);
+        const newStatus = $('#detail_contact_status').val();
+        const feedback = $('#contactStatusFeedback');
+
+        btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-1"></i>Saving...');
+        feedback.text('');
+
+        $.post('', {
+            ajax_action: 'update_contact_status',
+            donor_id: currentDonorData.id,
+            contact_status: newStatus,
+            csrf_token: $('input[name="csrf_token"]').first().val()
+        }, function(response) {
+            if (response.success) {
+                feedback.html('<span class="text-success"><i class="fas fa-check me-1"></i>' + response.message + '</span>');
+                currentDonorData.contact_status = newStatus || null;
+                // Update the data attribute on the table row
+                $('tr.donor-row').each(function() {
+                    const rowData = JSON.parse($(this).attr('data-donor'));
+                    if (rowData.id == currentDonorData.id) {
+                        rowData.contact_status = newStatus || null;
+                        $(this).attr('data-donor', JSON.stringify(rowData));
+                    }
+                });
+            } else {
+                feedback.html('<span class="text-danger"><i class="fas fa-times me-1"></i>' + response.message + '</span>');
+            }
+        }, 'json').fail(function() {
+            feedback.html('<span class="text-danger"><i class="fas fa-times me-1"></i>Server error. Please try again.</span>');
+        }).always(function() {
+            btn.prop('disabled', false).html('<i class="fas fa-save me-1"></i>Update Status');
+        });
+    });
+
     // Add Donor is now on a separate page (add-donor.php)
     
     // Save Edit Donor
