@@ -304,8 +304,8 @@
       <div class="shape F">F</div>
       <div class="shape G">G</div>
       
-      <!-- Stats card inside floor map at bottom -->
-      <div class="stats-card">
+      <!-- Stats card inside floor map at bottom (hidden in report mode) -->
+      <div class="stats-card" <?php if (!empty($_GET['filter'])): ?>style="display:none;"<?php endif; ?>>
         <div class="coverage-numbers">
           <span id="covered-area">0.00</span>m² / <span id="total-area">513.00</span>m² Per Floor
         </div>
