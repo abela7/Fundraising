@@ -17,10 +17,14 @@ document.addEventListener('DOMContentLoaded', () => {
         // Configuration
         apiUrl: null,
         pollInterval: 2000, // Fetch updates every 2 seconds for faster response
-        allocationColor: '#e2ca18', // Unified color for both pledged and paid
-        
+        allocationColor: '#e2ca18', // Default unified color (used in "all" mode)
+        pledgedColor: '#f97316',    // Orange for pledged
+        paidColor: '#22c55e',       // Green for paid
+
         // State
         gridReady: false,
+        activeFilter: 'all', // 'all', 'pledged', or 'paid'
+        lastData: null,      // Cache last API response for re-filtering without refetch
         
         /**
          * Initializes the synchronization process.
@@ -29,11 +33,37 @@ document.addEventListener('DOMContentLoaded', () => {
             console.log('GridSync: Initializing...');
             this.resolveApiUrl();
             console.log('GridSync: Using API URL ->', this.apiUrl);
+            this.setupFilterButtons();
             this.waitForGridCreation().then(() => {
                 console.log('GridSync: Grid is ready. Starting synchronization.');
                 this.gridReady = true;
                 this.startPolling();
                 this.setupRefreshSignals();
+            });
+        },
+
+        /**
+         * Sets up the filter toggle buttons.
+         */
+        setupFilterButtons() {
+            const buttons = document.querySelectorAll('.floor-filter-btn');
+            buttons.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const filter = btn.getAttribute('data-filter');
+                    if (filter === this.activeFilter) return;
+
+                    this.activeFilter = filter;
+                    buttons.forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+
+                    console.log('GridSync: Filter changed to', filter);
+
+                    // Re-apply with cached data (no need to refetch)
+                    if (this.lastData) {
+                        this.updateGrid(this.lastData.grid_cells);
+                        this.updateStatsCard(this.lastData.summary);
+                    }
+                });
             });
         },
 
@@ -134,6 +164,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const data = await response.json();
                 
                 if (data.success && data.data && data.data.grid_cells) {
+                    this.lastData = data.data; // Cache for filter switching
                     const cellData = data.data.grid_cells;
                     console.log(`GridSync: Received ${Object.keys(cellData).length} rectangles with allocations.`);
                     this.updateGrid(cellData);
@@ -152,60 +183,69 @@ document.addEventListener('DOMContentLoaded', () => {
          */
         updateGrid(allocatedData) {
             console.time('GridSync: Update Duration');
-            
-            // First, reset ALL previously allocated cells to their original state
-            const allAllocatedCells = document.querySelectorAll('.cell-allocated, .cell-pledged, .cell-paid, .cell-blocked');
-            allAllocatedCells.forEach(cell => {
+
+            // Reset ALL previously styled cells
+            const allStyledCells = document.querySelectorAll('.cell-allocated, .cell-pledged, .cell-paid, .cell-blocked');
+            allStyledCells.forEach(cell => {
                 cell.style.backgroundColor = '';
                 cell.style.transition = '';
                 cell.classList.remove('cell-allocated', 'cell-pledged', 'cell-paid', 'cell-blocked');
             });
-            
-            // Also reset any cells that might have inline background colors from previous allocations
+
+            // Also reset any cells with inline background colors from previous allocations
+            const knownColors = [
+                this.allocationColor, this.pledgedColor, this.paidColor,
+                'rgb(226, 202, 24)', 'rgb(249, 115, 22)', 'rgb(34, 197, 94)'
+            ];
             const allCells = document.querySelectorAll('.grid-tile-quarter');
             allCells.forEach(cell => {
-                if (cell.style.backgroundColor && cell.style.backgroundColor !== '') {
-                    // Only reset if it's not a natural hover/default state
-                    if (cell.style.backgroundColor === this.allocationColor || 
-                        cell.style.backgroundColor === 'rgb(226, 202, 24)') {
-                        cell.style.backgroundColor = '';
-                        cell.style.transition = '';
-                        cell.classList.remove('cell-allocated', 'cell-pledged', 'cell-paid', 'cell-blocked');
-                    }
+                if (cell.style.backgroundColor && knownColors.includes(cell.style.backgroundColor)) {
+                    cell.style.backgroundColor = '';
+                    cell.style.transition = '';
+                    cell.classList.remove('cell-allocated', 'cell-pledged', 'cell-paid', 'cell-blocked');
                 }
             });
-            
-            console.log(`GridSync: Reset all previously allocated cells`);
-            
-            // Apply new statuses
+
+            // Apply new statuses based on active filter
             let allocatedCount = 0;
+            const filter = this.activeFilter;
+
             for (const rectangleId in allocatedData) {
                 const cells = allocatedData[rectangleId];
                 if (Array.isArray(cells)) {
                     cells.forEach(cellData => {
                         const cellElement = document.getElementById(cellData.cell_id);
-                        if (cellElement) {
-                            // Add a smooth transition effect
-                            cellElement.style.transition = 'background-color 0.5s ease';
-                            
-                            if (cellData.status === 'pledged' || cellData.status === 'paid') {
-                                cellElement.style.backgroundColor = this.allocationColor;
-                                cellElement.classList.add('cell-allocated');
-                                allocatedCount++;
-                            } else if (cellData.status === 'blocked') {
-                                // Handle blocked cells (same color but different class for debugging)
-                                cellElement.style.backgroundColor = this.allocationColor;
-                                cellElement.classList.add('cell-blocked');
-                                allocatedCount++;
+                        if (!cellElement) return;
+
+                        const status = cellData.status;
+
+                        // Skip cells that don't match the filter
+                        if (filter === 'pledged' && status !== 'pledged') return;
+                        if (filter === 'paid' && status !== 'paid') return;
+
+                        cellElement.style.transition = 'background-color 0.5s ease';
+
+                        if (status === 'pledged' || status === 'paid') {
+                            // In "all" mode use unified gold; in filtered mode use distinct colors
+                            if (filter === 'all') {
+                                // Show both but with distinct colors
+                                cellElement.style.backgroundColor = status === 'paid' ? this.paidColor : this.pledgedColor;
+                            } else {
+                                cellElement.style.backgroundColor = status === 'paid' ? this.paidColor : this.pledgedColor;
                             }
-                        } else {
-                            console.warn(`GridSync: Cell ID "${cellData.cell_id}" found in data but not in DOM.`);
+                            cellElement.classList.add(status === 'paid' ? 'cell-paid' : 'cell-pledged');
+                            cellElement.classList.add('cell-allocated');
+                            allocatedCount++;
+                        } else if (status === 'blocked') {
+                            cellElement.style.backgroundColor = this.allocationColor;
+                            cellElement.classList.add('cell-blocked');
+                            allocatedCount++;
                         }
                     });
                 }
             }
-            
-            console.log(`GridSync: Applied allocation styling to ${allocatedCount} cells`);
+
+            console.log(`GridSync: Applied ${filter} filter - ${allocatedCount} cells visible`);
             console.timeEnd('GridSync: Update Duration');
         },
 
@@ -220,27 +260,52 @@ document.addEventListener('DOMContentLoaded', () => {
             const totalAreaElement = document.getElementById('total-area');
             const progressFillElement = document.getElementById('progress-fill');
             const percentageElement = document.getElementById('coverage-percentage');
+            const coverageLabelElement = document.querySelector('.coverage-label');
 
-            if (coveredAreaElement && summary.allocated_area_sqm !== undefined) {
-                const coveredArea = parseFloat(summary.allocated_area_sqm).toFixed(2);
-                coveredAreaElement.textContent = coveredArea;
+            // Calculate area based on active filter
+            const totalArea = parseFloat(summary.total_area_sqm || 0);
+            const pledgedCells = parseInt(summary.pledged_cells || 0);
+            const paidCells = parseInt(summary.paid_cells || 0);
+            const cellArea = 0.25; // Each 0.5x0.5 cell = 0.25 m²
+
+            let filteredArea;
+            let filterLabel;
+            let barColor;
+
+            if (this.activeFilter === 'pledged') {
+                filteredArea = pledgedCells * cellArea;
+                filterLabel = 'Pledged Only';
+                barColor = this.pledgedColor;
+            } else if (this.activeFilter === 'paid') {
+                filteredArea = paidCells * cellArea;
+                filterLabel = 'Paid Only';
+                barColor = this.paidColor;
+            } else {
+                filteredArea = parseFloat(summary.allocated_area_sqm || 0);
+                filterLabel = 'Coverage Progress';
+                barColor = '#ffd700';
             }
 
-            if (totalAreaElement && summary.total_area_sqm !== undefined) {
-                const totalArea = parseFloat(summary.total_area_sqm).toFixed(2);
-                totalAreaElement.textContent = totalArea;
+            if (coveredAreaElement) {
+                coveredAreaElement.textContent = filteredArea.toFixed(2);
             }
 
-            if (progressFillElement && percentageElement && summary.allocated_area_sqm !== undefined && summary.total_area_sqm !== undefined) {
-                const coveredArea = parseFloat(summary.allocated_area_sqm);
-                const totalArea = parseFloat(summary.total_area_sqm);
-                const percentage = totalArea > 0 ? (coveredArea / totalArea) * 100 : 0;
-                
+            if (totalAreaElement) {
+                totalAreaElement.textContent = totalArea.toFixed(2);
+            }
+
+            if (coverageLabelElement) {
+                coverageLabelElement.textContent = filterLabel;
+            }
+
+            if (progressFillElement && percentageElement) {
+                const percentage = totalArea > 0 ? (filteredArea / totalArea) * 100 : 0;
                 progressFillElement.style.width = `${percentage}%`;
+                progressFillElement.style.background = barColor;
                 percentageElement.textContent = `${percentage.toFixed(1)}%`;
             }
 
-            console.log(`GridSync: Stats updated - ${summary.allocated_area_sqm}m² of ${summary.total_area_sqm}m² covered`);
+            console.log(`GridSync: Stats updated [${this.activeFilter}] - ${filteredArea.toFixed(2)}m² of ${totalArea.toFixed(2)}m²`);
         }
     };
     
