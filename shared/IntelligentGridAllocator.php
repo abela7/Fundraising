@@ -273,18 +273,48 @@ class IntelligentGridAllocator
     
     /**
      * Retrieves the status of all allocated cells for frontend display.
+     * Cross-references pledge_payments to determine effective status:
+     * if a pledged cell's pledge has been fully paid via pledge_payments, it shows as 'paid'.
      */
     public function getGridStatus(): array
     {
         $sql = "
-            SELECT cell_id, rectangle_id, cell_type, area_size, status, donor_name, amount, assigned_date
-            FROM floor_grid_cells 
-            WHERE status IN ('pledged', 'paid', 'blocked')
-            ORDER BY rectangle_id, assigned_date
+            SELECT
+                fgc.cell_id, fgc.rectangle_id, fgc.cell_type, fgc.area_size,
+                fgc.status, fgc.donor_name, fgc.amount, fgc.assigned_date,
+                fgc.pledge_id,
+                COALESCE(p.amount, 0) AS pledge_amount,
+                COALESCE(pp_totals.total_paid, 0) AS pledge_total_paid
+            FROM floor_grid_cells fgc
+            LEFT JOIN pledges p ON fgc.pledge_id = p.id
+            LEFT JOIN (
+                SELECT pledge_id, SUM(amount) AS total_paid
+                FROM pledge_payments
+                WHERE status = 'confirmed'
+                GROUP BY pledge_id
+            ) pp_totals ON fgc.pledge_id = pp_totals.pledge_id
+            WHERE fgc.status IN ('pledged', 'paid', 'blocked')
+            ORDER BY fgc.rectangle_id, fgc.assigned_date
         ";
-        
+
         $result = $this->db->query($sql);
-        return $result->fetch_all(MYSQLI_ASSOC);
+        $rows = $result->fetch_all(MYSQLI_ASSOC);
+
+        // Compute effective status: if pledged but fully paid via pledge_payments, treat as 'paid'
+        foreach ($rows as &$row) {
+            if ($row['status'] === 'pledged' && $row['pledge_id']) {
+                $pledgeAmount = (float)$row['pledge_amount'];
+                $totalPaid = (float)$row['pledge_total_paid'];
+                if ($pledgeAmount > 0 && $totalPaid >= $pledgeAmount) {
+                    $row['status'] = 'paid';
+                }
+            }
+            // Remove internal fields not needed by frontend
+            unset($row['pledge_id'], $row['pledge_amount'], $row['pledge_total_paid']);
+        }
+        unset($row);
+
+        return $rows;
     }
 
     /**
@@ -419,22 +449,44 @@ class IntelligentGridAllocator
 
     /**
      * Retrieves overall allocation statistics.
+     * Cross-references pledge_payments so pledged cells with full payment count as 'paid'.
      */
     public function getAllocationStats(): array
     {
-        $stmt = $this->db->prepare(
-            "SELECT 
+        $sql = "
+            SELECT
                 COUNT(*) as total_cells,
-                SUM(CASE WHEN status = 'pledged' THEN 1 ELSE 0 END) as pledged_cells,
-                SUM(CASE WHEN status = 'paid' THEN 1 ELSE 0 END) as paid_cells,
-                SUM(CASE WHEN status = 'available' THEN 1 ELSE 0 END) as available_cells,
-                SUM(CASE WHEN status IN ('pledged', 'paid') THEN area_size ELSE 0 END) as total_allocated_area,
-                SUM(area_size) as total_possible_area
-             FROM floor_grid_cells
-             WHERE cell_type = '0.5x0.5'"
-        );
-        
-        $stmt->execute();
-        return $stmt->get_result()->fetch_assoc();
+                SUM(CASE
+                    WHEN fgc.status = 'pledged' AND fgc.pledge_id IS NOT NULL
+                         AND COALESCE(p.amount, 0) > 0
+                         AND COALESCE(pp.total_paid, 0) >= p.amount
+                    THEN 0
+                    WHEN fgc.status = 'pledged' THEN 1
+                    ELSE 0
+                END) as pledged_cells,
+                SUM(CASE
+                    WHEN fgc.status = 'paid' THEN 1
+                    WHEN fgc.status = 'pledged' AND fgc.pledge_id IS NOT NULL
+                         AND COALESCE(p.amount, 0) > 0
+                         AND COALESCE(pp.total_paid, 0) >= p.amount
+                    THEN 1
+                    ELSE 0
+                END) as paid_cells,
+                SUM(CASE WHEN fgc.status = 'available' THEN 1 ELSE 0 END) as available_cells,
+                SUM(CASE WHEN fgc.status IN ('pledged', 'paid') THEN fgc.area_size ELSE 0 END) as total_allocated_area,
+                SUM(fgc.area_size) as total_possible_area
+            FROM floor_grid_cells fgc
+            LEFT JOIN pledges p ON fgc.pledge_id = p.id
+            LEFT JOIN (
+                SELECT pledge_id, SUM(amount) AS total_paid
+                FROM pledge_payments
+                WHERE status = 'confirmed'
+                GROUP BY pledge_id
+            ) pp ON fgc.pledge_id = pp.pledge_id
+            WHERE fgc.cell_type = '0.5x0.5'
+        ";
+
+        $result = $this->db->query($sql);
+        return $result->fetch_assoc();
     }
 }
