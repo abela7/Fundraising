@@ -315,6 +315,16 @@ date_default_timezone_set('Europe/London');
                     }
                 }
                 
+                // Update donor contact_status based on call outcome
+                if (in_array($status, ['not_picked_up', 'busy'], true)) {
+                    $contact_update = $db->prepare("UPDATE donors SET contact_status = 'not_answering', updated_at = NOW() WHERE id = ?");
+                    if ($contact_update) {
+                        $contact_update->bind_param('i', $donor_id);
+                        $contact_update->execute();
+                        $contact_update->close();
+                    }
+                }
+
                 // Audit log the callback scheduling
                 log_audit(
                     $db,

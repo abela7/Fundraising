@@ -159,6 +159,14 @@ try {
             }
         }
         
+        // Update donor contact_status to phone_not_working
+        $contact_update = $db->prepare("UPDATE donors SET contact_status = 'phone_not_working', updated_at = NOW() WHERE id = ?");
+        if ($contact_update) {
+            $contact_update->bind_param('i', $donor_id);
+            $contact_update->execute();
+            $contact_update->close();
+        }
+
         // Audit log the invalid number marking
         log_audit(
             $db,

@@ -211,6 +211,11 @@ try {
         }
     }
     
+    // Mark contact status as completed (call finished successfully)
+    $donor_updates[] = "contact_status = ?";
+    $donor_params[] = 'completed';
+    $donor_types .= 's';
+
     error_log("Donor updates count: " . count($donor_updates));
     error_log("Donor updates: " . print_r($donor_updates, true));
     error_log("Donor params count: " . count($donor_params));
