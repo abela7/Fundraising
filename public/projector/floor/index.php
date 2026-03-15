@@ -282,15 +282,17 @@
 </style>
 </head>
 <body>
+  <?php if (empty($_GET['filter'])): ?>
   <button class="fullscreen-btn" id="fullscreenBtn" title="Toggle Fullscreen (F)">
     <i class="fas fa-expand"></i>
     <span class="label">Fullscreen</span>
   </button>
-  
+
   <button class="refresh-btn" id="refreshBtn" title="Force Refresh Floor Map (R)" onclick="window.refreshFloorMap && window.refreshFloorMap()">
     <i class="fas fa-sync-alt"></i>
     <span class="label">Refresh</span>
   </button>
+  <?php endif; ?>
 
   <div class="game-container">
     <div class="floor-map">
@@ -1454,8 +1456,14 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 
+<?php $gridFilter = $_GET['filter'] ?? ''; ?>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+<?php if ($gridFilter): ?>
+<script>window.__gridFilter = '<?php echo htmlspecialchars($gridFilter, ENT_QUOTES); ?>';</script>
+<script src="report-grid-sync.js" defer></script>
+<?php else: ?>
 <script src="live-grid-sync.js" defer></script>
+<?php endif; ?>
 
 <script>
 // Fullscreen functionality
