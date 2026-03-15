@@ -84,6 +84,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         /**
          * Waits until the grid cells are created in the DOM by the main script.
+         * Checks for cells from shape G (last created) using both class names.
          */
         waitForGridCreation() {
             return new Promise(resolve => {
@@ -184,26 +185,21 @@ document.addEventListener('DOMContentLoaded', () => {
         updateGrid(allocatedData) {
             console.time('GridSync: Update Duration');
 
-            // Reset ALL previously styled cells
-            const allStyledCells = document.querySelectorAll('.cell-allocated, .cell-pledged, .cell-paid, .cell-blocked');
-            allStyledCells.forEach(cell => {
-                cell.style.backgroundColor = '';
+            // Reset ALL previously styled cells back to their default colors
+            // Shapes A-D use 'grid-tile-quarter', shapes E-G use 'quarter-tile'
+            const allCells = document.querySelectorAll('.grid-tile-quarter, .quarter-tile');
+            allCells.forEach(cell => {
+                // Save the default color on first encounter so we can always restore it
+                if (!cell.dataset.defaultColor) {
+                    cell.dataset.defaultColor = cell.dataset.originalColor || '';
+                }
+
+                // Restore to default
+                const defaultColor = cell.dataset.defaultColor;
+                cell.style.backgroundColor = defaultColor;
+                cell.dataset.originalColor = defaultColor;
                 cell.style.transition = '';
                 cell.classList.remove('cell-allocated', 'cell-pledged', 'cell-paid', 'cell-blocked');
-            });
-
-            // Also reset any cells with inline background colors from previous allocations
-            const knownColors = [
-                this.allocationColor, this.pledgedColor, this.paidColor,
-                'rgb(226, 202, 24)', 'rgb(249, 115, 22)', 'rgb(34, 197, 94)'
-            ];
-            const allCells = document.querySelectorAll('.grid-tile-quarter');
-            allCells.forEach(cell => {
-                if (cell.style.backgroundColor && knownColors.includes(cell.style.backgroundColor)) {
-                    cell.style.backgroundColor = '';
-                    cell.style.transition = '';
-                    cell.classList.remove('cell-allocated', 'cell-pledged', 'cell-paid', 'cell-blocked');
-                }
             });
 
             // Apply new statuses based on active filter
@@ -223,24 +219,29 @@ document.addEventListener('DOMContentLoaded', () => {
                         if (filter === 'pledged' && status !== 'pledged') return;
                         if (filter === 'paid' && status !== 'paid') return;
 
-                        cellElement.style.transition = 'background-color 0.5s ease';
+                        let color;
+                        if (status === 'pledged') {
+                            color = this.pledgedColor;
+                        } else if (status === 'paid') {
+                            color = this.paidColor;
+                        } else if (status === 'blocked') {
+                            color = this.allocationColor;
+                        } else {
+                            return;
+                        }
 
-                        if (status === 'pledged' || status === 'paid') {
-                            // In "all" mode use unified gold; in filtered mode use distinct colors
-                            if (filter === 'all') {
-                                // Show both but with distinct colors
-                                cellElement.style.backgroundColor = status === 'paid' ? this.paidColor : this.pledgedColor;
-                            } else {
-                                cellElement.style.backgroundColor = status === 'paid' ? this.paidColor : this.pledgedColor;
-                            }
+                        cellElement.style.transition = 'background-color 0.5s ease';
+                        cellElement.style.backgroundColor = color;
+                        // Sync originalColor so hover mouseleave restores the allocation color, not the default
+                        cellElement.dataset.originalColor = color;
+
+                        if (status === 'blocked') {
+                            cellElement.classList.add('cell-blocked');
+                        } else {
                             cellElement.classList.add(status === 'paid' ? 'cell-paid' : 'cell-pledged');
                             cellElement.classList.add('cell-allocated');
-                            allocatedCount++;
-                        } else if (status === 'blocked') {
-                            cellElement.style.backgroundColor = this.allocationColor;
-                            cellElement.classList.add('cell-blocked');
-                            allocatedCount++;
                         }
+                        allocatedCount++;
                     });
                 }
             }
