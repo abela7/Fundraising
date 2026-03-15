@@ -278,85 +278,6 @@
     }
   }
 
-  /* Floor filter toggle */
-  .floor-filter {
-    position: fixed;
-    top: 12px;
-    left: 12px;
-    z-index: 1100;
-    display: flex;
-    gap: 4px;
-    background: rgba(0, 0, 0, 0.5);
-    backdrop-filter: blur(6px);
-    border: 1px solid rgba(255, 255, 255, 0.15);
-    border-radius: 10px;
-    padding: 4px;
-    opacity: 0.4;
-    transition: opacity 0.25s ease;
-  }
-
-  .floor-filter:hover {
-    opacity: 1;
-  }
-
-  .floor-filter-btn {
-    background: transparent;
-    color: rgba(255, 255, 255, 0.6);
-    border: none;
-    border-radius: 7px;
-    padding: 6px 12px;
-    font-size: 0.78rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    font-family: system-ui, -apple-system, sans-serif;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    white-space: nowrap;
-  }
-
-  .floor-filter-btn:hover {
-    color: #fff;
-    background: rgba(255, 255, 255, 0.1);
-  }
-
-  .floor-filter-btn.active {
-    color: #fff;
-    background: rgba(255, 255, 255, 0.18);
-  }
-
-  .floor-filter-btn .dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    display: inline-block;
-  }
-
-  .floor-filter-btn[data-filter="all"] .dot { background: #ffd700; }
-  .floor-filter-btn[data-filter="pledged"] .dot { background: #f97316; }
-  .floor-filter-btn[data-filter="paid"] .dot { background: #22c55e; }
-
-  /* Legend colors for cells */
-  .cell-pledged-only { background-color: #f97316 !important; }
-  .cell-paid-only { background-color: #22c55e !important; }
-
-  @media (max-width: 768px) {
-    .floor-filter {
-      top: 8px;
-      left: 8px;
-      padding: 3px;
-    }
-    .floor-filter-btn {
-      padding: 5px 8px;
-      font-size: 0.7rem;
-    }
-    .floor-filter-btn .dot {
-      width: 6px;
-      height: 6px;
-    }
-  }
-
   /* All UI elements removed for clean game design */
 </style>
 </head>
@@ -370,18 +291,6 @@
     <i class="fas fa-sync-alt"></i>
     <span class="label">Refresh</span>
   </button>
-
-  <div class="floor-filter" id="floorFilter">
-    <button class="floor-filter-btn active" data-filter="all" title="Show all allocations">
-      <span class="dot"></span> All
-    </button>
-    <button class="floor-filter-btn" data-filter="pledged" title="Show pledged only">
-      <span class="dot"></span> Pledged
-    </button>
-    <button class="floor-filter-btn" data-filter="paid" title="Show paid only">
-      <span class="dot"></span> Paid
-    </button>
-  </div>
 
   <div class="game-container">
     <div class="floor-map">

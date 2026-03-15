@@ -1150,6 +1150,24 @@ if (isset($_GET['report'])) {
                                 <div class="card border-0 shadow-sm h-100 report-card">
                                     <div class="card-body text-center p-4">
                                         <div class="mb-3">
+                                            <div class="icon-circle mx-auto" style="width: 60px; height: 60px; background: #0a6286;">
+                                                <i class="fas fa-th text-white fs-4"></i>
+                                            </div>
+                                        </div>
+                                        <h5 class="card-title">Floor Grid Report</h5>
+                                        <p class="card-text text-muted">Visual floor allocation: pledged vs paid cells, donor breakdown</p>
+                                        <div class="d-grid gap-2">
+                                            <a href="floor-grid.php" class="btn btn-primary">
+                                                <i class="fas fa-map me-2"></i>Open Floor Grid Report
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-lg-4 col-md-6">
+                                <div class="card border-0 shadow-sm h-100 report-card">
+                                    <div class="card-body text-center p-4">
+                                        <div class="mb-3">
                                             <div class="icon-circle bg-success mx-auto" style="width: 60px; height: 60px;">
                                                 <i class="fas fa-users text-white fs-4"></i>
                                             </div>
