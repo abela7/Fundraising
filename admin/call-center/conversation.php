@@ -290,24 +290,49 @@ $page_title = 'Live Call';
 
         /* Skip Button */
         .btn-skip {
-            font-size: 0.8125rem;
-            color: #94a3b8;
-            border: 1px dashed #cbd5e1;
-            background: transparent;
-            padding: 0.375rem 0.875rem;
-            border-radius: 20px;
-            transition: all 0.2s;
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: #f59e0b;
+            border: 2px solid #f59e0b;
+            background: #fffbeb;
+            padding: 0.5rem 1.25rem;
+            border-radius: 8px;
+            transition: all 0.25s;
             white-space: nowrap;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            position: relative;
         }
 
         .btn-skip:hover {
-            color: #0a6286;
-            border-color: #0a6286;
-            background: #f0f9ff;
+            color: #fff;
+            background: #f59e0b;
+            border-color: #f59e0b;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
+        }
+
+        .btn-skip:active {
+            transform: translateY(0);
+            box-shadow: none;
         }
 
         .btn-skip i {
-            font-size: 0.75rem;
+            font-size: 0.8125rem;
+        }
+
+        .btn-skip .skip-label {
+            font-size: 0.6875rem;
+            font-weight: 400;
+            opacity: 0.8;
+            display: none;
+        }
+
+        @media (min-width: 576px) {
+            .btn-skip .skip-label {
+                display: inline;
+            }
         }
         
         /* Steps Wizard */
@@ -848,7 +873,7 @@ $page_title = 'Live Call';
                                     </button>
                                     <div class="d-flex align-items-center gap-2">
                                         <button type="button" class="btn btn-skip" onclick="goToStep(2)" title="Skip verification - donor is in a rush">
-                                            Skip <i class="fas fa-forward ms-1"></i>
+                                            <i class="fas fa-forward"></i> Skip Step <span class="skip-label">- Donor in a rush</span>
                                         </button>
                                         <button type="button" class="btn btn-primary btn-lg" id="btnStep1Next" disabled onclick="goToStep(2)">
                                             Next Step <i class="fas fa-arrow-right ms-2"></i>
@@ -889,7 +914,7 @@ $page_title = 'Live Call';
                                         <i class="fas fa-arrow-left me-2"></i>Back
                                     </button>
                                     <button type="button" class="btn btn-skip" onclick="skipToPaymentReady()" title="Skip to payment plan - donor wants to pay now">
-                                        Skip to Payment <i class="fas fa-forward ms-1"></i>
+                                        <i class="fas fa-forward"></i> Skip to Payment Plan <span class="skip-label">- Donor ready to pay</span>
                                     </button>
                                 </div>
                             </div>
@@ -1203,7 +1228,7 @@ $page_title = 'Live Call';
                                     </button>
                                     <div class="d-flex align-items-center gap-2">
                                         <button type="button" class="btn btn-skip" onclick="skipFromDonorInfo()" title="Skip donor info collection">
-                                            Skip <i class="fas fa-forward ms-1"></i>
+                                            <i class="fas fa-forward"></i> Skip Info <span class="skip-label">- Collect later</span>
                                         </button>
                                         <button type="button" class="btn btn-primary btn-lg" id="btnStep4Next" onclick="proceedFromDonorInfo()">
                                             Next Step <i class="fas fa-arrow-right ms-2"></i>
@@ -1251,7 +1276,7 @@ $page_title = 'Live Call';
                                         <i class="fas fa-arrow-left me-2"></i>Back
                                     </button>
                                     <button type="button" class="btn btn-skip" onclick="selectReadiness('yes')" title="Skip - donor is ready to pay">
-                                        Ready to Pay <i class="fas fa-forward ms-1"></i>
+                                        <i class="fas fa-forward"></i> Skip - Ready to Pay
                                     </button>
                                 </div>
                             </div>
