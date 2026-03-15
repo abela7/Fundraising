@@ -348,7 +348,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action'])) {
                 throw new Exception('Invalid donor ID');
             }
 
-            $allowed_statuses = ['completed', 'phone_not_working', 'not_answering', ''];
+            $allowed_statuses = ['contacted', 'phone_not_working', 'not_answering', ''];
             if (!in_array($contact_status, $allowed_statuses, true)) {
                 throw new Exception('Invalid contact status');
             }
@@ -380,7 +380,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action'])) {
             $db->commit();
 
             $status_labels = [
-                'completed' => 'Completed',
+                'contacted' => 'Contacted',
                 'phone_not_working' => 'Phone Not Working',
                 'not_answering' => 'Not Answering'
             ];
@@ -477,7 +477,7 @@ $filter_data_source = (string)($_GET['filter_data_source'] ?? '');
 $filter_data_source = strtolower(trim($filter_data_source));
 $filter_data_source = in_array($filter_data_source, $allowed_data_sources, true) ? $filter_data_source : '';
 
-$allowed_contact_statuses = ['not_contacted', 'completed', 'phone_not_working', 'not_answering'];
+$allowed_contact_statuses = ['not_contacted', 'contacted', 'phone_not_working', 'not_answering'];
 $filter_contact_status = (string)($_GET['filter_contact_status'] ?? '');
 // Default to 'not_contacted' when no filters are applied at all
 $has_any_get_filter = !empty($_GET);
@@ -1171,7 +1171,7 @@ unset($donor); // Break reference
                                     <select class="form-select form-select-sm" id="filter_contact_status" name="filter_contact_status">
                                         <option value="">All</option>
                                         <option value="not_contacted" <?php echo $filter_contact_status === 'not_contacted' ? 'selected' : ''; ?>>Not Contacted</option>
-                                        <option value="completed" <?php echo $filter_contact_status === 'completed' ? 'selected' : ''; ?>>Completed</option>
+                                        <option value="contacted" <?php echo $filter_contact_status === 'contacted' ? 'selected' : ''; ?>>Contacted</option>
                                         <option value="not_answering" <?php echo $filter_contact_status === 'not_answering' ? 'selected' : ''; ?>>Not Answering</option>
                                         <option value="phone_not_working" <?php echo $filter_contact_status === 'phone_not_working' ? 'selected' : ''; ?>>Phone Not Working</option>
                                     </select>
@@ -1725,7 +1725,7 @@ unset($donor); // Break reference
                                     <div class="flex-grow-1" style="max-width: 300px;">
                                         <select class="form-select form-select-sm" id="detail_contact_status">
                                             <option value="">-- No Status --</option>
-                                            <option value="completed">Completed</option>
+                                            <option value="contacted">Contacted</option>
                                             <option value="phone_not_working">Phone Number Not Working</option>
                                             <option value="not_answering">Not Answering</option>
                                         </select>
