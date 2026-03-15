@@ -477,6 +477,16 @@ $filter_data_source = (string)($_GET['filter_data_source'] ?? '');
 $filter_data_source = strtolower(trim($filter_data_source));
 $filter_data_source = in_array($filter_data_source, $allowed_data_sources, true) ? $filter_data_source : '';
 
+$allowed_contact_statuses = ['not_contacted', 'completed', 'phone_not_working', 'not_answering'];
+$filter_contact_status = (string)($_GET['filter_contact_status'] ?? '');
+// Default to 'not_contacted' when no filters are applied at all
+$has_any_get_filter = !empty($_GET);
+if ($filter_contact_status === '' && !$has_any_get_filter) {
+    $filter_contact_status = 'not_contacted';
+}
+$filter_contact_status = strtolower(trim($filter_contact_status));
+$filter_contact_status = in_array($filter_contact_status, $allowed_contact_statuses, true) ? $filter_contact_status : '';
+
 // Determine default behavior based on user role
 if ($is_admin_user) {
     // Admins see THEIR assigned donors by default; "all" shows everyone
@@ -623,6 +633,15 @@ try {
     if ($has_data_source && $filter_data_source !== '') {
         $where_conditions[] = "d.data_source = ?";
         $params[] = $filter_data_source;
+        $types .= 's';
+    }
+
+    // Contact status filter
+    if ($filter_contact_status === 'not_contacted') {
+        $where_conditions[] = "(d.contact_status IS NULL)";
+    } elseif ($filter_contact_status !== '') {
+        $where_conditions[] = "d.contact_status = ?";
+        $params[] = $filter_contact_status;
         $types .= 's';
     }
 
@@ -1144,6 +1163,17 @@ unset($donor); // Break reference
                                         <option value="bank_transfer" <?php echo $filter_payment_method === 'bank_transfer' ? 'selected' : ''; ?>>Bank Transfer</option>
                                         <option value="cash" <?php echo $filter_payment_method === 'cash' ? 'selected' : ''; ?>>Cash</option>
                                         <option value="card" <?php echo $filter_payment_method === 'card' ? 'selected' : ''; ?>>Card</option>
+                                    </select>
+                                </div>
+
+                                <div class="col-12 col-sm-6 col-lg-3">
+                                    <label class="form-label small fw-bold mb-1"><i class="fas fa-phone-volume me-1"></i>Contact Status</label>
+                                    <select class="form-select form-select-sm" id="filter_contact_status" name="filter_contact_status">
+                                        <option value="">All</option>
+                                        <option value="not_contacted" <?php echo $filter_contact_status === 'not_contacted' ? 'selected' : ''; ?>>Not Contacted</option>
+                                        <option value="completed" <?php echo $filter_contact_status === 'completed' ? 'selected' : ''; ?>>Completed</option>
+                                        <option value="not_answering" <?php echo $filter_contact_status === 'not_answering' ? 'selected' : ''; ?>>Not Answering</option>
+                                        <option value="phone_not_working" <?php echo $filter_contact_status === 'phone_not_working' ? 'selected' : ''; ?>>Phone Not Working</option>
                                     </select>
                                 </div>
 
@@ -1809,6 +1839,7 @@ $(document).ready(function() {
         if ($('#filter_donor_type').val()) activeFilters.push('Type');
         if ($('#filter_payment_status').val()) activeFilters.push('Status');
         if ($('#filter_payment_method').val()) activeFilters.push('Payment Method');
+        if ($('#filter_contact_status').val()) activeFilters.push('Contact Status');
         if ($('#filter_data_source').length && $('#filter_data_source').val()) activeFilters.push('Data Source');
         if ($('#filter_assigned_agent').val()) activeFilters.push('Agent');
         if ($('#filter_registrar').val()) activeFilters.push('Registered By');
