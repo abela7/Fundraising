@@ -6,6 +6,11 @@
  * to the donor's WhatsApp via UltraMsg API.
  */
 
+// Override upload limits at runtime
+@ini_set('upload_max_filesize', '10M');
+@ini_set('post_max_size', '12M');
+@ini_set('memory_limit', '128M');
+
 declare(strict_types=1);
 
 // Ensure we always output JSON even on fatal errors

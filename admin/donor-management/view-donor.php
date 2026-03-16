@@ -5907,29 +5907,63 @@ function sendCompletedCertWhatsApp() {
     }
 }
 
+// --- Certificate image optimization (matches review-pledge-payments.php logic) ---
+const CERT_MAX_BYTES = <?php echo (int)(1.8 * 1024 * 1024); ?>; // ~1.8MB safe limit
+
+function _certToBlob(canvas, type, quality) {
+    return new Promise((resolve, reject) => {
+        canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error('Failed to generate image')), type, quality);
+    });
+}
+
+async function _optimizeCertBlob(canvas) {
+    // Try PNG first
+    const png = await _certToBlob(canvas, 'image/png');
+    if (png.size <= CERT_MAX_BYTES) return png;
+    // JPEG with progressive quality
+    for (const q of [0.92, 0.86, 0.8, 0.74]) {
+        const jpg = await _certToBlob(canvas, 'image/jpeg', q);
+        if (jpg.size <= CERT_MAX_BYTES) return jpg;
+    }
+    // Last resort: downscale
+    if (canvas.width > 1000) {
+        const ratio = 1000 / canvas.width;
+        const small = document.createElement('canvas');
+        small.width = 1000;
+        small.height = Math.round(canvas.height * ratio);
+        small.getContext('2d').drawImage(canvas, 0, 0, small.width, small.height);
+        for (const q of [0.82, 0.75, 0.68]) {
+            const jpg = await _certToBlob(small, 'image/jpeg', q);
+            if (jpg.size <= CERT_MAX_BYTES) return jpg;
+        }
+    }
+    throw new Error('Certificate image too large after optimization');
+}
+
 async function captureAndSendCompletedCert(element, phone, donorId, donorName, sqmValue, totalPaid, btn, originalText, customMessage) {
     try {
         const originalTransform = element.style.transform;
         element.style.transform = 'none';
 
         const canvas = await html2canvas(element, {
-            scale: 1.5,
+            scale: 2,
             useCORS: true,
             allowTaint: true,
-            backgroundColor: '#ffffff',
+            backgroundColor: null,
             width: 1200,
             height: 850
         });
 
         element.style.transform = originalTransform;
 
-        const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.85));
+        const blob = await _optimizeCertBlob(canvas);
         if (!blob) throw new Error('Failed to generate certificate image');
 
         if (btn) btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Sending to WhatsApp...';
 
         const formData = new FormData();
-        formData.append('certificate', blob, `certificate_final_${donorName.replace(/[^a-z0-9]/gi, '_')}.jpg`);
+        const ext = blob.type === 'image/jpeg' ? 'jpg' : 'png';
+        formData.append('certificate', blob, `certificate_final_${donorName.replace(/[^a-z0-9]/gi, '_')}.${ext}`);
         formData.append('phone', phone);
         formData.append('donor_id', donorId);
         formData.append('donor_name', donorName);
@@ -6023,18 +6057,18 @@ async function captureAndSendCertificate(element, phone, donorId, donorName, sqm
         element.style.transform = 'none';
 
         const canvas = await html2canvas(element, {
-            scale: 1.5,
+            scale: 2,
             useCORS: true,
             allowTaint: true,
-            backgroundColor: '#ffffff',
+            backgroundColor: null,
             width: 1200,
             height: 970
         });
 
         element.style.transform = originalTransform;
 
-        // Convert canvas to JPEG blob (smaller file size)
-        const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.85));
+        // Optimize blob to fit within upload limits
+        const blob = await _optimizeCertBlob(canvas);
         if (!blob) {
             throw new Error('Failed to generate certificate image');
         }
