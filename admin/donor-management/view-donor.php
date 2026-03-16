@@ -3733,20 +3733,27 @@ function formatDateTime($date) {
                     <!-- 8. Certificate -->
                     <?php
                     $currency = '£';
-                    
+
                     // Calculate square meters based on PLEDGE (commitment), not just paid
                     // This shows the donor their full allocated area based on their pledge
                     $totalPledged = (float)($donor['total_pledged'] ?? 0);
                     $totalPaid = (float)($donor['total_paid'] ?? 0);
-                    
+
                     // Use the higher of pledged or paid (in case paid exceeds pledge)
                     $allocationBase = max($totalPledged, $totalPaid);
                     $sqmValue = round($allocationBase / 400, 2);
-                    
+
                     // Calculate payment progress
                     $paymentProgress = $totalPledged > 0 ? min(100, round(($totalPaid / $totalPledged) * 100)) : ($totalPaid > 0 ? 100 : 0);
                     $isFullyPaid = $totalPledged > 0 && $totalPaid >= $totalPledged;
                     $hasPledge = $totalPledged > 0 || $totalPaid > 0;
+
+                    // Immediate payer detection — they paid directly, no pledge journey
+                    $isImmediatePayer = ($donor['donor_type'] ?? '') === 'immediate_payment';
+                    // Immediate payers always get the Final Certificate (they have no progress)
+                    if ($isImmediatePayer && $totalPaid > 0) {
+                        $isFullyPaid = true;
+                    }
                     ?>
                     <div class="accordion-item border shadow-sm mb-3 rounded overflow-hidden">
                         <h2 class="accordion-header">
@@ -3759,8 +3766,8 @@ function formatDateTime($date) {
                         </h2>
                         <div id="collapseCertificate" class="accordion-collapse collapse" data-bs-parent="#donorAccordion">
                             <div class="accordion-body p-0">
-                                <?php if ($isFullyPaid): ?>
-                                <!-- Tab Switcher: Progress vs Completed Certificate -->
+                                <?php if ($isFullyPaid && !$isImmediatePayer): ?>
+                                <!-- Tab Switcher: Progress vs Completed Certificate (pledge donors only) -->
                                 <div class="cert-tab-switcher">
                                     <button class="cert-tab-btn" onclick="switchCertTab('progress', this)">
                                         <i class="fas fa-chart-line"></i> Progress Certificate
@@ -3771,8 +3778,8 @@ function formatDateTime($date) {
                                 </div>
                                 <?php endif; ?>
 
-                                <!-- ====== TAB 1: Progress / Standard Certificate ====== -->
-                                <div id="cert-tab-progress" class="cert-tab-content <?= $isFullyPaid ? '' : 'active' ?>">
+                                <!-- ====== TAB 1: Progress / Standard Certificate (hidden for immediate payers) ====== -->
+                                <div id="cert-tab-progress" class="cert-tab-content <?= ($isFullyPaid || $isImmediatePayer) ? '' : 'active' ?>" <?php if ($isImmediatePayer): ?>style="display:none;"<?php endif; ?>>
                                     <!-- Certificate Actions -->
                                     <div class="cert-actions-bar">
                                         <button type="button" class="cert-action-btn cert-btn-download" onclick="downloadDonorCertificate()">
@@ -3956,7 +3963,7 @@ function formatDateTime($date) {
 
                                 <?php if ($isFullyPaid): ?>
                                 <!-- ====== TAB 2: Completed / Final Certificate ====== -->
-                                <div id="cert-tab-completed" class="cert-tab-content active">
+                                <div id="cert-tab-completed" class="cert-tab-content active" <?php if ($isImmediatePayer): ?>style="display:block;"<?php endif; ?>>
                                     <!-- Actions for completed certificate -->
                                     <div class="cert-actions-bar" style="background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%); border-bottom-color: rgba(212,175,55,0.2);">
                                         <button type="button" class="cert-action-btn cert-btn-download" style="background: linear-gradient(135deg, #d4af37, #b8860b);" onclick="downloadCompletedCertificate()">
@@ -5866,6 +5873,7 @@ function sendCompletedCertWhatsApp() {
     const donorId = '<?php echo $donor_id; ?>';
     const sqmValue = '<?php echo $sqmValue; ?>';
     const totalPaid = '<?php echo $currency . number_format($allocationBase, 2); ?>';
+    const isImmediatePayer = <?php echo $isImmediatePayer ? 'true' : 'false'; ?>;
 
     if (!donorPhone) {
         alert('Donor has no phone number. Cannot send WhatsApp.');
@@ -5879,21 +5887,27 @@ function sendCompletedCertWhatsApp() {
         btn.disabled = true;
     }
 
+    // Build custom message for immediate payers
+    let customMessage = '';
+    if (isImmediatePayer) {
+        customMessage = `ሰላም ጤና ይስጥልን የተከበሩ ${donorName}\n\nከሁሉም በፊት ከእግዚአብሔር ከአባታችን ከጌታም ከኢየሱስ ክርስቶስ ጸጋና ሰላም ለ እርስዎ ይሁን።\nበሊቨርፑል መካነ ቅዱሳን አቡነ ተክለሃይማኖት ቤተክርስቲያን ለሚደረገው የሕንጻ ግዢ አሻራዎን ለማስቀመጥ ስለፈቀዱ በእግዚአብሔር ስም ከፍ ያለ ምስጋናችንን እናቀርባለን።\n\n→ የከፈሉትን መጠን: ${totalPaid}\n\nማንኛውም ጥያቄ ካለዎት እባክዎ ያነጋግሩን፡፡\n\nአምላከ ተክለሃይማኖት በሰጡት አብዝቶ ይስጥልን🙏`;
+    }
+
     if (typeof html2canvas === 'undefined') {
         const script = document.createElement('script');
         script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
-        script.onload = () => captureAndSendCompletedCert(certificate, donorPhone, donorId, donorName, sqmValue, totalPaid, btn, originalText);
+        script.onload = () => captureAndSendCompletedCert(certificate, donorPhone, donorId, donorName, sqmValue, totalPaid, btn, originalText, customMessage);
         script.onerror = () => {
             alert('Failed to load image library. Please try again.');
             if (btn) { btn.innerHTML = originalText; btn.disabled = false; }
         };
         document.head.appendChild(script);
     } else {
-        captureAndSendCompletedCert(certificate, donorPhone, donorId, donorName, sqmValue, totalPaid, btn, originalText);
+        captureAndSendCompletedCert(certificate, donorPhone, donorId, donorName, sqmValue, totalPaid, btn, originalText, customMessage);
     }
 }
 
-async function captureAndSendCompletedCert(element, phone, donorId, donorName, sqmValue, totalPaid, btn, originalText) {
+async function captureAndSendCompletedCert(element, phone, donorId, donorName, sqmValue, totalPaid, btn, originalText, customMessage) {
     try {
         const originalTransform = element.style.transform;
         element.style.transform = 'none';
@@ -5921,6 +5935,9 @@ async function captureAndSendCompletedCert(element, phone, donorId, donorName, s
         formData.append('donor_name', donorName);
         formData.append('sqm_value', sqmValue);
         formData.append('total_paid', totalPaid);
+        if (customMessage) {
+            formData.append('message', customMessage);
+        }
 
         const csrfToken = document.querySelector('input[name="csrf_token"]')?.value || '';
         formData.append('csrf_token', csrfToken);

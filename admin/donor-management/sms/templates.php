@@ -115,7 +115,8 @@ function core_amharic_template_map(): array {
         'payment_reminder_2day' => "ውድ {name}፣ በክፍያ እቅድዎ መሠረት ቀጣዩ የ{amount} ክፍያዎ በ{due_date} ይከፈላል። የክፍያ ዘዴ: {payment_method}። {payment_instructions}። እናመሰግናለን! - ሊቨርፑል አቡነ ተክለሃይማኖት ቤተክርስቲያን",
         'missed_payment_reminder' => "ሰላም {name}፣\n\nበ{missed_date} መከፈል የነበረበትን {amount} ክፍያ አልተከፈለም።\n\nእባክዎ የክፍያ እቅድዎን ለማስቀጠል በተቻለ ፍጥነት ክፍያዎን ይፈጽሙ።\n{payment_instructions}\n\nቀጣዩ የ{amount} ክፍያዎ በ{next_payment_date} ነው።\n\nጥያቄ ካለዎት እባክዎን ያግኙን።\n\nእግዚአብሔር ይባርክዎ! 🙏\n- ሊቨርፑል አቡነ ተክለሃይማኖት ቤተክርስቲያን",
         'payment_confirmed' => "ሰላም ጤና ይስጥልን ወድ {name}፣\n\nበዛሬው ዕለት ማለትም {payment_date} የ {amount} ፓውንድ ክፍያዎን ተቀብለናል።\n\nየቃል ኪዳንዎ ማጠቃለያ፡\n→ ጠቅላላ ቃል ኪዳን የገቡት፡ {total_pledge}\n→ እስካሁን የከፈሉት: {total_paid}\n→ ቀሪ ሂሳብ፡ {outstanding_balance}\n\n{next_payment_info}\n\nማንኛውም ጥያቄ ካለዎት እባክዎ ያነጋግሩን።\n\nአምላከ ተክለሃይማኖት በሰጡት አብዝቶ ይስጥልን🙏\n\n- ሊቨርፑል አቡነ ተክለሃይማኖት ቤተ ክርስቲያን",
-        'fully_paid_confirmation' => "ሰላም ጤና ይስጥልን ወድ {donor_name}፣\n\nሙሉ ቃል ኪዳን ክፍያዎን ስለጨረሱ እናመሰግናለን።\n\nበዛሬው ዕለት ({date}) የተቀበልነው ክፍያ: £{payment_amount}\n\nየቃል ኪዳንዎ ማጠቃለያ፡\n→ ጠቅላላ ቃል ኪዳን: {total_pledged_sqm} ካሬ ሜትር, £{total_pledged}\n→ ጠቅላላ የከፈሉት: £{total_paid}\n→ ቀሪ: £{remaining}\n\nአምላከ ተክለሃይማኖት በሰጡት አብዝቶ ይስጥልን።\n\n- ሊቨርፑል አቡነ ተክለሃይማኖት ቤተ ክርስቲያን"
+        'fully_paid_confirmation' => "ሰላም ጤና ይስጥልን ወድ {donor_name}፣\n\nሙሉ ቃል ኪዳን ክፍያዎን ስለጨረሱ እናመሰግናለን።\n\nበዛሬው ዕለት ({date}) የተቀበልነው ክፍያ: £{payment_amount}\n\nየቃል ኪዳንዎ ማጠቃለያ፡\n→ ጠቅላላ ቃል ኪዳን: {total_pledged_sqm} ካሬ ሜትር, £{total_pledged}\n→ ጠቅላላ የከፈሉት: £{total_paid}\n→ ቀሪ: £{remaining}\n\nአምላከ ተክለሃይማኖት በሰጡት አብዝቶ ይስጥልን።\n\n- ሊቨርፑል አቡነ ተክለሃይማኖት ቤተ ክርስቲያን",
+        'immediate_payer_thanks' => "ሰላም ጤና ይስጥልን የተከበሩ {donor_name}\n\nከሁሉም በፊት ከእግዚአብሔር ከአባታችን ከጌታም ከኢየሱስ ክርስቶስ ጸጋና ሰላም ለ እርስዎ ይሁን።\nበሊቨርፑል መካነ ቅዱሳን አቡነ ተክለሃይማኖት ቤተክርስቲያን ለሚደረገው የሕንጻ ግዢ አሻራዎን ለማስቀመጥ ስለፈቀዱ በእግዚአብሔር ስም ከፍ ያለ ምስጋናችንን እናቀርባለን።\n\n→ የከፈሉትን መጠን: £{total_paid}\n\nማንኛውም ጥያቄ ካለዎት እባክዎ ያነጋግሩን፡፡\n\nአምላከ ተክለሃይማኖት በሰጡት አብዝቶ ይስጥልን🙏"
     ];
 }
 
