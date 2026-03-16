@@ -387,6 +387,44 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action'])) {
             $label = $status_value ? ($status_labels[$status_value] ?? $status_value) : 'None';
             echo json_encode(['success' => true, 'message' => 'Contact status updated to: ' . $label, 'contact_status' => $status_value]);
             exit;
+
+        } elseif ($action === 'update_payment_status') {
+            $donor_id = (int)($_POST['donor_id'] ?? 0);
+            $payment_status = trim($_POST['payment_status'] ?? '');
+
+            if ($donor_id <= 0) {
+                throw new Exception('Invalid donor ID');
+            }
+
+            $allowed = ['no_pledge', 'not_started', 'paying', 'overdue', 'completed', 'defaulted'];
+            if (!in_array($payment_status, $allowed, true)) {
+                throw new Exception('Invalid payment status');
+            }
+
+            $existing = $db->prepare("SELECT * FROM donors WHERE id = ? FOR UPDATE");
+            $existing->bind_param('i', $donor_id);
+            $existing->execute();
+            $donor = $existing->get_result()->fetch_assoc();
+
+            if (!$donor) {
+                throw new Exception('Donor not found');
+            }
+
+            $stmt = $db->prepare("UPDATE donors SET payment_status = ?, updated_at = NOW() WHERE id = ?");
+            $stmt->bind_param('si', $payment_status, $donor_id);
+            $stmt->execute();
+
+            $user_id = (int)$current_user['id'];
+            $before = json_encode(['payment_status' => $donor['payment_status']]);
+            $after = json_encode(['payment_status' => $payment_status]);
+            $audit = $db->prepare("INSERT INTO audit_logs(user_id, entity_type, entity_id, action, before_json, after_json, source) VALUES(?, 'donor', ?, 'update_payment_status', ?, ?, 'admin')");
+            $audit->bind_param('iiss', $user_id, $donor_id, $before, $after);
+            $audit->execute();
+
+            $db->commit();
+            $label = ucwords(str_replace('_', ' ', $payment_status));
+            echo json_encode(['success' => true, 'message' => 'Payment status updated to: ' . $label, 'payment_status' => $payment_status]);
+            exit;
         }
         
     } catch (Exception $e) {
@@ -1540,8 +1578,21 @@ unset($donor); // Break reference
                                 <!-- Additional Metrics -->
                                 <div class="row g-3">
                                     <div class="col-6">
-                                        <small class="text-muted d-block mb-1"><i class="fas fa-flag me-1"></i>Status</small>
-                                        <span id="detail_status">-</span>
+                                        <small class="text-muted d-block mb-1"><i class="fas fa-flag me-1"></i>Payment Status</small>
+                                        <div class="d-flex align-items-center gap-1">
+                                            <select class="form-select form-select-sm" id="detail_payment_status_select" style="max-width:150px; font-size:0.75rem;">
+                                                <option value="no_pledge">No Pledge</option>
+                                                <option value="not_started">Not Started</option>
+                                                <option value="paying">Paying</option>
+                                                <option value="overdue">Overdue</option>
+                                                <option value="completed">Completed</option>
+                                                <option value="defaulted">Defaulted</option>
+                                            </select>
+                                            <button type="button" class="btn btn-sm btn-outline-primary py-0 px-1" id="btnSavePaymentStatus" title="Save" style="font-size:0.7rem;">
+                                                <i class="fas fa-check"></i>
+                                            </button>
+                                            <span id="paymentStatusFeedback" class="small"></span>
+                                        </div>
                                     </div>
                                     <div class="col-6">
                                         <small class="text-muted d-block mb-1"><i class="fas fa-trophy me-1"></i>Badge</small>
@@ -1896,16 +1947,9 @@ $(document).ready(function() {
         $('#detail_paid').text('£' + parseFloat(donor.total_paid || 0).toFixed(2));
         $('#detail_balance').text('£' + parseFloat(donor.balance || 0).toFixed(2));
         
-        // Payment status badge
-        const statusMap = {
-            'completed': 'success',
-            'paying': 'primary',
-            'overdue': 'danger',
-            'not_started': 'warning'
-        };
-        const statusColor = statusMap[donor.payment_status] || 'secondary';
-        const statusText = (donor.payment_status || 'no_pledge').replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-        $('#detail_status').html('<span class="badge bg-' + statusColor + '">' + statusText + '</span>');
+        // Payment status dropdown
+        $('#detail_payment_status_select').val(donor.payment_status || 'no_pledge');
+        $('#paymentStatusFeedback').text('');
         
         // Achievement badge
         const badgeText = (donor.achievement_badge || 'pending').replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
@@ -2127,6 +2171,44 @@ $(document).ready(function() {
             feedback.html('<span class="text-danger"><i class="fas fa-times me-1"></i>Server error. Please try again.</span>');
         }).always(function() {
             btn.prop('disabled', false).html('<i class="fas fa-save me-1"></i>Update Status');
+        });
+    });
+
+    // Update Payment Status
+    $('#btnSavePaymentStatus').click(function() {
+        if (!currentDonorData) return;
+
+        const btn = $(this);
+        const newStatus = $('#detail_payment_status_select').val();
+        const feedback = $('#paymentStatusFeedback');
+
+        btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i>');
+        feedback.text('');
+
+        $.post('', {
+            ajax_action: 'update_payment_status',
+            donor_id: currentDonorData.id,
+            payment_status: newStatus,
+            csrf_token: $('input[name="csrf_token"]').first().val()
+        }, function(response) {
+            if (response.success) {
+                feedback.html('<span class="text-success"><i class="fas fa-check"></i></span>');
+                currentDonorData.payment_status = newStatus;
+                $('tr.donor-row').each(function() {
+                    const rowData = JSON.parse($(this).attr('data-donor'));
+                    if (rowData.id == currentDonorData.id) {
+                        rowData.payment_status = newStatus;
+                        $(this).attr('data-donor', JSON.stringify(rowData));
+                    }
+                });
+                setTimeout(() => feedback.text(''), 3000);
+            } else {
+                feedback.html('<span class="text-danger"><i class="fas fa-times me-1"></i>' + response.message + '</span>');
+            }
+        }, 'json').fail(function() {
+            feedback.html('<span class="text-danger"><i class="fas fa-times"></i></span>');
+        }).always(function() {
+            btn.prop('disabled', false).html('<i class="fas fa-check"></i>');
         });
     });
 
