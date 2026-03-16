@@ -5925,7 +5925,7 @@ function sendCompletedCertWhatsApp() {
     // Build custom message for immediate payers
     let customMessage = '';
     if (isImmediatePayer) {
-        customMessage = `ሰላም ጤና ይስጥልን የተከበሩ ${donorName}\n\nከሁሉም በፊት ከእግዚአብሔር ከአባታችን ከጌታም ከኢየሱስ ክርስቶስ ጸጋና ሰላም ለ እርስዎ ይሁን።\nበሊቨርፑል መካነ ቅዱሳን አቡነ ተክለሃይማኖት ቤተክርስቲያን ለሚደረገው የሕንጻ ግዢ አሻራዎን ለማስቀመጥ ስለፈቀዱ በእግዚአብሔር ስም ከፍ ያለ ምስጋናችንን እናቀርባለን።\n\n→ የከፈሉትን መጠን: ${totalPaid}\n\nማንኛውም ጥያቄ ካለዎት እባክዎ ያነጋግሩን፡፡\n\nአምላከ ተክለሃይማኖት በሰጡት አብዝቶ ይስጥልን🙏`;
+        customMessage = `ሰላም ጤና ይስጥልን የተከበሩ ${donorName}\n\nከሁሉም በፊት ከእግዚአብሔር ከአባታችን ከጌታም ከኢየሱስ ክርስቶስ ጸጋና ሰላም ለ እርስዎ ይሁን።\nበሊቨርፑል መካነ ቅዱሳን አቡነ ተክለሃይማኖት ቤተክርስቲያን ለሚደረገው የሕንጻ ግዢ አሻራዎን ለማስቀመጥ ስለፈቀዱ በእግዚአብሔር ስም ከፍ ያለ ምስጋናችንን እናቀርባለን።\n\n→ የከፈሉትን መጠን: ${totalPaid}\n\nየሚከተለውን ሊንክ በመጠቀም ስለከፈሉት ክፍያ ሁሉንም አይነት መረጃ ማግኘት ይችላሉ።\n\nhttps://donate.abuneteklehaymanot.org/donor\n\nማንኛውም ጥያቄ ካለዎት እባክዎ ያነጋግሩን፡፡\n\nአምላከ ተክለሃይማኖት በሰጡት አብዝቶ ይስጥልን🙏`;
     }
 
     if (typeof html2canvas === 'undefined') {
