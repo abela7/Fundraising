@@ -400,442 +400,155 @@ $page_title = 'Schedule Callback';
     <link rel="stylesheet" href="assets/call-center.css">
     <link rel="stylesheet" href="assets/call-widget.css">
     <style>
-        .schedule-callback-page {
-            max-width: 700px;
-            margin: 0 auto;
-            padding: 0.75rem;
-            padding-top: 20px;
-        }
-        
-        .content-header {
-            margin-bottom: 1rem;
-        }
-        
-        .content-title {
-            font-size: 1.375rem;
-            font-weight: 700;
-            color: #0a6286;
-            margin: 0;
-        }
-        
-        .content-subtitle {
-            font-size: 0.875rem;
-            color: #64748b;
-            margin: 0.25rem 0 0 0;
-        }
-        
-        .donor-header {
-            background: #0a6286;
-            color: white;
-            border-radius: 12px;
-            padding: 1rem;
-            margin-bottom: 1rem;
-            text-align: center;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-        }
-        
-        .donor-header h4 {
-            margin: 0 0 0.375rem 0;
-            font-size: 1.125rem;
-            font-weight: 700;
-        }
-        
-        .donor-header .phone {
-            font-size: 0.875rem;
-            opacity: 0.95;
-        }
-        
-        .status-badge {
-            display: inline-block;
-            background: #fef3c7;
-            color: #92400e;
-            padding: 0.5rem 1rem;
-            border-radius: 8px;
-            font-weight: 600;
-            font-size: 0.875rem;
-            margin-bottom: 1rem;
-        }
-        
-        .form-section {
-            background: white;
-            border: 1px solid #e2e8f0;
-            border-radius: 12px;
-            padding: 1.25rem 1rem;
-            margin-bottom: 1rem;
-        }
-        
-        .form-section-title {
-            font-size: 0.9375rem;
-            font-weight: 700;
-            color: #0a6286;
-            margin-bottom: 0.875rem;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-        }
-        
-        .form-label {
-            font-size: 0.875rem;
-            font-weight: 600;
-            color: #475569;
-            margin-bottom: 0.375rem;
-        }
-        
-        .form-control, .form-select {
-            font-size: 1rem;
-            padding: 0.75rem 1rem;
-            border-radius: 8px;
-        }
-        
-        /* Calendar Styles */
-        .calendar-wrapper {
-            margin-top: 0.75rem;
-        }
-        
-        .calendar-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 0.75rem;
-            background: #f8fafc;
-            border-radius: 8px;
-            margin-bottom: 0.75rem;
-        }
-        
-        .calendar-nav-btn {
-            background: #0a6286;
-            color: white;
-            border: 1px solid #0a6286;
-            border-radius: 6px;
-            padding: 0.5rem 0.75rem;
-            cursor: pointer;
-            transition: all 0.2s;
-            font-size: 1rem;
-        }
-        
-        .calendar-nav-btn:hover {
-            background: #084d68;
-            border-color: #084d68;
-            transform: scale(1.05);
-        }
-        
-        .calendar-month {
-            font-weight: 700;
-            font-size: 1rem;
-            color: #0a6286;
-        }
-        
-        .calendar-grid {
-            display: grid;
-            grid-template-columns: repeat(7, 1fr);
-            gap: 0.375rem;
-        }
-        
-        .calendar-day-label {
-            text-align: center;
-            font-size: 0.75rem;
-            font-weight: 600;
-            color: #64748b;
-            padding: 0.375rem;
-        }
-        
-        .calendar-day {
-            aspect-ratio: 1;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border: 2px solid #e2e8f0;
-            border-radius: 8px;
-            cursor: pointer;
-            transition: all 0.2s;
-            font-weight: 600;
-            font-size: 0.875rem;
-            background: white;
-        }
-        
-        .calendar-day:hover:not(.disabled):not(.empty) {
-            border-color: #0a6286;
-            background: #f0f9ff;
-            transform: scale(1.05);
-        }
-        
-        .calendar-day.selected {
-            background: #0a6286;
-            color: white;
-            border-color: #0a6286;
-        }
-        
-        .calendar-day.today {
-            border-color: #f59e0b;
-            background: #fffbeb;
-        }
-        
-        .calendar-day.disabled {
-            background: #f8fafc;
-            color: #cbd5e1;
-            cursor: not-allowed;
-            border-color: #f1f5f9;
-        }
-        
-        .calendar-day.empty {
-            border: none;
-            cursor: default;
-        }
-        
-        /* Native date input fallback */
-        #appointment_date_native {
-            font-size: 1rem;
-            padding: 0.75rem 1rem;
-            border: 2px solid #e2e8f0;
-            border-radius: 8px;
-            width: 100%;
-        }
-        
-        /* Time Slots - 5min grouped by hour */
-        .time-slots-container {
-            margin-top: 0.75rem;
-            max-height: 400px;
-            overflow-y: auto;
-            scrollbar-width: thin;
-        }
+        /* ===== Mobile-first step wizard ===== */
+        .schedule-callback-page { max-width:480px;margin:0 auto;padding:0.5rem; }
 
-        .time-hour-group {
-            margin-bottom: 0.5rem;
-        }
+        /* Donor bar */
+        .donor-bar { display:flex;align-items:center;gap:0.5rem;background:#f0f9ff;border:1px solid #bae6fd;border-radius:10px;padding:0.5rem 0.75rem;margin-bottom:0.75rem; }
+        .donor-av { width:34px;height:34px;border-radius:50%;background:#0a6286;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:0.8rem;flex-shrink:0; }
+        .donor-bar-info { flex:1;min-width:0; }
+        .donor-bar-name { font-weight:700;font-size:0.8rem;color:#0a6286;white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
+        .donor-bar-phone { font-size:0.7rem;color:#64748b; }
+        .status-pill { font-size:0.65rem;font-weight:600;padding:0.15rem 0.5rem;border-radius:20px;background:#fff7ed;color:#ea580c;border:1px solid #fed7aa;white-space:nowrap; }
 
-        .time-hour-label {
-            font-size: 0.7rem;
-            font-weight: 700;
-            color: #64748b;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            padding: 0.25rem 0.5rem;
-            background: #f1f5f9;
-            border-radius: 6px;
-            margin-bottom: 0.375rem;
-            display: inline-block;
-        }
+        /* Step indicators */
+        .steps-bar { display:flex;gap:0;margin-bottom:1rem; }
+        .step-ind { flex:1;text-align:center;position:relative; }
+        .step-num { width:28px;height:28px;margin:0 auto 0.2rem;border-radius:50%;border:2px solid #cbd5e1;background:#fff;font-weight:700;font-size:0.75rem;color:#94a3b8;display:flex;align-items:center;justify-content:center;transition:all 0.25s; }
+        .step-ind.active .step-num { border-color:#0a6286;background:#0a6286;color:#fff; }
+        .step-ind.done .step-num { border-color:#22c55e;background:#22c55e;color:#fff; }
+        .step-ind::after { content:'';position:absolute;top:13px;left:calc(50% + 16px);right:calc(-50% + 16px);height:2px;background:#e2e8f0;z-index:0; }
+        .step-ind:last-child::after { display:none; }
+        .step-ind.done::after { background:#22c55e; }
+        .step-ind.active::after { background:#bae6fd; }
+        .step-lbl { font-size:0.6rem;color:#94a3b8;font-weight:600; }
+        .step-ind.active .step-lbl,.step-ind.done .step-lbl { color:#334155; }
 
-        .time-slots-row {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 0.3rem;
-            margin-bottom: 0.25rem;
-        }
+        /* Panels */
+        .wiz-panel { display:none;animation:wfadeUp 0.2s ease; }
+        .wiz-panel.active { display:block; }
+        @keyframes wfadeUp { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:none} }
 
-        .time-slot {
-            background: white;
-            border: 1.5px solid #e2e8f0;
-            border-radius: 6px;
-            padding: 0.375rem 0.625rem;
-            text-align: center;
-            cursor: pointer;
-            transition: all 0.15s;
-            font-size: 0.78rem;
-            font-weight: 600;
-            color: #334155;
-            line-height: 1.2;
-            min-width: 58px;
-        }
+        .panel-card { background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:1rem;margin-bottom:0.625rem; }
+        .panel-head { font-size:0.85rem;font-weight:700;color:#0a6286;margin-bottom:0.625rem;display:flex;align-items:center;gap:0.375rem; }
 
-        .time-slot:hover:not(.disabled) {
-            border-color: #0a6286;
-            background: #f0f9ff;
-            color: #0a6286;
-        }
+        /* Calendar */
+        .cal-hdr { display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem; }
+        .cal-btn { background:none;border:1px solid #e2e8f0;border-radius:6px;width:32px;height:32px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#0a6286;font-size:0.8rem; }
+        .cal-btn:hover { background:#f0f9ff; }
+        .cal-mo { font-weight:700;font-size:0.85rem;color:#0a6286; }
+        .cal-grid { display:grid;grid-template-columns:repeat(7,1fr);gap:2px; }
+        .cal-dl { text-align:center;font-size:0.6rem;font-weight:700;color:#94a3b8;padding:0.2rem 0; }
+        .cal-d { aspect-ratio:1;display:flex;align-items:center;justify-content:center;border-radius:8px;font-size:0.8rem;font-weight:600;cursor:pointer;transition:all 0.15s;color:#334155; }
+        .cal-d:hover:not(.off):not(.emp) { background:#f0f9ff;color:#0a6286; }
+        .cal-d.sel { background:#0a6286;color:#fff; }
+        .cal-d.tod:not(.sel) { box-shadow:inset 0 0 0 2px #f59e0b; }
+        .cal-d.off { color:#d1d5db;cursor:default; }
+        .cal-d.emp { cursor:default; }
 
-        .time-slot.selected {
-            border-color: #0a6286;
-            background: #0a6286;
-            color: white;
-            box-shadow: 0 2px 4px rgba(10, 98, 134, 0.25);
-        }
+        /* Hour grid */
+        .hr-grid { display:grid;grid-template-columns:repeat(4,1fr);gap:0.375rem; }
+        .hr-btn { padding:0.5rem 0.25rem;border:1.5px solid #e2e8f0;border-radius:8px;background:#fff;text-align:center;cursor:pointer;font-size:0.8rem;font-weight:600;color:#334155;transition:all 0.15s; }
+        .hr-btn:hover { border-color:#0a6286;background:#f0f9ff;color:#0a6286; }
+        .hr-btn.sel { border-color:#0a6286;background:#0a6286;color:#fff; }
+        .hr-cnt { display:block;font-size:0.55rem;font-weight:400;color:#94a3b8;margin-top:1px; }
+        .hr-btn.sel .hr-cnt { color:rgba(255,255,255,0.7); }
 
-        .time-slot.disabled {
-            background: #f8fafc;
-            color: #cbd5e1;
-            cursor: not-allowed;
-            border-color: #f1f5f9;
-        }
+        /* Minute grid */
+        .mn-grid { display:grid;grid-template-columns:repeat(4,1fr);gap:0.375rem; }
+        .mn-btn { padding:0.625rem 0;border:1.5px solid #e2e8f0;border-radius:8px;background:#fff;text-align:center;cursor:pointer;font-size:0.85rem;font-weight:600;color:#334155;transition:all 0.15s; }
+        .mn-btn:hover { border-color:#0a6286;background:#f0f9ff;color:#0a6286; }
+        .mn-btn.sel { border-color:#0a6286;background:#0a6286;color:#fff; }
 
-        .loading-slots {
-            text-align: center;
-            padding: 2rem;
-            color: #64748b;
-        }
-        
-        .action-buttons {
-            display: flex;
-            gap: 0.75rem;
-            margin-top: 1rem;
-        }
-        
-        .action-buttons .btn {
-            flex: 1;
-            padding: 0.875rem;
-            font-weight: 600;
-            font-size: 1rem;
-        }
-        
-        @media (max-width: 767px) {
-            .schedule-callback-page {
-                padding: 0.5rem;
-            }
-            
-            .time-slot {
-                padding: 0.3rem 0.5rem;
-                font-size: 0.72rem;
-                min-width: 50px;
-            }
+        /* Selection chip */
+        .sel-chip { display:inline-flex;align-items:center;gap:0.3rem;background:#f0f9ff;border:1px solid #bae6fd;border-radius:8px;padding:0.25rem 0.6rem;font-size:0.75rem;font-weight:600;color:#0a6286;cursor:pointer;margin-bottom:0.5rem; }
+        .sel-chip i { font-size:0.6rem; }
 
-            .time-slots-container {
-                max-height: 300px;
-            }
-            
-            .calendar-grid {
-                gap: 0.25rem;
-            }
-            
-            .calendar-day {
-                font-size: 0.8125rem;
-            }
-            
-            .action-buttons {
-                flex-direction: column;
-            }
-            
-            .action-buttons .btn {
-                width: 100%;
-            }
-        }
+        /* Notes */
+        .notes-ta { font-size:0.85rem;padding:0.5rem 0.75rem;border-radius:8px;border:1px solid #e2e8f0;resize:vertical;min-height:50px;width:100%; }
+        .notes-ta:focus { border-color:#0a6286;outline:none;box-shadow:0 0 0 3px rgba(10,98,134,0.1); }
+
+        /* Bottom buttons */
+        .bot-bar { display:flex;gap:0.5rem;margin-top:0.5rem; }
+        .bot-bar .btn { flex:1;padding:0.7rem;font-weight:600;font-size:0.9rem;border-radius:10px; }
+
+        .loading-c { text-align:center;padding:1.5rem;color:#94a3b8;font-size:0.85rem; }
+
+        @media(min-width:420px) { .hr-grid{grid-template-columns:repeat(5,1fr)} .mn-grid{grid-template-columns:repeat(6,1fr)} }
     </style>
 </head>
 <body>
 <div class="admin-wrapper">
     <?php include '../includes/sidebar.php'; ?>
-    
     <div class="admin-content">
         <?php include '../includes/topbar.php'; ?>
-        
         <main class="main-content">
             <div class="schedule-callback-page">
-                <div class="content-header mb-4">
-                    <h1 class="content-title">
-                        <i class="fas fa-calendar-alt me-2"></i>
-                        Schedule Callback
-                    </h1>
-                    <p class="content-subtitle">Select date and time for callback</p>
-                </div>
-                
+
                 <?php if (isset($error_message)): ?>
-                    <div class="alert alert-danger">
-                        <i class="fas fa-exclamation-triangle me-2"></i>
-                        <strong>Error:</strong> <?php echo htmlspecialchars($error_message); ?>
-                        <?php if (isset($error_detail)): ?>
-                            <br><small><?php echo htmlspecialchars($error_detail); ?></small>
-                        <?php endif; ?>
-                    </div>
+                <div class="alert alert-danger py-2 small"><i class="fas fa-exclamation-triangle me-1"></i><?php echo htmlspecialchars($error_message); ?></div>
                 <?php endif; ?>
-                
-                <div class="donor-header">
-                    <h4><?php echo htmlspecialchars($donor->name); ?></h4>
-                    <div class="phone">
-                        <i class="fas fa-phone me-1"></i><?php echo htmlspecialchars($donor->phone); ?>
+
+                <!-- Donor bar -->
+                <div class="donor-bar">
+                    <div class="donor-av"><?php echo strtoupper(substr($donor->name, 0, 1)); ?></div>
+                    <div class="donor-bar-info">
+                        <div class="donor-bar-name"><?php echo htmlspecialchars($donor->name); ?></div>
+                        <div class="donor-bar-phone"><i class="fas fa-phone me-1"></i><?php echo htmlspecialchars($donor->phone); ?></div>
                     </div>
+                    <span class="status-pill"><?php echo htmlspecialchars($status_label); ?></span>
                 </div>
-                
-                <div class="status-badge">
-                    <?php if ($status === 'busy'): ?>
-                        <i class="fas fa-ban me-2"></i>
-                    <?php elseif ($status === 'busy_cant_talk'): ?>
-                        <i class="fas fa-clock me-2"></i>
-                    <?php elseif ($status === 'not_ready_to_pay'): ?>
-                        <i class="fas fa-calendar-plus me-2"></i>
-                    <?php else: ?>
-                        <i class="fas fa-phone-slash me-2"></i>
-                    <?php endif; ?>
-                    <?php echo htmlspecialchars($status_label); ?>
+
+                <!-- Step indicators -->
+                <div class="steps-bar">
+                    <div class="step-ind active" id="si1"><div class="step-num">1</div><div class="step-lbl">Date</div></div>
+                    <div class="step-ind" id="si2"><div class="step-num">2</div><div class="step-lbl">Hour</div></div>
+                    <div class="step-ind" id="si3"><div class="step-num">3</div><div class="step-lbl">Time</div></div>
                 </div>
-                
+
                 <form method="POST" action="" id="schedule-form">
                     <input type="hidden" name="book_appointment" value="1">
-                    <input type="hidden" name="appointment_time" id="selected_time_input" value="">
+                    <input type="hidden" name="appointment_time" id="sel_time" value="">
+                    <input type="hidden" name="appointment_date" id="sel_date" value="" required>
                     <input type="hidden" name="reason" value="<?php echo htmlspecialchars($reason); ?>">
-                    
-                    <!-- Date Selection -->
-                    <div class="form-section">
-                        <div class="form-section-title">
-                            <div>
-                            <i class="fas fa-calendar me-2"></i>Select Date
-                        </div>
-                            <small class="text-muted" style="font-weight: 400; font-size: 0.75rem;">Tap a day to select</small>
-                        </div>
-                        
-                        <!-- Custom Calendar UI -->
-                        <div id="custom-calendar" class="calendar-wrapper">
-                            <div class="calendar-header">
-                                <button type="button" class="calendar-nav-btn" id="prev-month">
-                                    <i class="fas fa-chevron-left"></i>
-                                </button>
-                                <div class="calendar-month" id="current-month"></div>
-                                <button type="button" class="calendar-nav-btn" id="next-month">
-                                    <i class="fas fa-chevron-right"></i>
-                                </button>
+
+                    <!-- STEP 1: Date -->
+                    <div class="wiz-panel active" id="wp1">
+                        <div class="panel-card">
+                            <div class="panel-head"><i class="fas fa-calendar-alt"></i> Pick a Date</div>
+                            <div class="cal-hdr">
+                                <button type="button" class="cal-btn" id="pM"><i class="fas fa-chevron-left"></i></button>
+                                <div class="cal-mo" id="cM"></div>
+                                <button type="button" class="cal-btn" id="nM"><i class="fas fa-chevron-right"></i></button>
                             </div>
-                            <div class="calendar-grid" id="calendar-grid"></div>
-                        </div>
-                        
-                        <!-- Hidden native date input for form submission -->
-                        <input type="date" 
-                               id="appointment_date" 
-                               name="appointment_date" 
-                               min="<?php echo date('Y-m-d'); ?>" 
-                               max="<?php echo date('Y-m-d', strtotime('+2 years')); ?>"
-                               required
-                               style="position: absolute; opacity: 0; pointer-events: none;">
-                        
-                        <small class="text-muted d-block mt-2">
-                            <i class="fas fa-info-circle me-1"></i>Select any future date
-                        </small>
-                    </div>
-                    
-                    <!-- Time Slot Selection -->
-                    <div class="form-section">
-                        <div class="form-section-title">
-                            <div>
-                                <i class="fas fa-clock me-2"></i>Select Time
-                            </div>
-                            <small class="text-muted" style="font-weight: 400; font-size: 0.75rem;">5 min intervals</small>
-                        </div>
-                        <div id="time-slots-container" class="time-slots-container">
-                            <div class="text-center py-4 text-muted">
-                                <i class="fas fa-hand-pointer fa-2x mb-2"></i>
-                                <p class="mb-0">Please select a date first</p>
-                        </div>
+                            <div class="cal-grid" id="cG"></div>
                         </div>
                     </div>
-                    
-                    <!-- Notes -->
-                    <div class="form-section">
-                        <label for="notes" class="form-label">
-                            <i class="fas fa-sticky-note me-2"></i>Notes (Optional)
-                        </label>
-                        <textarea class="form-control" 
-                                  id="notes" 
-                                  name="notes" 
-                                  rows="3" 
-                                  placeholder="Add any notes about this callback..."></textarea>
+
+                    <!-- STEP 2: Hour -->
+                    <div class="wiz-panel" id="wp2">
+                        <div class="sel-chip" onclick="goStep(1)"><i class="fas fa-chevron-left"></i> <span id="chipDate">-</span></div>
+                        <div class="panel-card">
+                            <div class="panel-head"><i class="fas fa-clock"></i> Pick an Hour</div>
+                            <div id="hrContainer" class="loading-c"><i class="fas fa-spinner fa-spin me-1"></i> Loading...</div>
+                        </div>
                     </div>
-                    
-                    
-                    <div class="action-buttons">
-                        <a href="call-status.php?donor_id=<?php echo $donor_id; ?>&queue_id=<?php echo $queue_id; ?><?php echo $session_id > 0 ? '&session_id=' . $session_id : ''; ?>" 
-                           class="btn btn-outline-secondary">
-                            <i class="fas fa-arrow-left me-2"></i>Back
-                        </a>
-                        <button type="submit" class="btn btn-success btn-lg" id="book-btn" disabled>
-                            <i class="fas fa-check me-2"></i>Book Appointment
-                        </button>
+
+                    <!-- STEP 3: Minute -->
+                    <div class="wiz-panel" id="wp3">
+                        <div class="sel-chip" onclick="goStep(2)"><i class="fas fa-chevron-left"></i> <span id="chipHour">-</span></div>
+                        <div class="panel-card">
+                            <div class="panel-head"><i class="fas fa-stopwatch"></i> Pick Exact Time</div>
+                            <div id="mnContainer"></div>
+                        </div>
+                        <div class="panel-card">
+                            <label class="panel-head" for="notes" style="margin-bottom:0.375rem;"><i class="fas fa-sticky-note"></i> Notes <span style="font-weight:400;color:#94a3b8;">(optional)</span></label>
+                            <textarea class="notes-ta" id="notes" name="notes" placeholder="Add callback notes..."></textarea>
+                        </div>
+                        <div class="bot-bar">
+                            <a href="call-status.php?donor_id=<?php echo $donor_id; ?>&queue_id=<?php echo $queue_id; ?><?php echo $session_id > 0 ? '&session_id=' . $session_id : ''; ?>" class="btn btn-outline-secondary"><i class="fas fa-arrow-left me-1"></i>Back</a>
+                            <button type="submit" class="btn btn-success" id="bookBtn" disabled><i class="fas fa-check me-2"></i>Book</button>
+                        </div>
                     </div>
                 </form>
             </div>
@@ -847,219 +560,155 @@ $page_title = 'Schedule Callback';
 <script src="../assets/admin.js"></script>
 <script src="assets/call-widget.js"></script>
 <script>
-    // Initialize Call Widget
-    document.addEventListener('DOMContentLoaded', function() {
-        // Only initialize if session exists, but don't auto-start 
-        // (call wasn't answered, so timer shouldn't run)
+document.addEventListener('DOMContentLoaded', function() {
+    <?php if ($session_id > 0): ?>
+    CallWidget.init({
+        sessionId: <?php echo $session_id; ?>,
+        donorId: <?php echo $donor_id; ?>,
+        donorName: '<?php echo addslashes($donor->name); ?>',
+        donorPhone: '<?php echo addslashes($donor->phone); ?>',
+        pledgeAmount: <?php echo $donor->pledge_amount; ?>,
+        pledgeDate: '<?php echo $donor->pledge_date ? date('M j, Y', strtotime($donor->pledge_date)) : 'Unknown'; ?>',
+        registrar: '<?php echo addslashes($donor->registrar_name); ?>',
+        church: '<?php echo addslashes($donor->church_name ?? $donor->city ?? 'Unknown'); ?>'
+    });
+    CallWidget.pause();
+    <?php endif; ?>
+
+    document.getElementById('schedule-form').addEventListener('submit', function() {
         <?php if ($session_id > 0): ?>
-        CallWidget.init({
-            sessionId: <?php echo $session_id; ?>,
-            donorId: <?php echo $donor_id; ?>,
-            donorName: '<?php echo addslashes($donor->name); ?>',
-            donorPhone: '<?php echo addslashes($donor->phone); ?>',
-            pledgeAmount: <?php echo $donor->pledge_amount; ?>,
-            pledgeDate: '<?php echo $donor->pledge_date ? date('M j, Y', strtotime($donor->pledge_date)) : 'Unknown'; ?>',
-            registrar: '<?php echo addslashes($donor->registrar_name); ?>',
-            church: '<?php echo addslashes($donor->church_name ?? $donor->city ?? 'Unknown'); ?>'
-        });
-        
-        // Pause the timer since call wasn't answered
-        CallWidget.pause();
+        const inp = document.createElement('input');
+        inp.type = 'hidden'; inp.name = 'call_duration_seconds'; inp.value = CallWidget.getDurationSeconds();
+        this.appendChild(inp);
+        CallWidget.pause(); CallWidget.resetState();
         <?php endif; ?>
-        
-        // Form submission
-        document.getElementById('schedule-form').addEventListener('submit', function(e) {
-            <?php if ($session_id > 0): ?>
-            // Get duration from widget
-            const duration = CallWidget.getDurationSeconds();
-            
-            // Create hidden input
-            const input = document.createElement('input');
-            input.type = 'hidden';
-            input.name = 'call_duration_seconds';
-            input.value = duration;
-            this.appendChild(input);
-            
-            // Stop timer and clear state
-            CallWidget.pause();
-            CallWidget.resetState();
-            <?php endif; ?>
-        });
     });
+});
 
-    // Pass agent_id to JS for fetching slots
-    const agentId = <?php echo $user_id; ?>;
-    
-    // Date picker logic
-    const dateInput = document.getElementById('appointment_date');
-    const slotsContainer = document.getElementById('time-slots-container');
-    const bookBtn = document.getElementById('book-btn');
-    const timeInput = document.getElementById('selected_time_input');
-    
-    // Calendar state
-    let currentMonth = new Date();
-    let selectedDate = null;
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    
-    const minDate = new Date();
-    minDate.setHours(0, 0, 0, 0);
-    
-    // Allow scheduling up to 2 years in the future
-    const maxDate = new Date();
-    maxDate.setFullYear(maxDate.getFullYear() + 2);
-    maxDate.setHours(0, 0, 0, 0);
-    
-    // Render calendar
-    function renderCalendar() {
-        const year = currentMonth.getFullYear();
-        const month = currentMonth.getMonth();
-        
-        // Update header
-        const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
-                           'July', 'August', 'September', 'October', 'November', 'December'];
-        document.getElementById('current-month').textContent = `${monthNames[month]} ${year}`;
-        
-        // Get first day of month and total days
-        const firstDay = new Date(year, month, 1);
-        const lastDay = new Date(year, month + 1, 0);
-        const daysInMonth = lastDay.getDate();
-        const startingDayOfWeek = firstDay.getDay(); // 0 = Sunday
-        
-        // Build calendar grid
-        let html = '';
-        
-        // Day labels
-        const dayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-        dayLabels.forEach(label => {
-            html += `<div class="calendar-day-label">${label}</div>`;
-        });
-        
-        // Empty cells before first day
-        for (let i = 0; i < startingDayOfWeek; i++) {
-            html += '<div class="calendar-day empty"></div>';
-        }
-        
-        // Days of month
-        for (let day = 1; day <= daysInMonth; day++) {
-            const date = new Date(year, month, day);
-            date.setHours(0, 0, 0, 0);
-            
-            let classes = 'calendar-day';
-            let disabled = false;
-            
-            // Check if date is in valid range
-            if (date < minDate || date > maxDate) {
-                classes += ' disabled';
-                disabled = true;
-            }
-            
-            // Check if today
-            if (date.getTime() === today.getTime()) {
-                classes += ' today';
-            }
-            
-            // Check if selected
-            if (selectedDate && date.getTime() === selectedDate.getTime()) {
-                classes += ' selected';
-            }
-            
-            const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-            const onClick = disabled ? '' : `onclick="selectDate('${dateStr}')"`;
-            
-            html += `<div class="${classes}" ${onClick}>${day}</div>`;
-        }
-        
-        document.getElementById('calendar-grid').innerHTML = html;
+const agentId = <?php echo $user_id; ?>;
+const dateInput = document.getElementById('sel_date');
+const timeInput = document.getElementById('sel_time');
+const bookBtn = document.getElementById('bookBtn');
+let allSlots = []; // cached from API
+let chosenDate = null, chosenHour = null;
+
+// ========== STEP NAV ==========
+function goStep(n) {
+    document.querySelectorAll('.wiz-panel').forEach(p => p.classList.remove('active'));
+    document.getElementById('wp' + n).classList.add('active');
+    ['si1','si2','si3'].forEach((id, i) => {
+        const el = document.getElementById(id);
+        el.classList.remove('active','done');
+        if (i + 1 < n) el.classList.add('done');
+        else if (i + 1 === n) el.classList.add('active');
+    });
+    window.scrollTo({top: 0, behavior: 'smooth'});
+}
+
+// ========== STEP 1: CALENDAR ==========
+let curMonth = new Date();
+const today = new Date(); today.setHours(0,0,0,0);
+const minD = new Date(); minD.setHours(0,0,0,0);
+const maxD = new Date(); maxD.setFullYear(maxD.getFullYear() + 2); maxD.setHours(0,0,0,0);
+const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+
+function renderCal() {
+    const y = curMonth.getFullYear(), m = curMonth.getMonth();
+    document.getElementById('cM').textContent = months[m] + ' ' + y;
+    const first = new Date(y, m, 1), days = new Date(y, m+1, 0).getDate(), sw = first.getDay();
+    let h = '';
+    ['S','M','T','W','T','F','S'].forEach(l => { h += '<div class="cal-dl">'+l+'</div>'; });
+    for (let i = 0; i < sw; i++) h += '<div class="cal-d emp"></div>';
+    for (let d = 1; d <= days; d++) {
+        const dt = new Date(y, m, d); dt.setHours(0,0,0,0);
+        let c = 'cal-d';
+        if (dt < minD || dt > maxD) c += ' off';
+        if (dt.getTime() === today.getTime()) c += ' tod';
+        if (chosenDate && dt.getTime() === chosenDate.getTime()) c += ' sel';
+        const ds = y+'-'+String(m+1).padStart(2,'0')+'-'+String(d).padStart(2,'0');
+        const oc = (dt < minD || dt > maxD) ? '' : ` onclick="pickDate('${ds}')"`;
+        h += `<div class="${c}"${oc}>${d}</div>`;
     }
-    
-    // Select date
-    window.selectDate = function(dateStr) {
-        const [year, month, day] = dateStr.split('-').map(Number);
-        selectedDate = new Date(year, month - 1, day);
-        selectedDate.setHours(0, 0, 0, 0);
-        
-        // Update hidden input
-        dateInput.value = dateStr;
-        
-        // Re-render calendar to show selection
-        renderCalendar();
-        
-        // Load time slots
-        loadTimeSlots(dateStr);
-    };
-    
-    // Load time slots
-    function loadTimeSlots(date) {
-        if (!date) return;
-        
-        slotsContainer.innerHTML = '<div class="loading-slots"><i class="fas fa-spinner fa-spin me-2"></i>Loading available slots...</div>';
-        bookBtn.disabled = true;
-        timeInput.value = '';
-        
-        fetch(`get-available-slots.php?date=${date}&agent_id=${agentId}`)
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    if (data.slots.length === 0) {
-                        slotsContainer.innerHTML = '<div class="alert alert-warning mb-0"><i class="fas fa-calendar-times me-2"></i>No available slots for this date.</div>';
-                    } else {
-                        // Group slots by hour
-                        const grouped = {};
-                        data.slots.forEach(slot => {
-                            const hour = slot.hour || 'Other';
-                            if (!grouped[hour]) grouped[hour] = [];
-                            grouped[hour].push(slot);
-                        });
+    document.getElementById('cG').innerHTML = h;
+}
+document.getElementById('pM').addEventListener('click', () => { curMonth.setMonth(curMonth.getMonth()-1); renderCal(); });
+document.getElementById('nM').addEventListener('click', () => { curMonth.setMonth(curMonth.getMonth()+1); renderCal(); });
 
-                        let html = '';
-                        for (const hour in grouped) {
-                            html += '<div class="time-hour-group">';
-                            html += `<div class="time-hour-label"><i class="fas fa-clock me-1"></i>${hour}</div>`;
-                            html += '<div class="time-slots-row">';
-                            grouped[hour].forEach(slot => {
-                                html += `<div class="time-slot" onclick="selectSlot(this, '${slot.time}')">${slot.formatted_time}</div>`;
-                            });
-                            html += '</div></div>';
-                        }
-                        slotsContainer.innerHTML = html;
-                    }
-                } else {
-                    slotsContainer.innerHTML = `<div class="alert alert-danger mb-0"><i class="fas fa-exclamation-triangle me-2"></i>${data.message || 'Error loading slots'}</div>`;
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                slotsContainer.innerHTML = '<div class="alert alert-danger mb-0"><i class="fas fa-exclamation-triangle me-2"></i>Failed to load slots. Please try again.</div>';
+window.pickDate = function(ds) {
+    const [y,m,d] = ds.split('-').map(Number);
+    chosenDate = new Date(y, m-1, d); chosenDate.setHours(0,0,0,0);
+    dateInput.value = ds;
+    chosenHour = null;
+    timeInput.value = '';
+    bookBtn.disabled = true;
+    renderCal();
+
+    // Format for chip
+    const opts = {weekday:'short', month:'short', day:'numeric'};
+    document.getElementById('chipDate').textContent = chosenDate.toLocaleDateString('en-GB', opts);
+
+    // Fetch slots then show step 2
+    const hrC = document.getElementById('hrContainer');
+    hrC.innerHTML = '<div class="loading-c"><i class="fas fa-spinner fa-spin me-1"></i> Loading hours...</div>';
+    goStep(2);
+
+    fetch('get-available-slots.php?date='+ds+'&agent_id='+agentId)
+        .then(r => r.json())
+        .then(data => {
+            if (!data.success || !data.slots.length) {
+                hrC.innerHTML = '<div class="text-center py-3 text-muted small"><i class="fas fa-calendar-times me-2"></i>No available slots</div>';
+                return;
+            }
+            allSlots = data.slots;
+            // Group by hour
+            const grouped = {};
+            data.slots.forEach(s => {
+                const hr = s.hour || 'Other';
+                if (!grouped[hr]) grouped[hr] = [];
+                grouped[hr].push(s);
             });
-    }
-    
-    // Navigation buttons
-    document.getElementById('prev-month').addEventListener('click', function() {
-        currentMonth.setMonth(currentMonth.getMonth() - 1);
-        renderCalendar();
+            let h = '<div class="hr-grid">';
+            for (const hr in grouped) {
+                h += `<div class="hr-btn" onclick="pickHour('${hr}', this)">${hr}<span class="hr-cnt">${grouped[hr].length} slots</span></div>`;
+            }
+            h += '</div>';
+            hrC.innerHTML = h;
+        })
+        .catch(() => { hrC.innerHTML = '<div class="text-center py-3 text-danger small">Failed to load</div>'; });
+};
+
+// ========== STEP 2: HOUR ==========
+window.pickHour = function(hr, el) {
+    chosenHour = hr;
+    document.querySelectorAll('.hr-btn').forEach(b => b.classList.remove('sel'));
+    el.classList.add('sel');
+
+    document.getElementById('chipHour').textContent = document.getElementById('chipDate').textContent + ' \u2022 ' + hr;
+
+    // Filter slots for this hour and render minute grid
+    const slots = allSlots.filter(s => s.hour === hr);
+    let h = '<div class="mn-grid">';
+    slots.forEach(s => {
+        h += `<div class="mn-btn" onclick="pickMin('${s.time}', this)">${s.formatted_time}</div>`;
     });
-    
-    document.getElementById('next-month').addEventListener('click', function() {
-        currentMonth.setMonth(currentMonth.getMonth() + 1);
-        renderCalendar();
-    });
-    
-    // Select time slot
-    window.selectSlot = function(element, time) {
-        // Remove selected class from all
-        document.querySelectorAll('.time-slot').forEach(el => el.classList.remove('selected'));
-        
-        // Add to clicked
-        element.classList.add('selected');
-        
-        // Update input
-        timeInput.value = time;
-        bookBtn.disabled = false;
-    };
-    
-    // Initialize calendar
-    renderCalendar();
+    h += '</div>';
+    document.getElementById('mnContainer').innerHTML = h;
+
+    timeInput.value = '';
+    bookBtn.disabled = true;
+    goStep(3);
+};
+
+// ========== STEP 3: MINUTE ==========
+window.pickMin = function(time, el) {
+    document.querySelectorAll('.mn-btn').forEach(b => b.classList.remove('sel'));
+    el.classList.add('sel');
+    timeInput.value = time;
+    bookBtn.disabled = false;
+};
+
+// Init
+renderCal();
 </script>
 </body>
 </html>
