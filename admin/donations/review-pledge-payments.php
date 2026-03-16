@@ -2007,25 +2007,17 @@ async function sendToKesisBirhanu(data, btn) {
     const isFullyPaid = !!data.is_fully_paid;
     const routing = getRoutingTarget(data);
 
-    // Pick the right template based on fully paid status
-    const templateMode = isFullyPaid ? fullyPaidTemplateMode : paymentTemplateMode;
-    const lang = templateMode === 'sms' ? 'en' : 'am';
+    // Always use Amharic, fallback to English
+    const lang = 'am';
     let message = '';
 
     if (isFullyPaid) {
-        // Build message from fully_paid_confirmation template
+        // Build message from fully_paid_confirmation template (Amharic first)
         if (dbFullyPaidTemplate) {
-            if (lang === 'am' && dbFullyPaidTemplate.message_am) message = dbFullyPaidTemplate.message_am;
-            else if (lang === 'ti' && dbFullyPaidTemplate.message_ti) message = dbFullyPaidTemplate.message_ti;
-            else if (dbFullyPaidTemplate.message_en) message = dbFullyPaidTemplate.message_en;
-            if (!message && dbFullyPaidTemplate.message_am) message = dbFullyPaidTemplate.message_am;
+            message = dbFullyPaidTemplate.message_am || dbFullyPaidTemplate.message_en || '';
         }
         if (!message) {
-            if (lang === 'am') {
-                message = 'ሰላም ጤና ይስጥልን ወድ {donor_name}፣\n\nሙሉ ቃል ኪዳን ክፍያዎን ስለጨረሱ እናመሰግናለን።\n\nበዛሬው ዕለት ({date}) የተቀበልነው ክፍያ: £{payment_amount}\n\nየቃል ኪዳንዎ ማጠቃለያ፡\n→ ጠቅላላ ቃል ኪዳን: {total_pledged_sqm} ካሬ ሜትር, £{total_pledged}\n→ ጠቅላላ የከፈሉት: £{total_paid}\n→ ቀሪ: £{remaining}\n\nአምላከ ተክለሃይማኖት በሰጡት አብዝቶ ይስጥልን።\n\n- ሊቨርፑል አቡነ ተክለሃይማኖት ቤተ ክርስቲያን';
-            } else {
-                message = 'Dear {donor_name},\n\nThank you for completing your full pledge payment.\n\nPayment received on {date}: £{payment_amount}\n\nPledge summary:\n→ Total pledge: {total_pledged_sqm} m², £{total_pledged}\n→ Total paid: £{total_paid}\n→ Remaining: £{remaining}\n\n- Liverpool Abune Teklehaymanot Church';
-            }
+            message = 'ሰላም ጤና ይስጥልን ወድ {donor_name}፣\n\nሙሉ ቃል ኪዳን ክፍያዎን ስለጨረሱ እናመሰግናለን።\n\nበዛሬው ዕለት ({date}) የተቀበልነው ክፍያ: £{payment_amount}\n\nየቃል ኪዳንዎ ማጠቃለያ፡\n→ ጠቅላላ ቃል ኪዳን: {total_pledged_sqm} ካሬ ሜትር, £{total_pledged}\n→ ጠቅላላ የከፈሉት: £{total_paid}\n→ ቀሪ: £{remaining}\n\nአምላከ ተክለሃይማኖት በሰጡት አብዝቶ ይስጥልን።\n\n- ሊቨርፑል አቡነ ተክለሃይማኖት ቤተ ክርስቲያን';
         }
         message = message
             .replace(/\{donor_name\}/g, data.donor_name)
@@ -2036,19 +2028,13 @@ async function sendToKesisBirhanu(data, btn) {
             .replace(/\{total_paid\}/g, data.total_paid)
             .replace(/\{remaining\}/g, '0.00');
     } else {
-        // Build message from payment_confirmed template
+        // Build message from payment_confirmed template (Amharic first, English fallback)
         let baseTemplate = '';
         if (dbTemplates) {
-            if (lang === 'am') baseTemplate = dbTemplates.message_am;
-            else if (lang === 'ti') baseTemplate = dbTemplates.message_ti;
-            else baseTemplate = dbTemplates.message_en;
+            baseTemplate = dbTemplates.message_am || dbTemplates.message_en || '';
         }
         if (!baseTemplate) {
-            if (lang === 'am') {
-                baseTemplate = "ሰላም ጤና ይስጥልን ወድ {name}፣\n\nበዛሬው ዕለት የ£{amount} ክፍያዎን ተቀብለናል።\n\nቀሪ ሂሳብዎ: £{outstanding_balance}\n\n{next_payment_info}\n\nአምላከ ተክለሃይማኖት በሰጡት አብዝቶ ይስጥልን።";
-            } else {
-                baseTemplate = "Dear {name},\n\nThank you. We received your payment of £{amount} on {payment_date}.\n\nOutstanding balance: £{outstanding_balance}\n\n{next_payment_info}\n\n- Liverpool Abune Teklehaymanot Church";
-            }
+            baseTemplate = "ሰላም ጤና ይስጥልን ወድ {name}፣\n\nበዛሬው ዕለት የ£{amount} ክፍያዎን ተቀብለናል።\n\nቀሪ ሂሳብዎ: £{outstanding_balance}\n\n{next_payment_info}\n\nአምላከ ተክለሃይማኖት በሰጡት አብዝቶ ይስጥልን።";
         }
         const nextTemplates = nextPaymentTemplates[lang] || nextPaymentTemplates['en'];
         const nextInfoTemplate = data.has_plan ? nextTemplates.withPlan : nextTemplates.withoutPlan;
@@ -2202,23 +2188,16 @@ function showNotificationModal(data) {
     document.getElementById('notifyBalance').textContent = '£' + data.outstanding_balance;
     renderRoutingNotice(data, 'notifyRoutingNotice', 'notifyRoutingAgent', 'notifyRoutingPhone');
     
-    // Respect template mode: sms => English, auto/whatsapp => Amharic.
-    const lang = paymentTemplateMode === 'sms' ? 'en' : 'am';
+    // Always use Amharic from DB template, fallback to hardcoded Amharic
+    const lang = 'am';
     let baseTemplate = '';
-    
+
     if (dbTemplates) {
-        if (lang === 'am') baseTemplate = dbTemplates.message_am;
-        else if (lang === 'ti') baseTemplate = dbTemplates.message_ti;
-        else baseTemplate = dbTemplates.message_en;
+        baseTemplate = dbTemplates.message_am || dbTemplates.message_en || '';
     }
-    
-    // Fallback if no template found.
+
     if (!baseTemplate) {
-        if (lang === 'am') {
-            baseTemplate = "ሰላም ጤና ይስጥልን ወድ {name}፣\n\nበዛሬው ዕለት የ£{amount} ክፍያዎን ተቀብለናል።\n\nቀሪ ሂሳብዎ: £{outstanding_balance}\n\n{next_payment_info}\n\nአምላከ ተክለሃይማኖት በሰጡት አብዝቶ ይስጥልን።";
-        } else {
-            baseTemplate = "Dear {name},\n\nThank you. We received your payment of £{amount} on {payment_date}.\n\nOutstanding balance: £{outstanding_balance}\n\n{next_payment_info}\n\n- Liverpool Abune Teklehaymanot Church";
-        }
+        baseTemplate = "ሰላም ጤና ይስጥልን ወድ {name}፣\n\nበዛሬው ዕለት የ£{amount} ክፍያዎን ተቀብለናል።\n\nቀሪ ሂሳብዎ: £{outstanding_balance}\n\n{next_payment_info}\n\nአምላከ ተክለሃይማኖት በሰጡት አብዝቶ ይስጥልን።";
     }
 
     // Get the appropriate next_payment_info sub-template
@@ -2769,32 +2748,16 @@ function showFullyPaidModal(data) {
     document.getElementById('fpArea').textContent = (data.sqm_value || '0') + ' m²';
     renderRoutingNotice(data, 'fpRoutingNotice', 'fpRoutingAgent', 'fpRoutingPhone');
 
-    // Build message from fully_paid_confirmation template
-    // Respect template mode: sms => English, auto/whatsapp => Amharic.
-    const lang = fullyPaidTemplateMode === 'sms' ? 'en' : 'am';
+    // Always use Amharic from DB template, fallback to hardcoded Amharic
+    const lang = 'am';
     let message = '';
 
     if (dbFullyPaidTemplate) {
-        if (lang === 'am' && dbFullyPaidTemplate.message_am) {
-            message = dbFullyPaidTemplate.message_am;
-        } else if (lang === 'ti' && dbFullyPaidTemplate.message_ti) {
-            message = dbFullyPaidTemplate.message_ti;
-        } else if (dbFullyPaidTemplate.message_en) {
-            message = dbFullyPaidTemplate.message_en;
-        }
-        // Fallback to Amharic if the selected language is empty
-        if (!message && dbFullyPaidTemplate.message_am) {
-            message = dbFullyPaidTemplate.message_am;
-        }
+        message = dbFullyPaidTemplate.message_am || dbFullyPaidTemplate.message_en || '';
     }
 
-    // Fallback if no template in database.
     if (!message) {
-        if (lang === 'am') {
-            message = 'ሰላም ጤና ይስጥልን ወድ {donor_name}፣\n\nሙሉ ቃል ኪዳን ክፍያዎን ስለጨረሱ እናመሰግናለን።\n\nበዛሬው ዕለት ({date}) የተቀበልነው ክፍያ: £{payment_amount}\n\nየቃል ኪዳንዎ ማጠቃለያ፡\n→ ጠቅላላ ቃል ኪዳን: {total_pledged_sqm} ካሬ ሜትር, £{total_pledged}\n→ ጠቅላላ የከፈሉት: £{total_paid}\n→ ቀሪ: £{remaining}\n\nአምላከ ተክለሃይማኖት በሰጡት አብዝቶ ይስጥልን።\n\n- ሊቨርፑል አቡነ ተክለሃይማኖት ቤተ ክርስቲያን';
-        } else {
-            message = 'Dear {donor_name},\n\nThank you for completing your full pledge payment.\n\nPayment received on {date}: £{payment_amount}\n\nPledge summary:\n→ Total pledge: {total_pledged_sqm} m², £{total_pledged}\n→ Total paid: £{total_paid}\n→ Remaining: £{remaining}\n\n- Liverpool Abune Teklehaymanot Church';
-        }
+        message = 'ሰላም ጤና ይስጥልን ወድ {donor_name}፣\n\nሙሉ ቃል ኪዳን ክፍያዎን ስለጨረሱ እናመሰግናለን።\n\nበዛሬው ዕለት ({date}) የተቀበልነው ክፍያ: £{payment_amount}\n\nየቃል ኪዳንዎ ማጠቃለያ፡\n→ ጠቅላላ ቃል ኪዳን: {total_pledged_sqm} ካሬ ሜትር, £{total_pledged}\n→ ጠቅላላ የከፈሉት: £{total_paid}\n→ ቀሪ: £{remaining}\n\nአምላከ ተክለሃይማኖት በሰጡት አብዝቶ ይስጥልን።\n\n- ሊቨርፑል አቡነ ተክለሃይማኖት ቤተ ክርስቲያን';
     }
 
     // Replace variables
