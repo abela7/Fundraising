@@ -5913,23 +5913,23 @@ async function captureAndSendCompletedCert(element, phone, donorId, donorName, s
         element.style.transform = 'none';
 
         const canvas = await html2canvas(element, {
-            scale: 2,
+            scale: 1.5,
             useCORS: true,
             allowTaint: true,
-            backgroundColor: null,
+            backgroundColor: '#ffffff',
             width: 1200,
             height: 850
         });
 
         element.style.transform = originalTransform;
 
-        const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+        const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.85));
         if (!blob) throw new Error('Failed to generate certificate image');
 
         if (btn) btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Sending to WhatsApp...';
 
         const formData = new FormData();
-        formData.append('certificate', blob, `certificate_final_${donorName.replace(/[^a-z0-9]/gi, '_')}.png`);
+        formData.append('certificate', blob, `certificate_final_${donorName.replace(/[^a-z0-9]/gi, '_')}.jpg`);
         formData.append('phone', phone);
         formData.append('donor_id', donorId);
         formData.append('donor_name', donorName);
@@ -6023,18 +6023,18 @@ async function captureAndSendCertificate(element, phone, donorId, donorName, sqm
         element.style.transform = 'none';
 
         const canvas = await html2canvas(element, {
-            scale: 2,
+            scale: 1.5,
             useCORS: true,
             allowTaint: true,
-            backgroundColor: null,
+            backgroundColor: '#ffffff',
             width: 1200,
             height: 970
         });
 
         element.style.transform = originalTransform;
 
-        // Convert canvas to PNG blob
-        const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+        // Convert canvas to JPEG blob (smaller file size)
+        const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.85));
         if (!blob) {
             throw new Error('Failed to generate certificate image');
         }
