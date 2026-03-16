@@ -70,11 +70,8 @@ try {
         }
     }
     
-    // Get slot duration from config
-    $config_query = "SELECT setting_value FROM call_center_appointment_config WHERE setting_key = 'default_slot_duration' LIMIT 1";
-    $config_result = $db->query($config_query);
-    $config_row = $config_result ? $config_result->fetch_assoc() : null;
-    $slot_duration = $config_row ? (int)$config_row['setting_value'] : 5;
+    // Slot duration: 5 minutes
+    $slot_duration = 5;
     
     // Get existing appointments for this agent on this date
     $appointments_query = "
@@ -138,7 +135,8 @@ try {
         if (!in_array($slot_time, $booked_slots)) {
             $available_slots[] = [
                 'time' => $slot_time,
-                'formatted_time' => $start->format('g:i A')
+                'formatted_time' => $start->format('g:i A'),
+                'hour' => $start->format('gA')
             ];
         }
         

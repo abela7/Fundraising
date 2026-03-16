@@ -162,11 +162,8 @@ date_default_timezone_set('Europe/London');
         throw new Exception("Donor not found");
     }
     
-    // Get slot duration from config
-    $config_query = "SELECT setting_value FROM call_center_appointment_config WHERE setting_key = 'default_slot_duration' LIMIT 1";
-    $config_result = $db->query($config_query);
-    $config_row = $config_result ? $config_result->fetch_assoc() : null;
-    $slot_duration = $config_row ? (int)$config_row['setting_value'] : 5;
+    // Slot duration: 5 minutes
+    $slot_duration = 5;
     
     // Handle form submission - Book appointment
     if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['book_appointment'])) {
@@ -594,54 +591,73 @@ $page_title = 'Schedule Callback';
             width: 100%;
         }
         
-        /* Time Slots */
+        /* Time Slots - 5min grouped by hour */
         .time-slots-container {
             margin-top: 0.75rem;
+            max-height: 400px;
+            overflow-y: auto;
+            scrollbar-width: thin;
         }
-        
-        .time-slots-grid {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 0.75rem;
+
+        .time-hour-group {
+            margin-bottom: 0.5rem;
         }
-        
+
+        .time-hour-label {
+            font-size: 0.7rem;
+            font-weight: 700;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            padding: 0.25rem 0.5rem;
+            background: #f1f5f9;
+            border-radius: 6px;
+            margin-bottom: 0.375rem;
+            display: inline-block;
+        }
+
+        .time-slots-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.3rem;
+            margin-bottom: 0.25rem;
+        }
+
         .time-slot {
             background: white;
-            border: 2px solid #e2e8f0;
-            border-radius: 10px;
-            padding: 1rem 0.5rem;
+            border: 1.5px solid #e2e8f0;
+            border-radius: 6px;
+            padding: 0.375rem 0.625rem;
             text-align: center;
             cursor: pointer;
-            transition: all 0.2s;
-            font-size: 1rem;
+            transition: all 0.15s;
+            font-size: 0.78rem;
             font-weight: 600;
-            min-height: 60px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            color: #334155;
+            line-height: 1.2;
+            min-width: 58px;
         }
-        
+
         .time-slot:hover:not(.disabled) {
             border-color: #0a6286;
             background: #f0f9ff;
-            transform: translateY(-2px);
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            color: #0a6286;
         }
-        
+
         .time-slot.selected {
             border-color: #0a6286;
             background: #0a6286;
             color: white;
-            box-shadow: 0 4px 6px -1px rgba(10, 98, 134, 0.3);
+            box-shadow: 0 2px 4px rgba(10, 98, 134, 0.25);
         }
-        
+
         .time-slot.disabled {
             background: #f8fafc;
             color: #cbd5e1;
             cursor: not-allowed;
             border-color: #f1f5f9;
         }
-        
+
         .loading-slots {
             text-align: center;
             padding: 2rem;
@@ -666,15 +682,14 @@ $page_title = 'Schedule Callback';
                 padding: 0.5rem;
             }
             
-            .time-slots-grid {
-                grid-template-columns: repeat(2, 1fr);
-                gap: 0.5rem;
-            }
-            
             .time-slot {
-                padding: 0.875rem 0.5rem;
-                font-size: 0.9375rem;
-                min-height: 55px;
+                padding: 0.3rem 0.5rem;
+                font-size: 0.72rem;
+                min-width: 50px;
+            }
+
+            .time-slots-container {
+                max-height: 300px;
             }
             
             .calendar-grid {
@@ -790,7 +805,7 @@ $page_title = 'Schedule Callback';
                             <div>
                                 <i class="fas fa-clock me-2"></i>Select Time
                             </div>
-                            <small class="text-muted" style="font-weight: 400; font-size: 0.75rem;"><?php echo $slot_duration; ?> min slots</small>
+                            <small class="text-muted" style="font-weight: 400; font-size: 0.75rem;">5 min intervals</small>
                         </div>
                         <div id="time-slots-container" class="time-slots-container">
                             <div class="text-center py-4 text-muted">
@@ -989,11 +1004,24 @@ $page_title = 'Schedule Callback';
                     if (data.slots.length === 0) {
                         slotsContainer.innerHTML = '<div class="alert alert-warning mb-0"><i class="fas fa-calendar-times me-2"></i>No available slots for this date.</div>';
                     } else {
-                        let html = '<div class="time-slots-grid">';
+                        // Group slots by hour
+                        const grouped = {};
                         data.slots.forEach(slot => {
-                            html += `<div class="time-slot" onclick="selectSlot(this, '${slot.time}')">${slot.formatted_time}</div>`;
+                            const hour = slot.hour || 'Other';
+                            if (!grouped[hour]) grouped[hour] = [];
+                            grouped[hour].push(slot);
                         });
-                        html += '</div>';
+
+                        let html = '';
+                        for (const hour in grouped) {
+                            html += '<div class="time-hour-group">';
+                            html += `<div class="time-hour-label"><i class="fas fa-clock me-1"></i>${hour}</div>`;
+                            html += '<div class="time-slots-row">';
+                            grouped[hour].forEach(slot => {
+                                html += `<div class="time-slot" onclick="selectSlot(this, '${slot.time}')">${slot.formatted_time}</div>`;
+                            });
+                            html += '</div></div>';
+                        }
                         slotsContainer.innerHTML = html;
                     }
                 } else {
