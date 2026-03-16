@@ -166,7 +166,7 @@ date_default_timezone_set('Europe/London');
     $config_query = "SELECT setting_value FROM call_center_appointment_config WHERE setting_key = 'default_slot_duration' LIMIT 1";
     $config_result = $db->query($config_query);
     $config_row = $config_result ? $config_result->fetch_assoc() : null;
-    $slot_duration = $config_row ? (int)$config_row['setting_value'] : 30;
+    $slot_duration = $config_row ? (int)$config_row['setting_value'] : 5;
     
     // Handle form submission - Book appointment
     if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['book_appointment'])) {

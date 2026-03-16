@@ -74,7 +74,7 @@ try {
     $config_query = "SELECT setting_value FROM call_center_appointment_config WHERE setting_key = 'default_slot_duration' LIMIT 1";
     $config_result = $db->query($config_query);
     $config_row = $config_result ? $config_result->fetch_assoc() : null;
-    $slot_duration = $config_row ? (int)$config_row['setting_value'] : 30;
+    $slot_duration = $config_row ? (int)$config_row['setting_value'] : 5;
     
     // Get existing appointments for this agent on this date
     $appointments_query = "
