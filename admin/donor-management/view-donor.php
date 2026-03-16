@@ -757,8 +757,9 @@ try {
     }
     
     // Fetch agent information if assigned
+    $assignment['agent_phone'] = null;
     if (!empty($assignment['agent_id'])) {
-        $agent_query = "SELECT id, name FROM users WHERE id = ?";
+        $agent_query = "SELECT id, name, phone, phone_number FROM users WHERE id = ?";
         $agent_stmt = $db->prepare($agent_query);
         if ($agent_stmt) {
             $agent_stmt->bind_param('i', $assignment['agent_id']);
@@ -766,6 +767,7 @@ try {
             $agent_result = $agent_stmt->get_result()->fetch_assoc();
             if ($agent_result) {
                 $assignment['agent_name'] = $agent_result['name'];
+                $assignment['agent_phone'] = $agent_result['phone_number'] ?: $agent_result['phone'] ?: null;
             }
         }
     }
@@ -5861,6 +5863,32 @@ function captureCompletedCert(element) {
 /**
  * Send the completed certificate via WhatsApp.
  */
+// --- Routing logic (matches review-pledge-payments.php) ---
+const KESIS_BIRHANU_PHONE = '07473822244';
+const KESIS_BIRHANU_NAME = 'Kesis Birhanu';
+
+function _phonesMatch(a, b) {
+    if (!a || !b) return false;
+    a = a.replace(/\s+/g, '').replace(/^(\+44|0044)/, '0');
+    b = b.replace(/\s+/g, '').replace(/^(\+44|0044)/, '0');
+    return a === b || a.replace(/^0/, '') === b.replace(/^0/, '');
+}
+
+function _getCertRouting() {
+    const agentName = '<?php echo addslashes($assignment['agent_name'] ?? ''); ?>'.trim().toLowerCase().replace(/\s+/g, ' ');
+    const agentPhone = '<?php echo addslashes($assignment['agent_phone'] ?? ''); ?>';
+    const donorPhone = '<?php echo htmlspecialchars($donor['phone'] ?? ''); ?>';
+    const kesisName = KESIS_BIRHANU_NAME.trim().toLowerCase().replace(/\s+/g, ' ');
+
+    const isKesis = _phonesMatch(agentPhone, KESIS_BIRHANU_PHONE) || agentName === kesisName;
+
+    return {
+        isKesis,
+        phone: isKesis ? KESIS_BIRHANU_PHONE : donorPhone,
+        label: isKesis ? (agentName || KESIS_BIRHANU_NAME) : 'Donor'
+    };
+}
+
 function sendCompletedCertWhatsApp() {
     const certificate = document.getElementById('completed-certificate');
     if (!certificate) {
@@ -5868,22 +5896,29 @@ function sendCompletedCertWhatsApp() {
         return;
     }
 
-    const donorPhone = '<?php echo htmlspecialchars($donor['phone'] ?? ''); ?>';
     const donorName = '<?php echo htmlspecialchars(addslashes($donor['name'] ?? '')); ?>';
     const donorId = '<?php echo $donor_id; ?>';
     const sqmValue = '<?php echo $sqmValue; ?>';
     const totalPaid = '<?php echo $currency . number_format($allocationBase, 2); ?>';
     const isImmediatePayer = <?php echo $isImmediatePayer ? 'true' : 'false'; ?>;
 
-    if (!donorPhone) {
-        alert('Donor has no phone number. Cannot send WhatsApp.');
+    const routing = _getCertRouting();
+
+    if (!routing.phone) {
+        alert('No phone number available. Cannot send WhatsApp.');
         return;
     }
+
+    // Confirm with agent
+    const recipient = routing.isKesis
+        ? routing.label + ' (' + routing.phone + ')'
+        : 'Donor (' + routing.phone + ')';
+    if (!confirm('Send certificate to ' + recipient + '?')) return;
 
     const btn = document.querySelector('button[onclick="sendCompletedCertWhatsApp()"]');
     const originalText = btn ? btn.innerHTML : '';
     if (btn) {
-        btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Sending...';
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Sending to ' + routing.label + '...';
         btn.disabled = true;
     }
 
@@ -5896,14 +5931,14 @@ function sendCompletedCertWhatsApp() {
     if (typeof html2canvas === 'undefined') {
         const script = document.createElement('script');
         script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
-        script.onload = () => captureAndSendCompletedCert(certificate, donorPhone, donorId, donorName, sqmValue, totalPaid, btn, originalText, customMessage);
+        script.onload = () => captureAndSendCompletedCert(certificate, routing.phone, donorId, donorName, sqmValue, totalPaid, btn, originalText, customMessage);
         script.onerror = () => {
             alert('Failed to load image library. Please try again.');
             if (btn) { btn.innerHTML = originalText; btn.disabled = false; }
         };
         document.head.appendChild(script);
     } else {
-        captureAndSendCompletedCert(certificate, donorPhone, donorId, donorName, sqmValue, totalPaid, btn, originalText, customMessage);
+        captureAndSendCompletedCert(certificate, routing.phone, donorId, donorName, sqmValue, totalPaid, btn, originalText, customMessage);
     }
 }
 
