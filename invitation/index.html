@@ -1,0 +1,1439 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Community Engagement Invitation - LMKAT EOTC</title>
+    <link rel="icon" type="image/svg+xml" href="../assets/favicon.svg">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        /* ============================================
+           CSS VARIABLES & RESET
+           ============================================ */
+        :root {
+            --blue: #0a6286;
+            --blue-deep: #064a66;
+            --blue-dark: #042f42;
+            --blue-light: #0d7ba8;
+            --gold: #e2ca18;
+            --gold-warm: #d4a017;
+            --gold-light: #f5e66b;
+            --gold-pale: #fdf8e1;
+            --cream: #faf6eb;
+            --ivory: #fefcf5;
+            --charcoal: #1a1a1a;
+            --text: #2c2c2c;
+            --text-muted: #6b6b6b;
+            --white: #ffffff;
+
+            --font-display: 'Cormorant Garamond', Georgia, serif;
+            --font-body: 'Outfit', -apple-system, sans-serif;
+
+            --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+            --ease-out-back: cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        *, *::before, *::after {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html {
+            scroll-behavior: smooth;
+            -webkit-text-size-adjust: 100%;
+        }
+
+        body {
+            font-family: var(--font-body);
+            color: var(--text);
+            background: var(--ivory);
+            overflow-x: hidden;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* ============================================
+           ETHIOPIAN CROSS SVG PATTERN
+           ============================================ */
+        .eth-cross-pattern {
+            position: absolute;
+            pointer-events: none;
+            opacity: 0.04;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='60' viewBox='0 0 60 60'%3E%3Cpath d='M30 8 L34 8 L34 22 L38 18 L42 22 L34 26 L34 34 L42 38 L38 42 L34 34 L34 52 L30 52 L26 52 L26 34 L22 42 L18 38 L26 34 L26 26 L18 22 L22 18 L26 22 L26 8 Z' fill='%230a6286'/%3E%3C/svg%3E");
+            background-size: 60px 60px;
+        }
+
+        /* ============================================
+           GOLD FILIGREE DIVIDER
+           ============================================ */
+        .divider {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 1rem;
+            margin: 2rem auto;
+            max-width: 280px;
+        }
+
+        .divider::before,
+        .divider::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, var(--gold), transparent);
+        }
+
+        .divider-cross {
+            color: var(--gold);
+            font-size: 1rem;
+            opacity: 0.8;
+        }
+
+        /* ============================================
+           SCROLL REVEAL ANIMATIONS
+           ============================================ */
+        .reveal {
+            opacity: 0;
+            transform: translateY(40px);
+            transition: opacity 0.9s var(--ease-out-expo), transform 0.9s var(--ease-out-expo);
+        }
+
+        .reveal.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .reveal-delay-1 { transition-delay: 0.1s; }
+        .reveal-delay-2 { transition-delay: 0.2s; }
+        .reveal-delay-3 { transition-delay: 0.3s; }
+        .reveal-delay-4 { transition-delay: 0.4s; }
+
+        /* ============================================
+           HERO SECTION
+           ============================================ */
+        .hero {
+            position: relative;
+            min-height: 100vh;
+            min-height: 100dvh;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            padding: 2rem 1.25rem 3rem;
+            overflow: hidden;
+        }
+
+        .hero-bg {
+            position: absolute;
+            inset: 0;
+            z-index: 0;
+        }
+
+        .hero-bg img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            object-position: center 30%;
+            filter: brightness(0.45) saturate(1.1);
+        }
+
+        .hero-bg::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(
+                to bottom,
+                rgba(4, 47, 66, 0.3) 0%,
+                rgba(4, 47, 66, 0.1) 30%,
+                rgba(4, 47, 66, 0.5) 60%,
+                rgba(4, 47, 66, 0.92) 100%
+            );
+        }
+
+        .hero-pattern {
+            position: absolute;
+            inset: 0;
+            z-index: 1;
+            opacity: 0.06;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='80' viewBox='0 0 80 80'%3E%3Cpath d='M40 10 L44 10 L44 30 L50 24 L54 28 L44 34 L44 46 L54 52 L50 56 L44 46 L44 70 L40 70 L36 70 L36 46 L30 56 L26 52 L36 46 L36 34 L26 28 L30 24 L36 30 L36 10 Z' fill='%23e2ca18' fill-opacity='0.5'/%3E%3C/svg%3E");
+            background-size: 80px 80px;
+            mix-blend-mode: overlay;
+        }
+
+        .hero-content {
+            position: relative;
+            z-index: 2;
+            text-align: center;
+            color: var(--white);
+        }
+
+        .hero-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            background: rgba(226, 202, 24, 0.15);
+            border: 1px solid rgba(226, 202, 24, 0.3);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            padding: 0.5rem 1.25rem;
+            border-radius: 100px;
+            font-family: var(--font-body);
+            font-size: 0.7rem;
+            font-weight: 500;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: var(--gold-light);
+            margin-bottom: 1.5rem;
+            animation: fadeDown 1s var(--ease-out-expo) 0.3s both;
+        }
+
+        .hero-title-wrapper {
+            animation: fadeUp 1.2s var(--ease-out-expo) 0.5s both;
+        }
+
+        .hero-subtitle-am {
+            font-family: 'Nyala', 'Segoe UI Ethiopic', var(--font-display);
+            font-size: clamp(1.1rem, 3.5vw, 1.5rem);
+            color: var(--gold);
+            font-weight: 400;
+            margin-bottom: 0.75rem;
+            letter-spacing: 0.02em;
+        }
+
+        .hero-title {
+            font-family: var(--font-display);
+            font-size: clamp(2.2rem, 8vw, 4.5rem);
+            font-weight: 300;
+            line-height: 1.05;
+            letter-spacing: -0.01em;
+            margin-bottom: 0.5rem;
+        }
+
+        .hero-title em {
+            font-style: italic;
+            font-weight: 400;
+            color: var(--gold);
+        }
+
+        .hero-church-name {
+            font-family: var(--font-body);
+            font-size: clamp(0.6rem, 2vw, 0.75rem);
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.2em;
+            color: rgba(255, 255, 255, 0.6);
+            margin-top: 1.25rem;
+            line-height: 1.6;
+        }
+
+        .hero-scroll-hint {
+            position: absolute;
+            bottom: 1.5rem;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 2;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.5rem;
+            color: rgba(255, 255, 255, 0.4);
+            font-size: 0.65rem;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            animation: fadeUp 1s var(--ease-out-expo) 1.5s both;
+        }
+
+        .hero-scroll-hint .scroll-line {
+            width: 1px;
+            height: 40px;
+            background: linear-gradient(to bottom, var(--gold), transparent);
+            animation: scrollPulse 2s ease-in-out infinite;
+        }
+
+        @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes fadeDown {
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes scrollPulse {
+            0%, 100% { opacity: 0.3; transform: scaleY(0.6); transform-origin: top; }
+            50% { opacity: 1; transform: scaleY(1); }
+        }
+
+        /* ============================================
+           ABOUT SECTION
+           ============================================ */
+        .about {
+            position: relative;
+            padding: 5rem 1.25rem;
+            background: var(--ivory);
+            text-align: center;
+            overflow: hidden;
+        }
+
+        .about .eth-cross-pattern {
+            inset: 0;
+        }
+
+        .about-inner {
+            position: relative;
+            z-index: 1;
+            max-width: 640px;
+            margin: 0 auto;
+        }
+
+        .section-label {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-family: var(--font-body);
+            font-size: 0.65rem;
+            font-weight: 600;
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            color: var(--gold-warm);
+            margin-bottom: 1.5rem;
+        }
+
+        .section-label::before,
+        .section-label::after {
+            content: '';
+            width: 20px;
+            height: 1px;
+            background: var(--gold);
+        }
+
+        .about-headline {
+            font-family: var(--font-display);
+            font-size: clamp(1.8rem, 6vw, 3rem);
+            font-weight: 400;
+            line-height: 1.2;
+            color: var(--blue-deep);
+            margin-bottom: 1.5rem;
+        }
+
+        .about-headline em {
+            font-style: italic;
+            color: var(--gold-warm);
+        }
+
+        .about-body {
+            font-size: 1rem;
+            line-height: 1.8;
+            color: var(--text-muted);
+            max-width: 520px;
+            margin: 0 auto;
+        }
+
+        .about-body strong {
+            color: var(--blue);
+            font-weight: 600;
+        }
+
+        .location-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-top: 1.75rem;
+            padding: 0.75rem 1.5rem;
+            background: var(--white);
+            border: 1px solid rgba(10, 98, 134, 0.1);
+            border-radius: 100px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            color: var(--blue);
+            box-shadow: 0 4px 20px rgba(10, 98, 134, 0.08);
+        }
+
+        .location-pill i {
+            color: var(--gold-warm);
+        }
+
+        /* ============================================
+           EVENT DETAILS SECTION
+           ============================================ */
+        .event-details {
+            position: relative;
+            padding: 5rem 1.25rem;
+            background: var(--blue-dark);
+            color: var(--white);
+            overflow: hidden;
+        }
+
+        .event-details::before {
+            content: '';
+            position: absolute;
+            top: -100px;
+            left: -100px;
+            width: 400px;
+            height: 400px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(226, 202, 24, 0.08), transparent 70%);
+            pointer-events: none;
+        }
+
+        .event-details::after {
+            content: '';
+            position: absolute;
+            bottom: -150px;
+            right: -100px;
+            width: 500px;
+            height: 500px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(10, 98, 134, 0.2), transparent 70%);
+            pointer-events: none;
+        }
+
+        .event-details-inner {
+            position: relative;
+            z-index: 1;
+            max-width: 800px;
+            margin: 0 auto;
+            text-align: center;
+        }
+
+        .event-details .section-label {
+            color: var(--gold-light);
+        }
+
+        .event-headline {
+            font-family: var(--font-display);
+            font-size: clamp(1.6rem, 5vw, 2.5rem);
+            font-weight: 300;
+            margin-bottom: 3rem;
+            color: var(--white);
+        }
+
+        .event-headline em {
+            font-style: italic;
+            font-weight: 400;
+            color: var(--gold);
+        }
+
+        .event-cards {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 1rem;
+        }
+
+        .event-card {
+            position: relative;
+            padding: 2rem 1.5rem;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(226, 202, 24, 0.12);
+            border-radius: 1.25rem;
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            transition: transform 0.4s var(--ease-out-expo), border-color 0.4s ease;
+        }
+
+        .event-card:hover {
+            transform: translateY(-4px);
+            border-color: rgba(226, 202, 24, 0.3);
+        }
+
+        .event-card-icon {
+            width: 52px;
+            height: 52px;
+            border-radius: 16px;
+            background: linear-gradient(135deg, var(--gold), var(--gold-warm));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.25rem;
+            color: var(--blue-dark);
+            margin: 0 auto 1.25rem;
+            box-shadow: 0 8px 24px rgba(226, 202, 24, 0.2);
+        }
+
+        .event-card-title {
+            font-family: var(--font-body);
+            font-size: 0.65rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.15em;
+            color: var(--gold-light);
+            margin-bottom: 0.5rem;
+        }
+
+        .event-card-value {
+            font-family: var(--font-display);
+            font-size: 1.5rem;
+            font-weight: 500;
+            color: var(--white);
+            line-height: 1.3;
+        }
+
+        .event-card-value small {
+            display: block;
+            font-family: var(--font-body);
+            font-size: 0.8rem;
+            font-weight: 400;
+            color: rgba(255, 255, 255, 0.5);
+            margin-top: 0.25rem;
+        }
+
+        /* ============================================
+           WHAT TO EXPECT SECTION
+           ============================================ */
+        .expect {
+            position: relative;
+            padding: 5rem 1.25rem;
+            background: var(--cream);
+            overflow: hidden;
+        }
+
+        .expect .eth-cross-pattern {
+            inset: 0;
+            opacity: 0.03;
+        }
+
+        .expect-inner {
+            position: relative;
+            z-index: 1;
+            max-width: 800px;
+            margin: 0 auto;
+            text-align: center;
+        }
+
+        .expect-headline {
+            font-family: var(--font-display);
+            font-size: clamp(1.8rem, 6vw, 3rem);
+            font-weight: 400;
+            color: var(--blue-deep);
+            margin-bottom: 0.75rem;
+        }
+
+        .expect-sub {
+            font-size: 0.95rem;
+            color: var(--text-muted);
+            margin-bottom: 3rem;
+            max-width: 460px;
+            margin-left: auto;
+            margin-right: auto;
+            line-height: 1.7;
+        }
+
+        .expect-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+
+        .expect-item {
+            position: relative;
+            padding: 2rem 1.25rem;
+            background: var(--white);
+            border-radius: 1.25rem;
+            border: 1px solid rgba(10, 98, 134, 0.06);
+            box-shadow: 0 2px 20px rgba(10, 98, 134, 0.04);
+            transition: transform 0.5s var(--ease-out-expo), box-shadow 0.5s ease;
+            overflow: hidden;
+        }
+
+        .expect-item::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--gold), var(--gold-warm));
+            opacity: 0;
+            transition: opacity 0.4s ease;
+        }
+
+        .expect-item:hover {
+            transform: translateY(-6px);
+            box-shadow: 0 12px 40px rgba(10, 98, 134, 0.1);
+        }
+
+        .expect-item:hover::before {
+            opacity: 1;
+        }
+
+        .expect-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 14px;
+            background: var(--gold-pale);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            color: var(--gold-warm);
+            margin: 0 auto 1rem;
+            transition: transform 0.4s var(--ease-out-back);
+        }
+
+        .expect-item:hover .expect-icon {
+            transform: scale(1.1) rotate(-5deg);
+        }
+
+        .expect-name {
+            font-family: var(--font-display);
+            font-size: 1.15rem;
+            font-weight: 600;
+            color: var(--blue-deep);
+            margin-bottom: 0.4rem;
+        }
+
+        .expect-desc {
+            font-size: 0.78rem;
+            color: var(--text-muted);
+            line-height: 1.5;
+        }
+
+        /* ============================================
+           RSVP SECTION
+           ============================================ */
+        .rsvp {
+            position: relative;
+            padding: 5rem 1.25rem;
+            background: var(--white);
+            overflow: hidden;
+        }
+
+        .rsvp::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, var(--gold), transparent);
+        }
+
+        .rsvp-inner {
+            position: relative;
+            z-index: 1;
+            max-width: 560px;
+            margin: 0 auto;
+        }
+
+        .rsvp-header {
+            text-align: center;
+            margin-bottom: 2.5rem;
+        }
+
+        .rsvp-headline {
+            font-family: var(--font-display);
+            font-size: clamp(1.8rem, 6vw, 3rem);
+            font-weight: 400;
+            color: var(--blue-deep);
+            margin-bottom: 0.5rem;
+        }
+
+        .rsvp-sub {
+            font-size: 0.95rem;
+            color: var(--text-muted);
+            line-height: 1.6;
+        }
+
+        .rsvp-form {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .form-label {
+            font-size: 0.72rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--blue);
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 0.9rem 1.25rem;
+            font-family: var(--font-body);
+            font-size: 0.95rem;
+            color: var(--text);
+            background: var(--ivory);
+            border: 2px solid transparent;
+            border-radius: 0.875rem;
+            outline: none;
+            transition: all 0.3s ease;
+        }
+
+        .form-input::placeholder {
+            color: #b0b0b0;
+        }
+
+        .form-input:focus {
+            border-color: var(--gold);
+            background: var(--white);
+            box-shadow: 0 0 0 4px rgba(226, 202, 24, 0.1);
+        }
+
+        textarea.form-input {
+            resize: vertical;
+            min-height: 100px;
+        }
+
+        /* Attendance Radio Group */
+        .attendance-group {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 0.75rem;
+        }
+
+        .attendance-option {
+            position: relative;
+        }
+
+        .attendance-option input[type="radio"] {
+            position: absolute;
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .attendance-label {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 1.25rem 0.75rem;
+            background: var(--ivory);
+            border: 2px solid transparent;
+            border-radius: 1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: center;
+        }
+
+        .attendance-label .att-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+        }
+
+        .attendance-label .att-text {
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            transition: color 0.3s ease;
+        }
+
+        .att-yes .att-icon { background: #e8f5e9; color: #2e7d32; }
+        .att-no .att-icon { background: #fce4ec; color: #c62828; }
+        .att-maybe .att-icon { background: #fff3e0; color: #e65100; }
+
+        .attendance-option input[type="radio"]:checked + .attendance-label {
+            border-color: var(--gold);
+            background: var(--gold-pale);
+            box-shadow: 0 4px 16px rgba(226, 202, 24, 0.15);
+        }
+
+        .attendance-option input[type="radio"]:checked + .attendance-label .att-text {
+            color: var(--blue-deep);
+        }
+
+        /* Guest Counter */
+        .guest-counter {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            background: var(--ivory);
+            border-radius: 0.875rem;
+            padding: 0.5rem;
+        }
+
+        .guest-btn {
+            width: 44px;
+            height: 44px;
+            border-radius: 12px;
+            border: none;
+            background: var(--white);
+            color: var(--blue);
+            font-size: 1.1rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+        }
+
+        .guest-btn:hover {
+            background: var(--gold-pale);
+            color: var(--gold-warm);
+        }
+
+        .guest-btn:active {
+            transform: scale(0.95);
+        }
+
+        .guest-count {
+            flex: 1;
+            text-align: center;
+            font-family: var(--font-display);
+            font-size: 1.75rem;
+            font-weight: 600;
+            color: var(--blue-deep);
+        }
+
+        .guest-label {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            text-align: center;
+            margin-top: 0.4rem;
+        }
+
+        /* Submit Button */
+        .submit-btn {
+            width: 100%;
+            padding: 1.1rem 2rem;
+            font-family: var(--font-body);
+            font-size: 0.95rem;
+            font-weight: 600;
+            letter-spacing: 0.05em;
+            color: var(--blue-dark);
+            background: linear-gradient(135deg, var(--gold), var(--gold-warm));
+            border: none;
+            border-radius: 1rem;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.4s var(--ease-out-expo);
+            box-shadow: 0 4px 20px rgba(226, 202, 24, 0.3);
+            margin-top: 0.5rem;
+        }
+
+        .submit-btn::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(135deg, var(--gold-light), var(--gold));
+            opacity: 0;
+            transition: opacity 0.4s ease;
+        }
+
+        .submit-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 30px rgba(226, 202, 24, 0.4);
+        }
+
+        .submit-btn:hover::before {
+            opacity: 1;
+        }
+
+        .submit-btn span {
+            position: relative;
+            z-index: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+
+        /* ============================================
+           CONTACT SECTION
+           ============================================ */
+        .contact {
+            position: relative;
+            padding: 4rem 1.25rem;
+            background: var(--blue-deep);
+            color: var(--white);
+            text-align: center;
+            overflow: hidden;
+        }
+
+        .contact::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            opacity: 0.03;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='60' viewBox='0 0 60 60'%3E%3Cpath d='M30 8 L34 8 L34 22 L38 18 L42 22 L34 26 L34 34 L42 38 L38 42 L34 34 L34 52 L30 52 L26 52 L26 34 L22 42 L18 38 L26 34 L26 26 L18 22 L22 18 L26 22 L26 8 Z' fill='%23e2ca18'/%3E%3C/svg%3E");
+            background-size: 60px 60px;
+        }
+
+        .contact-inner {
+            position: relative;
+            z-index: 1;
+            max-width: 500px;
+            margin: 0 auto;
+        }
+
+        .contact .section-label {
+            color: var(--gold-light);
+        }
+
+        .contact-headline {
+            font-family: var(--font-display);
+            font-size: clamp(1.5rem, 5vw, 2rem);
+            font-weight: 400;
+            margin-bottom: 2rem;
+        }
+
+        .contact-methods {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .contact-item {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 1.25rem 1.5rem;
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid rgba(226, 202, 24, 0.1);
+            border-radius: 1rem;
+            text-decoration: none;
+            color: var(--white);
+            transition: all 0.3s ease;
+        }
+
+        .contact-item:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: rgba(226, 202, 24, 0.25);
+            transform: translateX(4px);
+        }
+
+        .contact-icon {
+            width: 44px;
+            height: 44px;
+            min-width: 44px;
+            border-radius: 12px;
+            background: linear-gradient(135deg, var(--gold), var(--gold-warm));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1rem;
+            color: var(--blue-dark);
+        }
+
+        .contact-text {
+            text-align: left;
+        }
+
+        .contact-label {
+            font-size: 0.65rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.12em;
+            color: var(--gold-light);
+            margin-bottom: 0.15rem;
+        }
+
+        .contact-value {
+            font-size: 0.95rem;
+            font-weight: 400;
+        }
+
+        /* ============================================
+           FOOTER
+           ============================================ */
+        .footer {
+            padding: 3rem 1.25rem;
+            background: var(--blue-dark);
+            border-top: 1px solid rgba(226, 202, 24, 0.08);
+            text-align: center;
+            color: rgba(255, 255, 255, 0.4);
+        }
+
+        .footer-cross {
+            font-size: 1.5rem;
+            color: var(--gold);
+            margin-bottom: 1rem;
+            opacity: 0.5;
+        }
+
+        .footer-msg {
+            font-family: var(--font-display);
+            font-size: 1.25rem;
+            font-weight: 400;
+            font-style: italic;
+            color: rgba(255, 255, 255, 0.7);
+            margin-bottom: 0.5rem;
+        }
+
+        .footer-org {
+            font-size: 0.7rem;
+            font-weight: 600;
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            color: rgba(255, 255, 255, 0.3);
+        }
+
+        /* ============================================
+           TABLET - 768px+
+           ============================================ */
+        @media (min-width: 768px) {
+            .hero {
+                padding: 3rem 2.5rem 4rem;
+            }
+
+            .hero-badge {
+                font-size: 0.75rem;
+                padding: 0.6rem 1.75rem;
+            }
+
+            .hero-church-name {
+                letter-spacing: 0.25em;
+            }
+
+            .about {
+                padding: 7rem 2.5rem;
+            }
+
+            .about-body {
+                font-size: 1.1rem;
+            }
+
+            .event-details {
+                padding: 7rem 2.5rem;
+            }
+
+            .event-cards {
+                grid-template-columns: repeat(3, 1fr);
+                gap: 1.25rem;
+            }
+
+            .event-card {
+                padding: 2.5rem 1.5rem;
+            }
+
+            .expect {
+                padding: 7rem 2.5rem;
+            }
+
+            .expect-grid {
+                grid-template-columns: repeat(4, 1fr);
+                gap: 1.25rem;
+            }
+
+            .expect-item {
+                padding: 2.25rem 1.25rem;
+            }
+
+            .rsvp {
+                padding: 7rem 2.5rem;
+            }
+
+            .form-row {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 1.5rem;
+            }
+
+            .contact {
+                padding: 5rem 2.5rem;
+            }
+
+            .contact-methods {
+                flex-direction: row;
+                justify-content: center;
+            }
+
+            .contact-item {
+                flex: 1;
+                max-width: 280px;
+            }
+        }
+
+        /* ============================================
+           DESKTOP - 1024px+
+           ============================================ */
+        @media (min-width: 1024px) {
+            .hero {
+                justify-content: center;
+                padding: 4rem 3rem;
+            }
+
+            .hero-content {
+                max-width: 700px;
+                margin: 0 auto;
+            }
+
+            .event-card {
+                padding: 3rem 2rem;
+            }
+
+            .event-card-value {
+                font-size: 1.75rem;
+            }
+
+            .expect-item {
+                padding: 2.75rem 1.5rem;
+            }
+
+            .rsvp-inner {
+                max-width: 600px;
+            }
+        }
+
+        /* ============================================
+           SMALL MOBILE - <380px
+           ============================================ */
+        @media (max-width: 379px) {
+            .hero {
+                padding: 1.5rem 1rem 2.5rem;
+            }
+
+            .hero-badge {
+                font-size: 0.6rem;
+                padding: 0.4rem 1rem;
+            }
+
+            .expect-grid {
+                gap: 0.75rem;
+            }
+
+            .expect-item {
+                padding: 1.5rem 1rem;
+            }
+
+            .expect-name {
+                font-size: 1rem;
+            }
+
+            .expect-desc {
+                font-size: 0.7rem;
+            }
+
+            .attendance-group {
+                gap: 0.5rem;
+            }
+
+            .attendance-label {
+                padding: 1rem 0.5rem;
+            }
+        }
+
+        /* ============================================
+           REDUCED MOTION
+           ============================================ */
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                animation-duration: 0.01ms !important;
+                transition-duration: 0.2s !important;
+            }
+            .reveal {
+                opacity: 1;
+                transform: none;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- ==================== HERO ==================== -->
+    <section class="hero">
+        <div class="hero-bg">
+            <img src="../assets/images/new-church.png" alt="St Gabriel's Church, Liverpool">
+            <div class="hero-pattern"></div>
+        </div>
+        <div class="hero-content">
+            <div class="hero-badge">
+                <i class="fas fa-cross"></i>
+                Community Engagement Invitation
+            </div>
+            <div class="hero-title-wrapper">
+                <div class="hero-subtitle-am">እንኳን ደህና መጡ</div>
+                <h1 class="hero-title">You Are Warmly<br><em>Invited</em></h1>
+                <p class="hero-church-name">
+                    Liverpool Mekane Kidusan Abune Teklehaymanot<br>
+                    Ethiopian Orthodox Tewahedo Church
+                </p>
+            </div>
+        </div>
+        <div class="hero-scroll-hint">
+            <span>Discover</span>
+            <div class="scroll-line"></div>
+        </div>
+    </section>
+
+    <!-- ==================== ABOUT ==================== -->
+    <section class="about">
+        <div class="eth-cross-pattern"></div>
+        <div class="about-inner">
+            <div class="reveal">
+                <span class="section-label"><span>Our Announcement</span></span>
+            </div>
+            <div class="divider reveal reveal-delay-1">
+                <span class="divider-cross"><i class="fas fa-cross"></i></span>
+            </div>
+            <h2 class="about-headline reveal reveal-delay-1">
+                A New Home for<br><em>Our Faith</em>
+            </h2>
+            <p class="about-body reveal reveal-delay-2">
+                Praise be to the Almighty, we are pleased to announce that
+                <strong>LMKAT EOTC</strong> will begin worshiping as
+                <strong>St Gabriel's Church</strong>. You are warmly invited to join us for a
+                community engagement event, ahead of the consecration, to meet us, learn
+                about the Ethiopian Orthodox Tewahedo Church, and explore opportunities
+                for future collaboration.
+            </p>
+            <div class="reveal reveal-delay-3">
+                <a href="https://maps.google.com/?q=16+Yates+Street+Liverpool+L8+6RD" target="_blank" rel="noopener" class="location-pill">
+                    <i class="fas fa-map-marker-alt"></i>
+                    16 Yates Street, Liverpool, L8 6RD
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- ==================== EVENT DETAILS ==================== -->
+    <section class="event-details">
+        <div class="event-details-inner">
+            <span class="section-label reveal"><span>Event Details</span></span>
+            <h2 class="event-headline reveal reveal-delay-1">
+                Mark Your <em>Calendar</em>
+            </h2>
+            <div class="event-cards">
+                <div class="event-card reveal reveal-delay-1">
+                    <div class="event-card-icon">
+                        <i class="fas fa-calendar-day"></i>
+                    </div>
+                    <div class="event-card-title">Date</div>
+                    <div class="event-card-value">
+                        Sunday
+                        <small>29 March 2026</small>
+                    </div>
+                </div>
+                <div class="event-card reveal reveal-delay-2">
+                    <div class="event-card-icon">
+                        <i class="fas fa-clock"></i>
+                    </div>
+                    <div class="event-card-title">Time</div>
+                    <div class="event-card-value">
+                        2:00 PM
+                        <small>to 5:00 PM</small>
+                    </div>
+                </div>
+                <div class="event-card reveal reveal-delay-3">
+                    <div class="event-card-icon">
+                        <i class="fas fa-church"></i>
+                    </div>
+                    <div class="event-card-title">Venue</div>
+                    <div class="event-card-value">
+                        St Gabriel's
+                        <small>16 Yates St, Liverpool</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ==================== WHAT TO EXPECT ==================== -->
+    <section class="expect">
+        <div class="eth-cross-pattern"></div>
+        <div class="expect-inner">
+            <span class="section-label reveal"><span>What To Expect</span></span>
+            <h2 class="expect-headline reveal reveal-delay-1">Experience Our Heritage</h2>
+            <p class="expect-sub reveal reveal-delay-2">
+                Share your views and immerse yourself in our rich cultural traditions
+            </p>
+            <div class="expect-grid">
+                <div class="expect-item reveal reveal-delay-1">
+                    <div class="expect-icon">
+                        <i class="fas fa-music"></i>
+                    </div>
+                    <div class="expect-name">Ancient Hymns</div>
+                    <div class="expect-desc">Sacred melodies passed down through generations</div>
+                </div>
+                <div class="expect-item reveal reveal-delay-2">
+                    <div class="expect-icon">
+                        <i class="fas fa-utensils"></i>
+                    </div>
+                    <div class="expect-name">Cultural Cuisine</div>
+                    <div class="expect-desc">Traditional Ethiopian dishes and flavours</div>
+                </div>
+                <div class="expect-item reveal reveal-delay-3">
+                    <div class="expect-icon">
+                        <i class="fas fa-vest-patches"></i>
+                    </div>
+                    <div class="expect-name">Traditional Attire</div>
+                    <div class="expect-desc">Beautiful handcrafted garments and textiles</div>
+                </div>
+                <div class="expect-item reveal reveal-delay-4">
+                    <div class="expect-icon">
+                        <i class="fas fa-door-open"></i>
+                    </div>
+                    <div class="expect-name">Church Tour</div>
+                    <div class="expect-desc">View the recent renovations and sacred spaces</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ==================== RSVP ==================== -->
+    <section class="rsvp" id="rsvp">
+        <div class="rsvp-inner">
+            <div class="rsvp-header">
+                <span class="section-label reveal"><span>RSVP</span></span>
+                <h2 class="rsvp-headline reveal reveal-delay-1">Will You Be <em>Joining Us?</em></h2>
+                <p class="rsvp-sub reveal reveal-delay-2">
+                    Please let us know if you can attend so we can prepare to welcome you
+                </p>
+            </div>
+
+            <form class="rsvp-form" id="rsvpForm" onsubmit="return false;">
+                <div class="form-row reveal">
+                    <div class="form-group">
+                        <label class="form-label" for="fullName">Full Name</label>
+                        <input type="text" id="fullName" class="form-input" placeholder="Your full name">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="contact">Phone or Email</label>
+                        <input type="text" id="contact" class="form-input" placeholder="How can we reach you?">
+                    </div>
+                </div>
+
+                <div class="form-group reveal reveal-delay-1">
+                    <label class="form-label">Will you attend?</label>
+                    <div class="attendance-group">
+                        <div class="attendance-option">
+                            <input type="radio" name="attendance" id="att-yes" value="yes">
+                            <label for="att-yes" class="attendance-label att-yes">
+                                <span class="att-icon"><i class="fas fa-check"></i></span>
+                                <span class="att-text">Yes, I'll be there</span>
+                            </label>
+                        </div>
+                        <div class="attendance-option">
+                            <input type="radio" name="attendance" id="att-maybe" value="maybe">
+                            <label for="att-maybe" class="attendance-label att-maybe">
+                                <span class="att-icon"><i class="fas fa-question"></i></span>
+                                <span class="att-text">Maybe</span>
+                            </label>
+                        </div>
+                        <div class="attendance-option">
+                            <input type="radio" name="attendance" id="att-no" value="no">
+                            <label for="att-no" class="attendance-label att-no">
+                                <span class="att-icon"><i class="fas fa-times"></i></span>
+                                <span class="att-text">Can't make it</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-group reveal reveal-delay-2">
+                    <label class="form-label">Number of Guests</label>
+                    <div class="guest-counter">
+                        <button type="button" class="guest-btn" onclick="changeGuests(-1)">
+                            <i class="fas fa-minus"></i>
+                        </button>
+                        <div>
+                            <div class="guest-count" id="guestCount">1</div>
+                            <div class="guest-label">including yourself</div>
+                        </div>
+                        <button type="button" class="guest-btn" onclick="changeGuests(1)">
+                            <i class="fas fa-plus"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="form-group reveal reveal-delay-3">
+                    <label class="form-label" for="dietary">Dietary Requirements</label>
+                    <textarea id="dietary" class="form-input" placeholder="Any allergies or dietary needs we should know about?" rows="3"></textarea>
+                </div>
+
+                <div class="reveal reveal-delay-4">
+                    <button type="submit" class="submit-btn" id="submitBtn">
+                        <span>
+                            <i class="fas fa-paper-plane"></i>
+                            Confirm Attendance
+                        </span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </section>
+
+    <!-- ==================== CONTACT ==================== -->
+    <section class="contact">
+        <div class="contact-inner">
+            <span class="section-label reveal"><span>Get In Touch</span></span>
+            <h2 class="contact-headline reveal reveal-delay-1">
+                For Further Information
+            </h2>
+            <div class="contact-methods reveal reveal-delay-2">
+                <a href="tel:07951403936" class="contact-item">
+                    <div class="contact-icon">
+                        <i class="fas fa-phone-alt"></i>
+                    </div>
+                    <div class="contact-text">
+                        <div class="contact-label">Phone</div>
+                        <div class="contact-value">07951 403936</div>
+                    </div>
+                </a>
+                <a href="mailto:stakeholder@abuneteklehaymanot.org" class="contact-item">
+                    <div class="contact-icon">
+                        <i class="fas fa-envelope"></i>
+                    </div>
+                    <div class="contact-text">
+                        <div class="contact-label">Email</div>
+                        <div class="contact-value">stakeholder@abuneteklehaymanot.org</div>
+                    </div>
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- ==================== FOOTER ==================== -->
+    <footer class="footer">
+        <div class="footer-cross"><i class="fas fa-cross"></i></div>
+        <div class="footer-msg">Looking forward to welcoming you</div>
+        <div class="footer-org">LMKAT EOTC</div>
+    </footer>
+
+    <!-- ==================== SCRIPTS ==================== -->
+    <script>
+        /* ---- Scroll Reveal ---- */
+        const reveals = document.querySelectorAll('.reveal');
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('visible');
+                }
+            });
+        }, { threshold: 0.15, rootMargin: '0px 0px -40px 0px' });
+
+        reveals.forEach(el => observer.observe(el));
+
+        /* ---- Guest Counter ---- */
+        let guestCount = 1;
+        function changeGuests(delta) {
+            guestCount = Math.max(1, Math.min(20, guestCount + delta));
+            const el = document.getElementById('guestCount');
+            el.textContent = guestCount;
+            el.style.transform = 'scale(1.2)';
+            setTimeout(() => el.style.transition = 'transform 0.3s ease', 0);
+            setTimeout(() => el.style.transform = 'scale(1)', 150);
+        }
+
+        /* ---- Parallax on hero (desktop only) ---- */
+        if (window.matchMedia('(min-width: 768px)').matches) {
+            const heroImg = document.querySelector('.hero-bg img');
+            window.addEventListener('scroll', () => {
+                const scrolled = window.pageYOffset;
+                if (scrolled < window.innerHeight) {
+                    heroImg.style.transform = `translateY(${scrolled * 0.25}px) scale(1.05)`;
+                }
+            }, { passive: true });
+        }
+    </script>
+</body>
+</html>
