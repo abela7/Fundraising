@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Invitation Card — Front</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* ============================================
+           RESET & PAGE SETUP
+           ============================================ */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #e0e0e0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            font-family: 'Outfit', sans-serif;
+        }
+
+        /* ============================================
+           CARD — 5 × 7 inches (Portrait)
+           ============================================ */
+        .card {
+            width: 5in;
+            height: 7in;
+            position: relative;
+            overflow: hidden;
+            background: #064a66;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+
+        /* ============================================
+           TIBEB PATTERN BACKGROUND (like Discover)
+           ============================================ */
+        .card-bg {
+            position: absolute;
+            inset: 0;
+            background: url('Ethiopian_Design.png') repeat;
+            background-size: 200px auto;
+            opacity: 0.25;
+            z-index: 0;
+        }
+
+        /* Dark overlay */
+        .card-overlay {
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(
+                180deg,
+                rgba(6, 74, 102, 0.88) 0%,
+                rgba(6, 74, 102, 0.75) 20%,
+                rgba(6, 74, 102, 0.70) 50%,
+                rgba(6, 74, 102, 0.75) 80%,
+                rgba(6, 74, 102, 0.88) 100%
+            );
+            z-index: 1;
+        }
+
+        /* ============================================
+           TIBEB BORDERS — Top & Bottom
+           ============================================ */
+        .tibeb-top,
+        .tibeb-bottom {
+            position: absolute;
+            left: 0;
+            right: 0;
+            height: 14px;
+            background: url('Ethiopian_Design.png') repeat-x center;
+            background-size: auto 100%;
+            z-index: 10;
+        }
+
+        .tibeb-top {
+            top: 0;
+        }
+
+        .tibeb-bottom {
+            bottom: 0;
+        }
+
+        /* ============================================
+           CONTENT
+           ============================================ */
+        .card-content {
+            position: relative;
+            z-index: 5;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            padding: 2.2rem 1.5rem;
+            text-align: center;
+            color: #ffffff;
+        }
+
+        /* Orthodox Cross */
+        .card-cross {
+            width: 36px;
+            height: auto;
+            margin-bottom: 1rem;
+            filter: brightness(0) saturate(100%) invert(79%) sepia(60%) saturate(500%) hue-rotate(10deg) brightness(97%) contrast(90%);
+        }
+
+        /* Top label */
+        .card-label {
+            font-family: 'Outfit', sans-serif;
+            font-size: 0.5rem;
+            font-weight: 600;
+            letter-spacing: 0.25em;
+            text-transform: uppercase;
+            color: #e2ca18;
+            margin-bottom: 0.4rem;
+        }
+
+        /* Diocese text */
+        .card-diocese {
+            font-family: 'Outfit', sans-serif;
+            font-size: 0.42rem;
+            font-weight: 400;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: rgba(255, 255, 255, 0.5);
+            margin-bottom: 1.6rem;
+            line-height: 1.6;
+            max-width: 3.8in;
+        }
+
+        /* Gold decorative line */
+        .gold-line {
+            width: 80px;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, #e2ca18, transparent);
+            margin-bottom: 1.6rem;
+        }
+
+        /* Main title */
+        .card-title {
+            font-family: 'Cormorant Garamond', Georgia, serif;
+            font-size: 1.65rem;
+            font-weight: 300;
+            line-height: 1.15;
+            color: #ffffff;
+            margin-bottom: 0.3rem;
+        }
+
+        .card-title em {
+            font-style: italic;
+            font-weight: 400;
+            color: #e2ca18;
+        }
+
+        /* Subtitle */
+        .card-subtitle {
+            font-family: 'Cormorant Garamond', Georgia, serif;
+            font-size: 1rem;
+            font-weight: 300;
+            font-style: italic;
+            color: rgba(255, 255, 255, 0.7);
+            margin-bottom: 1.6rem;
+        }
+
+        /* Gold line 2 */
+        .gold-line-2 {
+            width: 50px;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, #e2ca18, transparent);
+            margin-bottom: 1.6rem;
+        }
+
+        /* Church name block */
+        .card-church {
+            font-family: 'Outfit', sans-serif;
+            font-size: 0.55rem;
+            font-weight: 500;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            color: #e2ca18;
+            line-height: 1.8;
+            margin-bottom: 0.3rem;
+        }
+
+        .card-church-sub {
+            font-family: 'Outfit', sans-serif;
+            font-size: 0.42rem;
+            font-weight: 400;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: rgba(255, 255, 255, 0.45);
+            margin-bottom: 1.6rem;
+        }
+
+        /* Event details badges */
+        .card-details {
+            display: flex;
+            gap: 0.6rem;
+            margin-bottom: 1.2rem;
+        }
+
+        .card-badge {
+            padding: 0.35rem 0.8rem;
+            border: 1px solid rgba(226, 202, 24, 0.3);
+            border-radius: 100px;
+            font-family: 'Outfit', sans-serif;
+            font-size: 0.48rem;
+            font-weight: 500;
+            letter-spacing: 0.06em;
+            color: rgba(255, 255, 255, 0.85);
+        }
+
+        .card-badge strong {
+            color: #e2ca18;
+            font-weight: 600;
+        }
+
+        /* Location */
+        .card-location {
+            font-family: 'Outfit', sans-serif;
+            font-size: 0.45rem;
+            font-weight: 400;
+            color: rgba(255, 255, 255, 0.5);
+            letter-spacing: 0.08em;
+        }
+
+        /* ============================================
+           PRINT STYLES
+           ============================================ */
+        @media print {
+            body {
+                background: none;
+                display: block;
+                min-height: auto;
+            }
+
+            .card {
+                box-shadow: none;
+                margin: 0;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+
+            @page {
+                size: 5in 7in;
+                margin: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="card">
+        <!-- Tibeb pattern background -->
+        <div class="card-bg"></div>
+        <!-- Dark overlay -->
+        <div class="card-overlay"></div>
+        <!-- Tibeb thin borders -->
+        <div class="tibeb-top"></div>
+        <div class="tibeb-bottom"></div>
+
+        <!-- Content -->
+        <div class="card-content">
+
+            <!-- Cross -->
+            <img src="../assets/images/orthodox-cross.svg" alt="" class="card-cross">
+
+            <!-- Label -->
+            <div class="card-label">Community Engagement Invitation</div>
+
+            <!-- Diocese -->
+            <div class="card-diocese">
+                Diocese of Great Britain &amp; Northern Ireland
+            </div>
+
+            <!-- Gold line -->
+            <div class="gold-line"></div>
+
+            <!-- Main title -->
+            <h1 class="card-title">You Are Warmly<br><em>Invited</em></h1>
+            <p class="card-subtitle">to join us for a special gathering</p>
+
+            <!-- Gold line -->
+            <div class="gold-line-2"></div>
+
+            <!-- Church name -->
+            <div class="card-church">
+                St Gabriel's Church<br>
+                LMKAT EOTC
+            </div>
+            <div class="card-church-sub">
+                Liverpool Mekane Kidusan Abune Teklehaymanot<br>
+                Ethiopian Orthodox Tewahedo Church
+            </div>
+
+            <!-- Event details -->
+            <div class="card-details">
+                <div class="card-badge"><strong>Sunday</strong>&ensp;29 March 2026</div>
+                <div class="card-badge"><strong>2pm</strong> to <strong>5pm</strong></div>
+            </div>
+
+            <!-- Location -->
+            <div class="card-location">16 Yates Street, Liverpool, L8 6RD</div>
+
+        </div>
+    </div>
+
+</body>
+</html>
