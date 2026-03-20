@@ -91,9 +91,9 @@
         .eth-cross-pattern {
             position: absolute;
             pointer-events: none;
-            opacity: 0.04;
-            background-image: url('../assets/images/orthodox-cross.svg');
-            background-size: 40px 52px;
+            opacity: 0.5;
+            background-image: url('../assets/images/orthodox-cross-outline.svg');
+            background-size: 80px 90px;
             background-repeat: repeat;
         }
 
@@ -187,9 +187,9 @@
             position: absolute;
             inset: 0;
             z-index: 1;
-            opacity: 0.06;
-            background-image: url('../assets/images/orthodox-cross.svg');
-            background-size: 50px 65px;
+            opacity: 0.15;
+            background-image: url('../assets/images/orthodox-cross-outline.svg');
+            background-size: 80px 90px;
             background-repeat: repeat;
             mix-blend-mode: overlay;
         }
@@ -686,11 +686,12 @@
             font-family: var(--font-body);
             font-size: 0.95rem;
             color: var(--text);
-            background: var(--ivory);
-            border: 2px solid transparent;
+            background: var(--white);
+            border: 2px solid rgba(10, 98, 134, 0.22);
             border-radius: 0.875rem;
             outline: none;
             transition: all 0.3s ease;
+            box-shadow: inset 0 0 0 1px rgba(226, 202, 24, 0.12);
         }
 
         .form-input::placeholder {
@@ -703,12 +704,7 @@
             box-shadow: 0 0 0 4px rgba(226, 202, 24, 0.1);
         }
 
-        textarea.form-input {
-            resize: vertical;
-            min-height: 100px;
-        }
-
-        /* Attendance Radio Group */
+        /* Attendance — outlined choice buttons (blue / gold palette) */
         .attendance-group {
             display: grid;
             grid-template-columns: 1fr 1fr 1fr;
@@ -732,12 +728,14 @@
             align-items: center;
             gap: 0.5rem;
             padding: 1.25rem 0.75rem;
-            background: var(--ivory);
-            border: 2px solid transparent;
+            background: var(--white);
+            border: 2px solid rgba(10, 98, 134, 0.28);
             border-radius: 1rem;
             cursor: pointer;
-            transition: all 0.3s ease;
+            transition: border-color 0.3s ease, background 0.3s ease, box-shadow 0.3s ease, outline-color 0.3s ease;
             text-align: center;
+            outline: 2px solid transparent;
+            outline-offset: 2px;
         }
 
         .attendance-label .att-icon {
@@ -749,6 +747,7 @@
             justify-content: center;
             font-size: 1rem;
             transition: all 0.3s ease;
+            border: 2px solid rgba(10, 98, 134, 0.15);
         }
 
         .attendance-label .att-text {
@@ -758,72 +757,52 @@
             transition: color 0.3s ease;
         }
 
-        .att-yes .att-icon { background: #e8f5e9; color: #2e7d32; }
-        .att-no .att-icon { background: #fce4ec; color: #c62828; }
-        .att-maybe .att-icon { background: #fff3e0; color: #e65100; }
+        .att-yes .att-icon {
+            background: rgba(10, 98, 134, 0.08);
+            color: var(--blue-deep);
+            border-color: rgba(10, 98, 134, 0.22);
+        }
+
+        .att-maybe .att-icon {
+            background: var(--gold-pale);
+            color: var(--gold-warm);
+            border-color: rgba(212, 160, 23, 0.35);
+        }
+
+        .att-no .att-icon {
+            background: rgba(6, 74, 102, 0.08);
+            color: var(--blue-dark);
+            border-color: rgba(6, 74, 102, 0.2);
+        }
+
+        .attendance-label:hover {
+            border-color: var(--blue);
+            box-shadow: 0 0 0 3px rgba(226, 202, 24, 0.12);
+        }
+
+        .attendance-option input[type="radio"]:focus-visible + .attendance-label {
+            outline-color: var(--gold-warm);
+        }
 
         .attendance-option input[type="radio"]:checked + .attendance-label {
             border-color: var(--gold);
             background: var(--gold-pale);
-            box-shadow: 0 4px 16px rgba(226, 202, 24, 0.15);
+            outline-color: var(--blue-deep);
+            box-shadow:
+                0 0 0 1px var(--gold-light),
+                0 6px 22px rgba(6, 74, 102, 0.1);
         }
 
         .attendance-option input[type="radio"]:checked + .attendance-label .att-text {
             color: var(--blue-deep);
         }
 
-        /* Guest Counter */
-        .guest-counter {
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-            background: var(--ivory);
-            border-radius: 0.875rem;
-            padding: 0.5rem;
-        }
-
-        .guest-btn {
-            width: 44px;
-            height: 44px;
-            border-radius: 12px;
-            border: none;
+        .attendance-option input[type="radio"]:checked + .attendance-label .att-icon {
+            border-color: var(--gold);
             background: var(--white);
-            color: var(--blue);
-            font-size: 1.1rem;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: all 0.2s ease;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
         }
 
-        .guest-btn:hover {
-            background: var(--gold-pale);
-            color: var(--gold-warm);
-        }
-
-        .guest-btn:active {
-            transform: scale(0.95);
-        }
-
-        .guest-count {
-            flex: 1;
-            text-align: center;
-            font-family: var(--font-display);
-            font-size: 1.75rem;
-            font-weight: 600;
-            color: var(--blue-deep);
-        }
-
-        .guest-label {
-            font-size: 0.75rem;
-            color: var(--text-muted);
-            text-align: center;
-            margin-top: 0.4rem;
-        }
-
-        /* Submit Button */
+        /* Submit — outlined CTA to match RSVP choices */
         .submit-btn {
             width: 100%;
             padding: 1.1rem 2rem;
@@ -831,39 +810,33 @@
             font-size: 0.95rem;
             font-weight: 600;
             letter-spacing: 0.05em;
-            color: var(--blue-dark);
-            background: linear-gradient(135deg, var(--gold), var(--gold-warm));
-            border: none;
+            color: var(--blue-deep);
+            background: var(--white);
+            border: 2px solid var(--blue-deep);
             border-radius: 1rem;
             cursor: pointer;
             position: relative;
-            overflow: hidden;
-            transition: all 0.4s var(--ease-out-expo);
-            box-shadow: 0 4px 20px rgba(226, 202, 24, 0.3);
+            transition: border-color 0.35s var(--ease-out-expo), color 0.35s ease, background 0.35s ease, box-shadow 0.35s ease, transform 0.35s var(--ease-out-expo);
             margin-top: 0.5rem;
-        }
-
-        .submit-btn::before {
-            content: '';
-            position: absolute;
-            inset: 0;
-            background: linear-gradient(135deg, var(--gold-light), var(--gold));
-            opacity: 0;
-            transition: opacity 0.4s ease;
+            box-shadow: inset 0 0 0 1px rgba(226, 202, 24, 0.35);
         }
 
         .submit-btn:hover {
+            border-color: var(--gold-warm);
+            color: var(--blue-dark);
+            background: var(--gold-pale);
             transform: translateY(-2px);
-            box-shadow: 0 8px 30px rgba(226, 202, 24, 0.4);
+            box-shadow:
+                inset 0 0 0 1px rgba(226, 202, 24, 0.55),
+                0 8px 28px rgba(6, 74, 102, 0.12);
         }
 
-        .submit-btn:hover::before {
-            opacity: 1;
+        .submit-btn:focus-visible {
+            outline: 2px solid var(--gold);
+            outline-offset: 3px;
         }
 
         .submit-btn span {
-            position: relative;
-            z-index: 1;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -886,9 +859,9 @@
             content: '';
             position: absolute;
             inset: 0;
-            opacity: 0.03;
-            background-image: url('../assets/images/orthodox-cross.svg');
-            background-size: 40px 52px;
+            opacity: 0.4;
+            background-image: url('../assets/images/orthodox-cross-outline.svg');
+            background-size: 80px 90px;
             background-repeat: repeat;
         }
 
@@ -1054,12 +1027,6 @@
 
             .rsvp {
                 padding: 7rem 2.5rem;
-            }
-
-            .form-row {
-                display: grid;
-                grid-template-columns: 1fr 1fr;
-                gap: 1.5rem;
             }
 
             .contact {
@@ -1309,27 +1276,21 @@
                 <span class="section-label reveal"><span>RSVP</span></span>
                 <h2 class="rsvp-headline reveal reveal-delay-1">Will You Be <em>Joining Us?</em></h2>
                 <p class="rsvp-sub reveal reveal-delay-2">
-                    Please let us know if you can attend so we can prepare to welcome you
+                    Share your name and whether you can join — we’ll be glad to welcome you
                 </p>
             </div>
 
             <form class="rsvp-form" id="rsvpForm" onsubmit="return false;">
-                <div class="form-row reveal">
-                    <div class="form-group">
-                        <label class="form-label" for="fullName">Full Name</label>
-                        <input type="text" id="fullName" class="form-input" placeholder="Your full name">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label" for="contact">Phone or Email</label>
-                        <input type="text" id="contact" class="form-input" placeholder="How can we reach you?">
-                    </div>
+                <div class="form-group reveal">
+                    <label class="form-label" for="fullName">Your name</label>
+                    <input type="text" id="fullName" name="fullName" class="form-input" placeholder="Your name" required autocomplete="name">
                 </div>
 
                 <div class="form-group reveal reveal-delay-1">
                     <label class="form-label">Will you attend?</label>
                     <div class="attendance-group">
                         <div class="attendance-option">
-                            <input type="radio" name="attendance" id="att-yes" value="yes">
+                            <input type="radio" name="attendance" id="att-yes" value="yes" required>
                             <label for="att-yes" class="attendance-label att-yes">
                                 <span class="att-icon"><i class="fas fa-check"></i></span>
                                 <span class="att-text">Yes, I'll be there</span>
@@ -1352,28 +1313,7 @@
                     </div>
                 </div>
 
-                <div class="form-group reveal reveal-delay-2">
-                    <label class="form-label">Number of Guests</label>
-                    <div class="guest-counter">
-                        <button type="button" class="guest-btn" onclick="changeGuests(-1)">
-                            <i class="fas fa-minus"></i>
-                        </button>
-                        <div>
-                            <div class="guest-count" id="guestCount">1</div>
-                            <div class="guest-label">including yourself</div>
-                        </div>
-                        <button type="button" class="guest-btn" onclick="changeGuests(1)">
-                            <i class="fas fa-plus"></i>
-                        </button>
-                    </div>
-                </div>
-
-                <div class="form-group reveal reveal-delay-3">
-                    <label class="form-label" for="dietary">Dietary Requirements</label>
-                    <textarea id="dietary" class="form-input" placeholder="Any allergies or dietary needs we should know about?" rows="3"></textarea>
-                </div>
-
-                <div class="reveal reveal-delay-4">
+                <div class="reveal reveal-delay-2">
                     <button type="submit" class="submit-btn" id="submitBtn">
                         <span>
                             <i class="fas fa-paper-plane"></i>
@@ -1435,17 +1375,6 @@
         }, { threshold: 0.15, rootMargin: '0px 0px -40px 0px' });
 
         reveals.forEach(el => observer.observe(el));
-
-        /* ---- Guest Counter ---- */
-        let guestCount = 1;
-        function changeGuests(delta) {
-            guestCount = Math.max(1, Math.min(20, guestCount + delta));
-            const el = document.getElementById('guestCount');
-            el.textContent = guestCount;
-            el.style.transform = 'scale(1.2)';
-            setTimeout(() => el.style.transition = 'transform 0.3s ease', 0);
-            setTimeout(() => el.style.transform = 'scale(1)', 150);
-        }
 
         /* ---- Parallax on hero (desktop only) ---- */
         if (window.matchMedia('(min-width: 768px)').matches) {
