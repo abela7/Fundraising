@@ -343,10 +343,7 @@
         }
 
         .hero-scroll-hint {
-            position: absolute;
-            bottom: 1.5rem;
-            left: 50%;
-            transform: translateX(-50%);
+            position: relative;
             z-index: 2;
             display: flex;
             flex-direction: column;
@@ -356,12 +353,13 @@
             font-size: 0.65rem;
             letter-spacing: 0.15em;
             text-transform: uppercase;
+            margin-top: 2.5rem;
             animation: fadeUp 1s var(--ease-out-expo) 1.5s both;
         }
 
         .hero-scroll-hint .scroll-line {
             width: 1px;
-            height: 40px;
+            height: 32px;
             background: linear-gradient(to bottom, var(--gold), transparent);
             animation: scrollPulse 2s ease-in-out infinite;
         }
@@ -1652,10 +1650,10 @@
                     Ethiopian Orthodox Tewahedo Church
                 </p>
             </div>
-        </div>
-        <div class="hero-scroll-hint">
-            <span>Discover</span>
-            <div class="scroll-line"></div>
+            <div class="hero-scroll-hint">
+                <span>Discover</span>
+                <div class="scroll-line"></div>
+            </div>
         </div>
     </section>
 
