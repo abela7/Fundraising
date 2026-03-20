@@ -1,18 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 260" fill="#000">
-  <!-- Vertical beam -->
-  <rect x="76" y="44" width="48" height="216" rx="4"/>
-  <!-- Horizontal beam -->
-  <rect x="20" y="76" width="160" height="48" rx="4"/>
-  <!-- Top trefoil -->
-  <circle cx="100" cy="14" r="28"/>
-  <circle cx="70" cy="40" r="26"/>
-  <circle cx="130" cy="40" r="26"/>
-  <!-- Left trefoil -->
-  <circle cx="6" cy="100" r="28"/>
-  <circle cx="26" cy="70" r="26"/>
-  <circle cx="26" cy="130" r="26"/>
-  <!-- Right trefoil -->
-  <circle cx="194" cy="100" r="28"/>
-  <circle cx="174" cy="70" r="26"/>
-  <circle cx="174" cy="130" r="26"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 300" fill="#000">
+  <rect x="75" y="0" width="50" height="300" rx="2"/>
+  <rect x="15" y="70" width="170" height="50" rx="2"/>
 </svg>
