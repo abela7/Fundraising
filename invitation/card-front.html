@@ -24,7 +24,7 @@
         }
 
         /* ============================================
-           CARD — 5 × 7 inches (Portrait)
+           CARD
            ============================================ */
         .card {
             width: 5in;
@@ -34,9 +34,7 @@
             box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
         }
 
-        /* ============================================
-           TIBEB BACKGROUND + OVERLAY
-           ============================================ */
+        /* Tibeb background + overlay */
         .card-bg {
             position: absolute;
             inset: 0;
@@ -60,9 +58,7 @@
             z-index: 1;
         }
 
-        /* ============================================
-           TIBEB THIN BORDERS — Top & Bottom
-           ============================================ */
+        /* Tibeb thin borders */
         .tibeb-top,
         .tibeb-bottom {
             position: absolute;
@@ -78,93 +74,78 @@
         .tibeb-bottom { bottom: 0; }
 
         /* ============================================
-           CONTENT LAYOUT
+           CONTENT
            ============================================ */
         .card-content {
             position: relative;
             z-index: 5;
-            display: flex;
-            flex-direction: column;
-            padding: 1.4rem 1.3rem 1.2rem;
+            padding: 1.8rem 1.4rem 1.6rem;
             color: #ffffff;
         }
 
-        /* --- Header Block --- */
+        /* --- Header 1: Church Name --- */
         .card-header {
             text-align: center;
-            margin-bottom: 0.35rem;
+            margin-bottom: 0.2rem;
         }
 
         .card-org {
-            font-family: 'Outfit', sans-serif;
-            font-size: 0.48rem;
-            font-weight: 600;
-            letter-spacing: 0.08em;
-            text-transform: uppercase;
-            color: #e2ca18;
-            line-height: 1.4;
-            margin-bottom: 0.05rem;
+            font-family: 'Cormorant Garamond', Georgia, serif;
+            font-size: 1.15rem;
+            font-weight: 500;
+            color: #ffffff;
+            line-height: 1.35;
         }
 
-        .card-diocese {
-            font-family: 'Outfit', sans-serif;
-            font-size: 0.38rem;
-            font-weight: 400;
-            letter-spacing: 0.08em;
-            text-transform: uppercase;
-            color: rgba(255, 255, 255, 0.45);
-            line-height: 1.3;
-        }
-
-        /* --- Gold divider --- */
-        .gold-divider {
+        /* --- Divider --- */
+        .card-divider {
             width: 100%;
             height: 1px;
-            background: linear-gradient(90deg, transparent, rgba(226, 202, 24, 0.5), transparent);
-            margin: 0.4rem 0;
+            background: rgba(226, 202, 24, 0.5);
+            margin: 0.6rem 0;
         }
 
-        /* --- Second header --- */
+        /* --- Header 2: Invitation Title --- */
         .card-title {
             text-align: center;
             font-family: 'Cormorant Garamond', Georgia, serif;
-            font-size: 0.85rem;
-            font-weight: 600;
-            letter-spacing: 0.15em;
-            text-transform: uppercase;
+            font-size: 1.05rem;
+            font-weight: 700;
             color: #e2ca18;
-            margin-bottom: 0.4rem;
+            margin-bottom: 0.8rem;
         }
 
         /* --- Dear line --- */
         .card-dear {
             font-family: 'Cormorant Garamond', Georgia, serif;
-            font-size: 0.85rem;
+            font-size: 0.95rem;
             font-weight: 400;
             font-style: italic;
-            color: rgba(255, 255, 255, 0.85);
-            margin-bottom: 0.55rem;
+            color: rgba(255, 255, 255, 0.9);
+            margin-bottom: 0.7rem;
         }
 
         .card-dear-dots {
-            display: inline-block;
-            min-width: 2.2in;
-            border-bottom: 1px dotted rgba(255, 255, 255, 0.3);
-            margin-left: 0.15rem;
+            letter-spacing: 0.15em;
+            color: rgba(255, 255, 255, 0.35);
         }
 
         /* --- Body text --- */
         .card-body {
             font-family: 'Cormorant Garamond', Georgia, serif;
-            font-size: 0.82rem;
+            font-size: 0.88rem;
             font-weight: 400;
             line-height: 1.75;
-            color: rgba(255, 255, 255, 0.82);
+            color: rgba(255, 255, 255, 0.85);
             text-align: justify;
         }
 
         .card-body p {
-            margin-bottom: 0.4rem;
+            margin-bottom: 0.45rem;
+        }
+
+        .card-body p:last-child {
+            margin-bottom: 0;
         }
 
         .card-body strong {
@@ -182,69 +163,56 @@
         .card-event {
             display: flex;
             justify-content: center;
-            gap: 1.2rem;
-            margin: 0.5rem 0;
-            padding: 0.4rem 0;
-            border-top: 1px solid rgba(226, 202, 24, 0.2);
-            border-bottom: 1px solid rgba(226, 202, 24, 0.2);
+            gap: 1.5rem;
+            margin: 0.7rem 0;
+            padding: 0.5rem 0;
+            border-top: 1px solid rgba(226, 202, 24, 0.25);
+            border-bottom: 1px solid rgba(226, 202, 24, 0.25);
         }
 
         .card-event-item {
-            text-align: center;
-        }
-
-        .card-event-label {
-            font-family: 'Outfit', sans-serif;
-            font-size: 0.4rem;
-            font-weight: 600;
-            letter-spacing: 0.15em;
-            text-transform: uppercase;
-            color: rgba(255, 255, 255, 0.45);
-            margin-bottom: 0.1rem;
-        }
-
-        .card-event-value {
             font-family: 'Cormorant Garamond', Georgia, serif;
-            font-size: 0.72rem;
-            font-weight: 600;
+            font-size: 0.88rem;
+            color: rgba(255, 255, 255, 0.85);
+        }
+
+        .card-event-item strong {
             color: #e2ca18;
+            font-weight: 600;
         }
 
         /* --- Contact --- */
         .card-contact {
-            font-family: 'Outfit', sans-serif;
-            font-size: 0.45rem;
-            color: rgba(255, 255, 255, 0.55);
-            text-align: center;
-            margin-top: 0.4rem;
-            line-height: 1.6;
+            font-family: 'Cormorant Garamond', Georgia, serif;
+            font-size: 0.8rem;
+            color: rgba(255, 255, 255, 0.65);
+            text-align: left;
+            margin-top: 0.5rem;
+            line-height: 1.7;
         }
 
         .card-contact strong {
-            color: rgba(255, 255, 255, 0.75);
-            font-weight: 500;
+            color: rgba(255, 255, 255, 0.85);
+            font-weight: 600;
         }
 
         /* --- Sign-off --- */
         .card-signoff {
-            text-align: center;
-            margin-top: 0.45rem;
+            margin-top: 0.7rem;
         }
 
         .card-signoff-text {
             font-family: 'Cormorant Garamond', Georgia, serif;
-            font-size: 0.7rem;
+            font-size: 0.88rem;
             font-style: italic;
-            color: rgba(255, 255, 255, 0.7);
-            margin-bottom: 0.1rem;
+            color: rgba(255, 255, 255, 0.75);
+            margin-bottom: 0.15rem;
         }
 
         .card-signoff-org {
-            font-family: 'Outfit', sans-serif;
-            font-size: 0.5rem;
-            font-weight: 600;
-            letter-spacing: 0.15em;
-            text-transform: uppercase;
+            font-family: 'Cormorant Garamond', Georgia, serif;
+            font-size: 0.9rem;
+            font-weight: 700;
             color: #e2ca18;
         }
 
@@ -286,22 +254,18 @@
             <!-- Header 1: Church Name -->
             <div class="card-header">
                 <div class="card-org">
-                    The Liverpool Mekane Kidusan Abune Teklehaymanot<br>
-                    Ethiopian Orthodox Tewahedo Church (LMKAT EOTC)
-                </div>
-                <div class="card-diocese">
-                    Diocese of Great Britain &amp; Northern Ireland
+                    The Liverpool Mekane Kidusan Abune Teklehymanot Ethiopian Orthodox Tewahedo Church (LMKAT EOTC) Diocese of Great Britain and Northern Ireland
                 </div>
             </div>
 
-            <div class="gold-divider"></div>
+            <div class="card-divider"></div>
 
             <!-- Header 2: Invitation Title -->
-            <div class="card-title">Community Engagement Invitation</div>
+            <div class="card-title">Community engagement invitation</div>
 
             <!-- Dear -->
             <div class="card-dear">
-                Dear <span class="card-dear-dots">&nbsp;</span>
+                Dear<span class="card-dear-dots">&#8230;&#8230;&#8230;&#8230;&#8230;&#8230;&#8230;&#8230;&#8230;&#8230;&#8230;&#8230;&#8230;&#8230;&#8230;&#8230;&#8230;&#8230;&#8230;&#8230;&#8230;&#8230;&#8230;&#8230;&#8230;&#8230;&#8230;</span>
             </div>
 
             <!-- Body -->
@@ -319,27 +283,21 @@
 
             <!-- Event Details -->
             <div class="card-event">
-                <div class="card-event-item">
-                    <div class="card-event-label">Date</div>
-                    <div class="card-event-value">Sunday, 29 March 2026</div>
-                </div>
-                <div class="card-event-item">
-                    <div class="card-event-label">Time</div>
-                    <div class="card-event-value">2pm to 5pm</div>
-                </div>
+                <div class="card-event-item"><strong>Date:</strong> Sunday, 29 March 2026</div>
+                <div class="card-event-item"><strong>Time:</strong> 2pm to 5pm</div>
             </div>
 
             <!-- Contact -->
             <div class="card-contact">
                 For further information, please contact:<br>
-                <strong>Phone:</strong> 07951 403936 &ensp;|&ensp;
+                <strong>Phone:</strong> 07951 403936<br>
                 <strong>Email:</strong> stakeholder@abuneteklehaymanot.org
             </div>
 
             <!-- Sign-off -->
             <div class="card-signoff">
                 <div class="card-signoff-text">Looking forward to welcoming you,</div>
-                <div class="card-signoff-org">LMKAT EOTC</div>
+                <div class="card-signoff-org">LMKAT EOTC.</div>
             </div>
 
         </div>
