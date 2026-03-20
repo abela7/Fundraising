@@ -86,64 +86,84 @@
         }
 
         /* ============================================
-           TIBEB PATTERN — Ethiopian Woven Border
+           TIBEB PATTERN — Single Ethiopian Separator
            ============================================ */
-        .tibeb {
-            display: block;
-            width: 100%;
-            height: 50px;
-            background: url('Ethiopian_Design.png') repeat-x center;
-            background-size: auto 100%;
-            pointer-events: none;
-            flex-shrink: 0;
+        .tibeb-separator {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2.5rem 1.25rem;
+            background: linear-gradient(180deg, var(--blue-dark) 0%, #072a3b 50%, var(--blue-dark) 100%);
+            position: relative;
+            overflow: hidden;
         }
 
-        /* Thicker variant — shows full pattern detail */
-        .tibeb--thick {
-            height: 65px;
-        }
-
-        /* Thin accent for inline use */
-        .tibeb--thin {
-            height: 30px;
-        }
-
-        /* Faded edges for floating use */
-        .tibeb--fade {
-            mask-image: linear-gradient(to right, transparent, black 15%, black 85%, transparent);
-            -webkit-mask-image: linear-gradient(to right, transparent, black 15%, black 85%, transparent);
-        }
-
-        /* Vertical tibeb for side accents (desktop) */
-        .tibeb-vertical {
+        /* Subtle glow behind the pattern */
+        .tibeb-separator::before {
+            content: '';
             position: absolute;
-            top: 0;
-            bottom: 0;
-            width: 35px;
-            background: url('Ethiopian_Design.png') repeat-y center;
-            background-size: 100% auto;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 80%;
+            height: 120%;
+            background: radial-gradient(ellipse, rgba(226, 202, 24, 0.12) 0%, transparent 70%);
             pointer-events: none;
-            z-index: 2;
         }
 
-        .tibeb-vertical--left { left: 0; }
-        .tibeb-vertical--right { right: 0; }
+        .tibeb-separator__img {
+            display: block;
+            width: 90%;
+            max-width: 700px;
+            height: auto;
+            border-radius: 6px;
+            box-shadow:
+                0 4px 20px rgba(0, 0, 0, 0.4),
+                0 0 40px rgba(226, 202, 24, 0.15),
+                inset 0 0 0 1px rgba(226, 202, 24, 0.2);
+            position: relative;
+            z-index: 1;
+        }
 
-        /* Hide vertical tibeb on mobile — too narrow */
-        @media (max-width: 767px) {
-            .tibeb-vertical { display: none; }
+        /* Decorative gold lines flanking the pattern */
+        .tibeb-separator__line {
+            flex: 1;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, var(--gold), transparent);
+            opacity: 0.4;
+            max-width: 120px;
+        }
+
+        .tibeb-separator__line--left {
+            margin-right: 1.5rem;
+        }
+
+        .tibeb-separator__line--right {
+            margin-left: 1.5rem;
         }
 
         @media (min-width: 768px) {
-            .tibeb { height: 60px; }
-            .tibeb--thick { height: 80px; }
-            .tibeb--thin { height: 35px; }
-            .tibeb-vertical { width: 45px; }
+            .tibeb-separator {
+                padding: 3rem 2rem;
+            }
+            .tibeb-separator__img {
+                max-width: 800px;
+            }
+            .tibeb-separator__line {
+                max-width: 180px;
+            }
         }
 
         @media (min-width: 1024px) {
-            .tibeb--thick { height: 100px; }
-            .tibeb-vertical { width: 55px; }
+            .tibeb-separator {
+                padding: 3.5rem 2.5rem;
+            }
+            .tibeb-separator__img {
+                max-width: 900px;
+            }
+            .tibeb-separator__line {
+                max-width: 240px;
+            }
         }
 
         /* ============================================
@@ -1627,18 +1647,13 @@
         </div>
     </section>
 
-    <div class="tibeb tibeb--thick"></div>
-
     <!-- ==================== ABOUT ==================== -->
     <section class="about">
         <div class="eth-cross-pattern"></div>
-        <div class="tibeb-vertical tibeb-vertical--left"></div>
-        <div class="tibeb-vertical tibeb-vertical--right"></div>
         <div class="about-inner">
             <div class="reveal">
                 <span class="section-label"><span>Our Announcement</span></span>
             </div>
-            <div class="tibeb tibeb--thin tibeb--fade reveal reveal-delay-1" style="max-width: 320px; margin: 1.5rem auto;"></div>
             <h2 class="about-headline reveal reveal-delay-1">
                 A New Home for<br><em>Our Faith</em>
             </h2>
@@ -1659,12 +1674,8 @@
         </div>
     </section>
 
-    <div class="tibeb tibeb--thick"></div>
-
     <!-- ==================== EVENT DETAILS ==================== -->
     <section class="event-details">
-        <div class="tibeb-vertical tibeb-vertical--left"></div>
-        <div class="tibeb-vertical tibeb-vertical--right"></div>
         <div class="event-details-inner">
             <span class="section-label reveal"><span>Event Details</span></span>
             <h2 class="event-headline reveal reveal-delay-1">
@@ -1704,8 +1715,6 @@
             </div>
         </div>
     </section>
-
-    <div class="tibeb tibeb--thick"></div>
 
     <!-- ==================== WHAT TO EXPECT ==================== -->
     <section class="expect">
@@ -1749,7 +1758,12 @@
         </div>
     </section>
 
-    <div class="tibeb tibeb--thick"></div>
+    <!-- ===== TIBEB SEPARATOR ===== -->
+    <div class="tibeb-separator">
+        <div class="tibeb-separator__line tibeb-separator__line--left"></div>
+        <img src="Ethiopian_Design.png" alt="Ethiopian Tibeb Pattern" class="tibeb-separator__img">
+        <div class="tibeb-separator__line tibeb-separator__line--right"></div>
+    </div>
 
     <!-- ==================== KNOW THE EOTC ==================== -->
     <section class="know-eotc">
@@ -1836,8 +1850,6 @@
         </div>
     </section>
 
-    <div class="tibeb tibeb--thick"></div>
-
     <!-- ==================== RSVP ==================== -->
     <section class="rsvp" id="rsvp">
         <div class="rsvp-glow"></div>
@@ -1921,8 +1933,6 @@
         </div>
     </section>
 
-    <div class="tibeb tibeb--thick"></div>
-
     <!-- ==================== CONTACT ==================== -->
     <section class="contact">
         <div class="contact-inner">
@@ -1957,8 +1967,6 @@
             </a>
         </div>
     </section>
-
-    <div class="tibeb tibeb--thick"></div>
 
     <!-- ==================== FOOTER ==================== -->
     <footer class="footer">
