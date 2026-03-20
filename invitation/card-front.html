@@ -95,13 +95,6 @@
             margin-bottom: 0.35rem;
         }
 
-        .card-cross {
-            width: 26px;
-            height: auto;
-            margin-bottom: 0.25rem;
-            filter: brightness(0) saturate(100%) invert(79%) sepia(60%) saturate(500%) hue-rotate(10deg) brightness(97%) contrast(90%);
-        }
-
         .card-org {
             font-family: 'Outfit', sans-serif;
             font-size: 0.48rem;
@@ -123,22 +116,24 @@
             line-height: 1.3;
         }
 
-        .card-invitation-label {
-            font-family: 'Cormorant Garamond', Georgia, serif;
-            font-size: 0.65rem;
-            font-weight: 600;
-            letter-spacing: 0.15em;
-            text-transform: uppercase;
-            color: rgba(255, 255, 255, 0.7);
-            margin-top: 0.15rem;
-        }
-
         /* --- Gold divider --- */
         .gold-divider {
             width: 100%;
             height: 1px;
             background: linear-gradient(90deg, transparent, rgba(226, 202, 24, 0.5), transparent);
             margin: 0.4rem 0;
+        }
+
+        /* --- Second header --- */
+        .card-title {
+            text-align: center;
+            font-family: 'Cormorant Garamond', Georgia, serif;
+            font-size: 0.85rem;
+            font-weight: 600;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            color: #e2ca18;
+            margin-bottom: 0.4rem;
         }
 
         /* --- Dear line --- */
@@ -288,9 +283,8 @@
 
         <div class="card-content">
 
-            <!-- Header -->
+            <!-- Header 1: Church Name -->
             <div class="card-header">
-                <img src="../assets/images/orthodox-cross.svg" alt="" class="card-cross">
                 <div class="card-org">
                     The Liverpool Mekane Kidusan Abune Teklehaymanot<br>
                     Ethiopian Orthodox Tewahedo Church (LMKAT EOTC)
@@ -298,10 +292,12 @@
                 <div class="card-diocese">
                     Diocese of Great Britain &amp; Northern Ireland
                 </div>
-                <div class="card-invitation-label">Community Engagement Invitation</div>
             </div>
 
             <div class="gold-divider"></div>
+
+            <!-- Header 2: Invitation Title -->
+            <div class="card-title">Community Engagement Invitation</div>
 
             <!-- Dear -->
             <div class="card-dear">
