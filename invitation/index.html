@@ -56,7 +56,7 @@
         }
 
         /* ============================================
-           ETHIOPIAN CROSS INLINE SVG
+           ORTHODOX CROSS IMAGE
            ============================================ */
         .eth-cross {
             display: inline-flex;
@@ -65,8 +65,24 @@
             vertical-align: middle;
         }
 
-        .eth-cross svg {
+        .eth-cross img {
             display: block;
+            height: 100%;
+            width: auto;
+        }
+
+        .eth-cross--sm { height: 22px; }
+        .eth-cross--md { height: 18px; }
+        .eth-cross--lg { height: 44px; }
+
+        /* Inherit color via CSS filter for light contexts */
+        .eth-cross--gold img {
+            filter: brightness(0) saturate(100%) invert(79%) sepia(60%) saturate(500%) hue-rotate(10deg) brightness(97%) contrast(90%);
+        }
+
+        /* White version for dark backgrounds */
+        .eth-cross--white img {
+            filter: brightness(0) invert(1);
         }
 
         /* ============================================
@@ -1152,7 +1168,7 @@
         </div>
         <div class="hero-content">
             <div class="hero-badge">
-                <span class="eth-cross"><svg width="16" height="21" viewBox="0 0 100 130" fill="currentColor"><rect x="39" y="18" width="22" height="112" rx="2"/><rect x="12" y="38" width="76" height="22" rx="2"/><circle cx="50" cy="8" r="14"/><circle cx="35" cy="20" r="13"/><circle cx="65" cy="20" r="13"/><circle cx="4" cy="49" r="14"/><circle cx="15" cy="35" r="13"/><circle cx="15" cy="63" r="13"/><circle cx="96" cy="49" r="14"/><circle cx="85" cy="35" r="13"/><circle cx="85" cy="63" r="13"/></svg></span>
+                <span class="eth-cross eth-cross--sm eth-cross--gold"><img src="../assets/images/orthodox-cross.svg" alt=""></span>
                 Community Engagement Invitation
             </div>
             <div class="hero-title-wrapper">
@@ -1177,7 +1193,7 @@
                 <span class="section-label"><span>Our Announcement</span></span>
             </div>
             <div class="divider reveal reveal-delay-1">
-                <span class="divider-cross"><span class="eth-cross"><svg width="14" height="18" viewBox="0 0 100 130" fill="currentColor"><rect x="39" y="18" width="22" height="112" rx="2"/><rect x="12" y="38" width="76" height="22" rx="2"/><circle cx="50" cy="8" r="14"/><circle cx="35" cy="20" r="13"/><circle cx="65" cy="20" r="13"/><circle cx="4" cy="49" r="14"/><circle cx="15" cy="35" r="13"/><circle cx="15" cy="63" r="13"/><circle cx="96" cy="49" r="14"/><circle cx="85" cy="35" r="13"/><circle cx="85" cy="63" r="13"/></svg></span></span>
+                <span class="divider-cross"><span class="eth-cross eth-cross--md eth-cross--gold"><img src="../assets/images/orthodox-cross.svg" alt=""></span></span>
             </div>
             <h2 class="about-headline reveal reveal-delay-1">
                 A New Home for<br><em>Our Faith</em>
@@ -1398,7 +1414,7 @@
 
     <!-- ==================== FOOTER ==================== -->
     <footer class="footer">
-        <div class="footer-cross"><span class="eth-cross"><svg width="30" height="39" viewBox="0 0 100 130" fill="currentColor"><rect x="39" y="18" width="22" height="112" rx="2"/><rect x="12" y="38" width="76" height="22" rx="2"/><circle cx="50" cy="8" r="14"/><circle cx="35" cy="20" r="13"/><circle cx="65" cy="20" r="13"/><circle cx="4" cy="49" r="14"/><circle cx="15" cy="35" r="13"/><circle cx="15" cy="63" r="13"/><circle cx="96" cy="49" r="14"/><circle cx="85" cy="35" r="13"/><circle cx="85" cy="63" r="13"/></svg></span></div>
+        <div class="footer-cross"><span class="eth-cross eth-cross--lg eth-cross--gold"><img src="../assets/images/orthodox-cross.svg" alt=""></span></div>
         <div class="footer-msg">Looking forward to welcoming you</div>
         <div class="footer-org">LMKAT EOTC</div>
     </footer>
