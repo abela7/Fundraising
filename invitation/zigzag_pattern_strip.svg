@@ -1,0 +1,65 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="120" height="240" viewBox="0 0 120 240">
+  <defs>
+    <style>
+      .bg { fill: #143b2f; }
+      .shadow { stroke: #6f7f73; stroke-width: 6; fill: none; stroke-linejoin: round; stroke-linecap: round; }
+      .left-green { stroke: #10c46b; stroke-width: 6; fill: none; stroke-linejoin: round; stroke-linecap: round; }
+      .band { stroke: #0a0a0a; stroke-width: 24; fill: none; stroke-linejoin: round; stroke-linecap: round; }
+      .right-red { stroke: #ef2b2d; stroke-width: 6; fill: none; stroke-linejoin: round; stroke-linecap: round; }
+      .right-white { stroke: #f2f2f2; stroke-width: 6; fill: none; stroke-linejoin: round; stroke-linecap: round; }
+      .right-dark { stroke: #171717; stroke-width: 6; fill: none; stroke-linejoin: round; stroke-linecap: round; }
+      .vignette { fill: url(#fade); }
+    </style>
+    <linearGradient id="fade" x1="0" x2="1">
+      <stop offset="0" stop-color="#0b1812" stop-opacity="0.10"/>
+      <stop offset="0.5" stop-color="#0b1812" stop-opacity="0"/>
+      <stop offset="1" stop-color="#0b1812" stop-opacity="0.12"/>
+    </linearGradient>
+  </defs>
+
+  <!-- background -->
+  <rect class="bg" width="120" height="240"/>
+
+  <!-- main zigzag path -->
+  <path id="spine" d="M 28 -24 L 83 48 L 40 120 L 83 192 L 28 264" />
+
+  <!-- left side: white shadow then green -->
+  <path class="shadow" d="M 11 -24 L 66 48 L 23 120 L 66 192 L 11 264" />
+  <path class="left-green" d="M 18 -24 L 73 48 L 30 120 L 73 192 L 18 264" />
+
+  <!-- center black band -->
+  <path class="band" d="M 28 -24 L 83 48 L 40 120 L 83 192 L 28 264" />
+
+  <!-- right side: red, white, dark -->
+  <path class="right-red" d="M 38 -24 L 93 48 L 50 120 L 93 192 L 38 264" />
+  <path class="right-white" d="M 45 -24 L 100 48 L 57 120 L 100 192 L 45 264" />
+  <path class="right-dark" d="M 52 -24 L 107 48 L 64 120 L 107 192 L 52 264" />
+
+  <!-- diamonds along the band -->
+  <g transform="rotate(-6 0 0)">
+    <g transform="translate(48,18) rotate(4)">
+      <rect x="-8" y="-8" width="16" height="16" rx="1.4" transform="rotate(45)" fill="#ef2b2d"/>
+    </g>
+    <g transform="translate(64,52) rotate(4)">
+      <rect x="-8" y="-8" width="16" height="16" rx="1.4" transform="rotate(45)" fill="#e6cf54"/>
+    </g>
+    <g transform="translate(74,88) rotate(4)">
+      <rect x="-8" y="-8" width="16" height="16" rx="1.4" transform="rotate(45)" fill="#10c46b"/>
+    </g>
+    <g transform="translate(58,122) rotate(4)">
+      <rect x="-8" y="-8" width="16" height="16" rx="1.4" transform="rotate(45)" fill="#e6cf54"/>
+    </g>
+    <g transform="translate(42,158) rotate(4)">
+      <rect x="-8" y="-8" width="16" height="16" rx="1.4" transform="rotate(45)" fill="#ef2b2d"/>
+    </g>
+    <g transform="translate(58,192) rotate(4)">
+      <rect x="-8" y="-8" width="16" height="16" rx="1.4" transform="rotate(45)" fill="#e6cf54"/>
+    </g>
+    <g transform="translate(74,228) rotate(4)">
+      <rect x="-8" y="-8" width="16" height="16" rx="1.4" transform="rotate(45)" fill="#10c46b"/>
+    </g>
+  </g>
+
+  <!-- subtle shading -->
+  <rect class="vignette" width="120" height="240"/>
+</svg>
