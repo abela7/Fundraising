@@ -714,14 +714,14 @@
             overflow: hidden;
         }
 
-        /* Tibeb pattern as background */
+        /* Tibeb pattern as background — repeating tile */
         .know-eotc::before {
             content: '';
             position: absolute;
             inset: 0;
-            background: url('Ethiopian_Design.png') repeat center;
-            background-size: auto 100%;
-            opacity: 0.08;
+            background: url('Ethiopian_Design.png') repeat;
+            background-size: 200px auto;
+            opacity: 0.25;
         }
 
         /* Dark overlay to keep text readable */
@@ -731,10 +731,10 @@
             inset: 0;
             background: linear-gradient(
                 180deg,
-                rgba(6, 74, 102, 0.92) 0%,
-                rgba(6, 74, 102, 0.85) 30%,
-                rgba(6, 74, 102, 0.85) 70%,
-                rgba(6, 74, 102, 0.92) 100%
+                rgba(6, 74, 102, 0.82) 0%,
+                rgba(6, 74, 102, 0.72) 30%,
+                rgba(6, 74, 102, 0.72) 70%,
+                rgba(6, 74, 102, 0.82) 100%
             );
             pointer-events: none;
         }
