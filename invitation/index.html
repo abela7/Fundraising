@@ -86,6 +86,68 @@
         }
 
         /* ============================================
+           TIBEB PATTERN — Ethiopian Woven Border
+           ============================================ */
+        .tibeb {
+            display: block;
+            width: 100%;
+            height: 12px;
+            background: url('Ethiopian_Design.png') repeat-x center;
+            background-size: auto 100%;
+            pointer-events: none;
+            flex-shrink: 0;
+        }
+
+        /* Thicker variant for section transitions */
+        .tibeb--thick {
+            height: 20px;
+        }
+
+        /* Thin accent */
+        .tibeb--thin {
+            height: 6px;
+        }
+
+        /* Faded edges for floating use */
+        .tibeb--fade {
+            mask-image: linear-gradient(to right, transparent, black 15%, black 85%, transparent);
+            -webkit-mask-image: linear-gradient(to right, transparent, black 15%, black 85%, transparent);
+        }
+
+        /* Vertical tibeb for side accents (desktop) */
+        .tibeb-vertical {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 10px;
+            background: url('Ethiopian_Design.png') repeat-y center;
+            background-size: 100% auto;
+            pointer-events: none;
+            z-index: 2;
+            opacity: 0.7;
+        }
+
+        .tibeb-vertical--left { left: 0; }
+        .tibeb-vertical--right { right: 0; }
+
+        /* Hide vertical tibeb on mobile — too narrow */
+        @media (max-width: 767px) {
+            .tibeb-vertical { display: none; }
+        }
+
+        @media (min-width: 768px) {
+            .tibeb { height: 16px; }
+            .tibeb--thick { height: 28px; }
+            .tibeb--thin { height: 8px; }
+            .tibeb-vertical { width: 14px; }
+        }
+
+        @media (min-width: 1024px) {
+            .tibeb--thick { height: 32px; }
+            .tibeb-vertical { width: 16px; opacity: 0.8; }
+        }
+
+        /* ============================================
            ETHIOPIAN CROSS SVG PATTERN
            ============================================ */
         .eth-cross-pattern {
@@ -1566,16 +1628,18 @@
         </div>
     </section>
 
+    <div class="tibeb tibeb--thick"></div>
+
     <!-- ==================== ABOUT ==================== -->
     <section class="about">
         <div class="eth-cross-pattern"></div>
+        <div class="tibeb-vertical tibeb-vertical--left"></div>
+        <div class="tibeb-vertical tibeb-vertical--right"></div>
         <div class="about-inner">
             <div class="reveal">
                 <span class="section-label"><span>Our Announcement</span></span>
             </div>
-            <div class="divider reveal reveal-delay-1">
-                <span class="divider-cross"><span class="eth-cross eth-cross--md eth-cross--gold"><img src="../assets/images/orthodox-cross.svg" alt=""></span></span>
-            </div>
+            <div class="tibeb tibeb--thin tibeb--fade reveal reveal-delay-1" style="max-width: 240px; margin: 1.5rem auto;"></div>
             <h2 class="about-headline reveal reveal-delay-1">
                 A New Home for<br><em>Our Faith</em>
             </h2>
@@ -1595,6 +1659,8 @@
             </div>
         </div>
     </section>
+
+    <div class="tibeb tibeb--thick"></div>
 
     <!-- ==================== EVENT DETAILS ==================== -->
     <section class="event-details">
@@ -1638,6 +1704,8 @@
         </div>
     </section>
 
+    <div class="tibeb tibeb--thick"></div>
+
     <!-- ==================== WHAT TO EXPECT ==================== -->
     <section class="expect">
         <div class="eth-cross-pattern"></div>
@@ -1679,6 +1747,8 @@
             </div>
         </div>
     </section>
+
+    <div class="tibeb tibeb--thick"></div>
 
     <!-- ==================== KNOW THE EOTC ==================== -->
     <section class="know-eotc">
@@ -1765,6 +1835,8 @@
         </div>
     </section>
 
+    <div class="tibeb tibeb--thick"></div>
+
     <!-- ==================== RSVP ==================== -->
     <section class="rsvp" id="rsvp">
         <div class="rsvp-glow"></div>
@@ -1848,6 +1920,8 @@
         </div>
     </section>
 
+    <div class="tibeb tibeb--thick"></div>
+
     <!-- ==================== CONTACT ==================== -->
     <section class="contact">
         <div class="contact-inner">
@@ -1882,6 +1956,8 @@
             </a>
         </div>
     </section>
+
+    <div class="tibeb tibeb--thick"></div>
 
     <!-- ==================== FOOTER ==================== -->
     <footer class="footer">
