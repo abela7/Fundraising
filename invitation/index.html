@@ -615,6 +615,207 @@
         }
 
         /* ============================================
+           KNOW THE EOTC SECTION
+           ============================================ */
+        .know-eotc {
+            position: relative;
+            padding: 5rem 1.25rem;
+            background: var(--white);
+            overflow: hidden;
+        }
+
+        .know-eotc-inner {
+            position: relative;
+            z-index: 1;
+            max-width: 720px;
+            margin: 0 auto;
+            text-align: center;
+        }
+
+        .know-headline {
+            font-family: var(--font-display);
+            font-size: clamp(1.8rem, 6vw, 3rem);
+            font-weight: 400;
+            color: var(--blue-deep);
+            margin-bottom: 0.75rem;
+        }
+
+        .know-headline em {
+            font-style: italic;
+            color: var(--gold-warm);
+        }
+
+        .know-sub {
+            font-size: 0.95rem;
+            color: var(--text-muted);
+            line-height: 1.7;
+            max-width: 520px;
+            margin: 0 auto 2.5rem;
+        }
+
+        /* Video Wrapper — 16:9 responsive */
+        .video-wrapper {
+            position: relative;
+            width: 100%;
+            padding-bottom: 56.25%; /* 16:9 */
+            border-radius: 1.25rem;
+            overflow: hidden;
+            background: var(--charcoal);
+            box-shadow:
+                0 8px 40px rgba(0, 0, 0, 0.12),
+                0 0 0 1px rgba(10, 98, 134, 0.08);
+        }
+
+        .video-wrapper iframe {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            border: 0;
+        }
+
+        /* Accordion — Learn More */
+        .learn-more-accordion {
+            margin-top: 1.5rem;
+            text-align: left;
+        }
+
+        .accordion-toggle {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.6rem;
+            padding: 1rem 1.5rem;
+            background: transparent;
+            border: 1.5px solid rgba(10, 98, 134, 0.12);
+            border-radius: 1rem;
+            cursor: pointer;
+            font-family: var(--font-body);
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--blue);
+            transition: all 0.3s ease;
+        }
+
+        .accordion-toggle:hover {
+            background: rgba(10, 98, 134, 0.04);
+            border-color: var(--blue);
+        }
+
+        .accordion-toggle .toggle-icon {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: rgba(10, 98, 134, 0.08);
+            font-size: 0.65rem;
+            transition: transform 0.4s var(--ease-out-expo);
+        }
+
+        .accordion-toggle.active .toggle-icon {
+            transform: rotate(180deg);
+        }
+
+        .accordion-toggle.active {
+            border-color: var(--gold);
+            color: var(--gold-warm);
+            border-bottom-left-radius: 0;
+            border-bottom-right-radius: 0;
+            border-bottom-color: transparent;
+        }
+
+        .accordion-body {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.5s var(--ease-out-expo);
+            border: 1.5px solid transparent;
+            border-top: none;
+            border-radius: 0 0 1rem 1rem;
+        }
+
+        .accordion-body.open {
+            border-color: rgba(10, 98, 134, 0.12);
+            max-height: 2000px;
+        }
+
+        .accordion-content {
+            padding: 1.5rem;
+        }
+
+        .accordion-content h4 {
+            font-family: var(--font-display);
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: var(--blue-deep);
+            margin-bottom: 0.75rem;
+        }
+
+        .accordion-content p {
+            font-size: 0.9rem;
+            line-height: 1.8;
+            color: var(--text-muted);
+            margin-bottom: 1rem;
+        }
+
+        .accordion-content p:last-child {
+            margin-bottom: 0;
+        }
+
+        .accordion-content strong {
+            color: var(--blue);
+            font-weight: 600;
+        }
+
+        .eotc-facts {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.75rem;
+            margin-top: 1.25rem;
+        }
+
+        .eotc-fact {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.875rem 1rem;
+            background: var(--ivory);
+            border-radius: 0.75rem;
+            border: 1px solid rgba(10, 98, 134, 0.05);
+        }
+
+        .eotc-fact-icon {
+            width: 36px;
+            height: 36px;
+            min-width: 36px;
+            border-radius: 10px;
+            background: var(--gold-pale);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.85rem;
+            color: var(--gold-warm);
+        }
+
+        .eotc-fact-text {
+            font-size: 0.78rem;
+            font-weight: 500;
+            color: var(--text);
+            line-height: 1.4;
+        }
+
+        .eotc-fact-text small {
+            display: block;
+            font-weight: 400;
+            font-size: 0.68rem;
+            color: var(--text-muted);
+            margin-top: 0.1rem;
+        }
+
+        /* ============================================
            RSVP SECTION
            ============================================ */
         .rsvp {
@@ -1098,6 +1299,22 @@
                 padding: 2.5rem 2rem;
             }
 
+            .know-eotc {
+                padding: 7rem 2.5rem;
+            }
+
+            .video-wrapper {
+                border-radius: 1.5rem;
+            }
+
+            .accordion-content {
+                padding: 2rem;
+            }
+
+            .eotc-facts {
+                grid-template-columns: repeat(4, 1fr);
+            }
+
             .contact {
                 padding: 5rem 2.5rem;
             }
@@ -1338,6 +1555,89 @@
         </div>
     </section>
 
+    <!-- ==================== KNOW THE EOTC ==================== -->
+    <section class="know-eotc">
+        <div class="know-eotc-inner">
+            <span class="section-label reveal"><span>Discover</span></span>
+            <h2 class="know-headline reveal reveal-delay-1">Know the <em>Ethiopian Orthodox</em> Church</h2>
+            <p class="know-sub reveal reveal-delay-2">
+                One of the oldest Christian churches in the world, with a rich heritage
+                stretching back nearly two thousand years
+            </p>
+
+            <div class="video-wrapper reveal reveal-delay-2">
+                <iframe
+                    src="https://www.youtube.com/embed/UCnsid4JJXQ?rel=0&modestbranding=1"
+                    title="About the Ethiopian Orthodox Tewahedo Church"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowfullscreen
+                    loading="lazy">
+                </iframe>
+            </div>
+
+            <div class="learn-more-accordion reveal reveal-delay-3">
+                <button class="accordion-toggle" id="learnMoreToggle" onclick="toggleAccordion()">
+                    <span>Learn More About Our Church</span>
+                    <span class="toggle-icon"><i class="fas fa-chevron-down"></i></span>
+                </button>
+                <div class="accordion-body" id="learnMoreBody">
+                    <div class="accordion-content">
+                        <h4>A Living Ancient Tradition</h4>
+                        <p>
+                            The <strong>Ethiopian Orthodox Tewahedo Church</strong> is one of the few pre-colonial
+                            Christian churches in Africa and one of the earliest in the world. Founded in the 4th century,
+                            it has preserved ancient traditions, liturgical practices, and sacred texts that have
+                            remained virtually unchanged for over 1,600 years.
+                        </p>
+                        <p>
+                            The word <strong>"Tewahedo"</strong> means "unified" — reflecting the church's unique
+                            theological understanding. The church maintains its own distinct canon of scripture,
+                            including the Book of Enoch and the Book of Jubilees, which are not found in most
+                            other Christian traditions.
+                        </p>
+                        <p>
+                            Our worship is rich with sacred music, elaborate vestments, and ancient hymns composed by
+                            <strong>Saint Yared</strong> in the 6th century — a tradition of liturgical chant that
+                            predates Gregorian chant. The church celebrates a vibrant calendar of fasts and feasts
+                            that mark the spiritual rhythm of daily life.
+                        </p>
+
+                        <div class="eotc-facts">
+                            <div class="eotc-fact">
+                                <div class="eotc-fact-icon"><i class="fas fa-landmark"></i></div>
+                                <div class="eotc-fact-text">
+                                    Founded 4th Century
+                                    <small>One of the oldest churches</small>
+                                </div>
+                            </div>
+                            <div class="eotc-fact">
+                                <div class="eotc-fact-icon"><i class="fas fa-users"></i></div>
+                                <div class="eotc-fact-text">
+                                    50+ Million Members
+                                    <small>Worldwide congregation</small>
+                                </div>
+                            </div>
+                            <div class="eotc-fact">
+                                <div class="eotc-fact-icon"><i class="fas fa-book-open"></i></div>
+                                <div class="eotc-fact-text">
+                                    81 Biblical Books
+                                    <small>Broadest scriptural canon</small>
+                                </div>
+                            </div>
+                            <div class="eotc-fact">
+                                <div class="eotc-fact-icon"><i class="fas fa-music"></i></div>
+                                <div class="eotc-fact-text">
+                                    Saint Yared's Hymns
+                                    <small>6th century sacred music</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
     <!-- ==================== RSVP ==================== -->
     <section class="rsvp" id="rsvp">
         <div class="rsvp-glow"></div>
@@ -1460,6 +1760,14 @@
         }, { threshold: 0.15, rootMargin: '0px 0px -40px 0px' });
 
         reveals.forEach(el => observer.observe(el));
+
+        /* ---- Accordion ---- */
+        function toggleAccordion() {
+            const toggle = document.getElementById('learnMoreToggle');
+            const body = document.getElementById('learnMoreBody');
+            toggle.classList.toggle('active');
+            body.classList.toggle('open');
+        }
 
         /* ---- Parallax on hero (desktop only) ---- */
         if (window.matchMedia('(min-width: 768px)').matches) {
