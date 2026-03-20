@@ -86,84 +86,23 @@
         }
 
         /* ============================================
-           TIBEB PATTERN — Single Ethiopian Separator
+           TIBEB — Thin Section Separator
            ============================================ */
-        .tibeb-separator {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 2.5rem 1.25rem;
-            background: linear-gradient(180deg, var(--blue-dark) 0%, #072a3b 50%, var(--blue-dark) 100%);
-            position: relative;
-            overflow: hidden;
-        }
-
-        /* Subtle glow behind the pattern */
-        .tibeb-separator::before {
-            content: '';
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: 80%;
-            height: 120%;
-            background: radial-gradient(ellipse, rgba(226, 202, 24, 0.12) 0%, transparent 70%);
-            pointer-events: none;
-        }
-
-        .tibeb-separator__img {
+        .tibeb {
             display: block;
-            width: 90%;
-            max-width: 700px;
-            height: auto;
-            border-radius: 6px;
-            box-shadow:
-                0 4px 20px rgba(0, 0, 0, 0.4),
-                0 0 40px rgba(226, 202, 24, 0.15),
-                inset 0 0 0 1px rgba(226, 202, 24, 0.2);
-            position: relative;
-            z-index: 1;
-        }
-
-        /* Decorative gold lines flanking the pattern */
-        .tibeb-separator__line {
-            flex: 1;
-            height: 1px;
-            background: linear-gradient(90deg, transparent, var(--gold), transparent);
-            opacity: 0.4;
-            max-width: 120px;
-        }
-
-        .tibeb-separator__line--left {
-            margin-right: 1.5rem;
-        }
-
-        .tibeb-separator__line--right {
-            margin-left: 1.5rem;
+            width: 100%;
+            height: 18px;
+            background: url('Ethiopian_Design.png') repeat-x center;
+            background-size: auto 100%;
+            flex-shrink: 0;
         }
 
         @media (min-width: 768px) {
-            .tibeb-separator {
-                padding: 3rem 2rem;
-            }
-            .tibeb-separator__img {
-                max-width: 800px;
-            }
-            .tibeb-separator__line {
-                max-width: 180px;
-            }
+            .tibeb { height: 24px; }
         }
 
         @media (min-width: 1024px) {
-            .tibeb-separator {
-                padding: 3.5rem 2.5rem;
-            }
-            .tibeb-separator__img {
-                max-width: 900px;
-            }
-            .tibeb-separator__line {
-                max-width: 240px;
-            }
+            .tibeb { height: 30px; }
         }
 
         /* ============================================
@@ -1720,6 +1659,8 @@
         </div>
     </section>
 
+    <div class="tibeb"></div>
+
     <!-- ==================== ABOUT ==================== -->
     <section class="about">
         <div class="eth-cross-pattern"></div>
@@ -1746,6 +1687,8 @@
             </div>
         </div>
     </section>
+
+    <div class="tibeb"></div>
 
     <!-- ==================== EVENT DETAILS ==================== -->
     <section class="event-details">
@@ -1789,6 +1732,8 @@
         </div>
     </section>
 
+    <div class="tibeb"></div>
+
     <!-- ==================== WHAT TO EXPECT ==================== -->
     <section class="expect">
         <div class="eth-cross-pattern"></div>
@@ -1831,12 +1776,7 @@
         </div>
     </section>
 
-    <!-- ===== TIBEB SEPARATOR ===== -->
-    <div class="tibeb-separator">
-        <div class="tibeb-separator__line tibeb-separator__line--left"></div>
-        <img src="Ethiopian_Design.png" alt="Ethiopian Tibeb Pattern" class="tibeb-separator__img">
-        <div class="tibeb-separator__line tibeb-separator__line--right"></div>
-    </div>
+    <div class="tibeb"></div>
 
     <!-- ==================== KNOW THE EOTC ==================== -->
     <section class="know-eotc">
@@ -1926,6 +1866,8 @@
         </div>
     </section>
 
+    <div class="tibeb"></div>
+
     <!-- ==================== RSVP ==================== -->
     <section class="rsvp" id="rsvp">
         <div class="rsvp-glow"></div>
@@ -2009,6 +1951,8 @@
         </div>
     </section>
 
+    <div class="tibeb"></div>
+
     <!-- ==================== CONTACT ==================== -->
     <section class="contact">
         <div class="geo-pattern geo-pattern--fade-edges">
@@ -2046,6 +1990,8 @@
             </a>
         </div>
     </section>
+
+    <div class="tibeb"></div>
 
     <!-- ==================== FOOTER ==================== -->
     <footer class="footer" style="position: relative; overflow: hidden;">
