@@ -91,21 +91,21 @@
         .tibeb {
             display: block;
             width: 100%;
-            height: 12px;
+            height: 50px;
             background: url('Ethiopian_Design.png') repeat-x center;
             background-size: auto 100%;
             pointer-events: none;
             flex-shrink: 0;
         }
 
-        /* Thicker variant for section transitions */
+        /* Thicker variant — shows full pattern detail */
         .tibeb--thick {
-            height: 20px;
+            height: 65px;
         }
 
-        /* Thin accent */
+        /* Thin accent for inline use */
         .tibeb--thin {
-            height: 6px;
+            height: 30px;
         }
 
         /* Faded edges for floating use */
@@ -119,12 +119,11 @@
             position: absolute;
             top: 0;
             bottom: 0;
-            width: 10px;
+            width: 35px;
             background: url('Ethiopian_Design.png') repeat-y center;
             background-size: 100% auto;
             pointer-events: none;
             z-index: 2;
-            opacity: 0.7;
         }
 
         .tibeb-vertical--left { left: 0; }
@@ -136,15 +135,15 @@
         }
 
         @media (min-width: 768px) {
-            .tibeb { height: 16px; }
-            .tibeb--thick { height: 28px; }
-            .tibeb--thin { height: 8px; }
-            .tibeb-vertical { width: 14px; }
+            .tibeb { height: 60px; }
+            .tibeb--thick { height: 80px; }
+            .tibeb--thin { height: 35px; }
+            .tibeb-vertical { width: 45px; }
         }
 
         @media (min-width: 1024px) {
-            .tibeb--thick { height: 32px; }
-            .tibeb-vertical { width: 16px; opacity: 0.8; }
+            .tibeb--thick { height: 100px; }
+            .tibeb-vertical { width: 55px; }
         }
 
         /* ============================================
@@ -1639,7 +1638,7 @@
             <div class="reveal">
                 <span class="section-label"><span>Our Announcement</span></span>
             </div>
-            <div class="tibeb tibeb--thin tibeb--fade reveal reveal-delay-1" style="max-width: 240px; margin: 1.5rem auto;"></div>
+            <div class="tibeb tibeb--thin tibeb--fade reveal reveal-delay-1" style="max-width: 320px; margin: 1.5rem auto;"></div>
             <h2 class="about-headline reveal reveal-delay-1">
                 A New Home for<br><em>Our Faith</em>
             </h2>
@@ -1664,6 +1663,8 @@
 
     <!-- ==================== EVENT DETAILS ==================== -->
     <section class="event-details">
+        <div class="tibeb-vertical tibeb-vertical--left"></div>
+        <div class="tibeb-vertical tibeb-vertical--right"></div>
         <div class="event-details-inner">
             <span class="section-label reveal"><span>Event Details</span></span>
             <h2 class="event-headline reveal reveal-delay-1">
