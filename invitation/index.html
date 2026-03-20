@@ -620,24 +620,48 @@
         .rsvp {
             position: relative;
             padding: 5rem 1.25rem;
-            background: var(--white);
+            background: var(--blue-dark);
             overflow: hidden;
         }
 
         .rsvp::before {
             content: '';
             position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 1px;
-            background: linear-gradient(90deg, transparent, var(--gold), transparent);
+            inset: 0;
+            opacity: 0.04;
+            background-image: url('../assets/images/orthodox-cross-outline.svg');
+            background-size: 70px 80px;
+            background-repeat: repeat;
+        }
+
+        /* Decorative glow orbs */
+        .rsvp::after {
+            content: '';
+            position: absolute;
+            top: -200px;
+            right: -150px;
+            width: 500px;
+            height: 500px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(226, 202, 24, 0.1), transparent 65%);
+            pointer-events: none;
+        }
+
+        .rsvp-glow {
+            position: absolute;
+            bottom: -200px;
+            left: -150px;
+            width: 500px;
+            height: 500px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(10, 98, 134, 0.15), transparent 65%);
+            pointer-events: none;
         }
 
         .rsvp-inner {
             position: relative;
             z-index: 1;
-            max-width: 560px;
+            max-width: 520px;
             margin: 0 auto;
         }
 
@@ -646,24 +670,44 @@
             margin-bottom: 2.5rem;
         }
 
+        .rsvp .section-label {
+            color: var(--gold-light);
+        }
+
         .rsvp-headline {
             font-family: var(--font-display);
-            font-size: clamp(1.8rem, 6vw, 3rem);
+            font-size: clamp(2rem, 7vw, 3.2rem);
+            font-weight: 300;
+            color: var(--white);
+            margin-bottom: 0.75rem;
+        }
+
+        .rsvp-headline em {
+            font-style: italic;
             font-weight: 400;
-            color: var(--blue-deep);
-            margin-bottom: 0.5rem;
+            color: var(--gold);
         }
 
         .rsvp-sub {
             font-size: 0.95rem;
-            color: var(--text-muted);
+            color: rgba(255, 255, 255, 0.55);
             line-height: 1.6;
+        }
+
+        /* Form Card */
+        .rsvp-card {
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid rgba(226, 202, 24, 0.1);
+            border-radius: 1.5rem;
+            padding: 2rem 1.5rem;
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
         }
 
         .rsvp-form {
             display: flex;
             flex-direction: column;
-            gap: 1.5rem;
+            gap: 1.75rem;
         }
 
         .form-group {
@@ -673,38 +717,42 @@
         }
 
         .form-label {
-            font-size: 0.72rem;
+            font-size: 0.7rem;
             font-weight: 600;
             text-transform: uppercase;
-            letter-spacing: 0.1em;
-            color: var(--blue);
+            letter-spacing: 0.12em;
+            color: var(--gold);
         }
 
         .form-input {
             width: 100%;
-            padding: 0.9rem 1.25rem;
+            padding: 1rem 1.25rem;
             font-family: var(--font-body);
             font-size: 0.95rem;
-            color: var(--text);
-            background: var(--white);
-            border: 2px solid rgba(10, 98, 134, 0.22);
+            color: var(--white);
+            background: rgba(255, 255, 255, 0.07);
+            border: 1.5px solid rgba(255, 255, 255, 0.12);
             border-radius: 0.875rem;
             outline: none;
             transition: all 0.3s ease;
-            box-shadow: inset 0 0 0 1px rgba(226, 202, 24, 0.12);
         }
 
         .form-input::placeholder {
-            color: #b0b0b0;
+            color: rgba(255, 255, 255, 0.3);
         }
 
         .form-input:focus {
             border-color: var(--gold);
-            background: var(--white);
-            box-shadow: 0 0 0 4px rgba(226, 202, 24, 0.1);
+            background: rgba(255, 255, 255, 0.1);
+            box-shadow: 0 0 0 3px rgba(226, 202, 24, 0.12);
         }
 
-        /* Attendance — outlined choice buttons (blue / gold palette) */
+        textarea.form-input {
+            resize: vertical;
+            min-height: 100px;
+        }
+
+        /* Attendance Radio Group */
         .attendance-group {
             display: grid;
             grid-template-columns: 1fr 1fr 1fr;
@@ -726,83 +774,90 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            gap: 0.5rem;
+            gap: 0.6rem;
             padding: 1.25rem 0.75rem;
-            background: var(--white);
-            border: 2px solid rgba(10, 98, 134, 0.28);
+            background: rgba(255, 255, 255, 0.05);
+            border: 1.5px solid rgba(255, 255, 255, 0.1);
             border-radius: 1rem;
             cursor: pointer;
-            transition: border-color 0.3s ease, background 0.3s ease, box-shadow 0.3s ease, outline-color 0.3s ease;
+            transition: all 0.3s ease;
             text-align: center;
-            outline: 2px solid transparent;
-            outline-offset: 2px;
         }
 
         .attendance-label .att-icon {
-            width: 40px;
-            height: 40px;
+            width: 48px;
+            height: 48px;
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 1rem;
-            transition: all 0.3s ease;
-            border: 2px solid rgba(10, 98, 134, 0.15);
+            font-size: 1.1rem;
+            transition: all 0.3s var(--ease-out-back);
         }
 
         .attendance-label .att-text {
-            font-size: 0.8rem;
+            font-size: 0.75rem;
             font-weight: 600;
-            color: var(--text-muted);
+            color: rgba(255, 255, 255, 0.5);
             transition: color 0.3s ease;
         }
 
         .att-yes .att-icon {
-            background: rgba(10, 98, 134, 0.08);
-            color: var(--blue-deep);
-            border-color: rgba(10, 98, 134, 0.22);
+            background: rgba(76, 175, 80, 0.15);
+            color: #66bb6a;
         }
-
         .att-maybe .att-icon {
-            background: var(--gold-pale);
-            color: var(--gold-warm);
-            border-color: rgba(212, 160, 23, 0.35);
+            background: rgba(226, 202, 24, 0.15);
+            color: var(--gold);
         }
-
         .att-no .att-icon {
-            background: rgba(6, 74, 102, 0.08);
-            color: var(--blue-dark);
-            border-color: rgba(6, 74, 102, 0.2);
+            background: rgba(255, 255, 255, 0.08);
+            color: rgba(255, 255, 255, 0.4);
         }
 
         .attendance-label:hover {
-            border-color: var(--blue);
-            box-shadow: 0 0 0 3px rgba(226, 202, 24, 0.12);
+            border-color: rgba(226, 202, 24, 0.3);
+            background: rgba(255, 255, 255, 0.08);
         }
 
-        .attendance-option input[type="radio"]:focus-visible + .attendance-label {
-            outline-color: var(--gold-warm);
+        .attendance-label:hover .att-icon {
+            transform: scale(1.1);
         }
 
         .attendance-option input[type="radio"]:checked + .attendance-label {
             border-color: var(--gold);
-            background: var(--gold-pale);
-            outline-color: var(--blue-deep);
-            box-shadow:
-                0 0 0 1px var(--gold-light),
-                0 6px 22px rgba(6, 74, 102, 0.1);
+            background: rgba(226, 202, 24, 0.1);
+            box-shadow: 0 0 20px rgba(226, 202, 24, 0.08);
         }
 
         .attendance-option input[type="radio"]:checked + .attendance-label .att-text {
-            color: var(--blue-deep);
+            color: var(--white);
         }
 
         .attendance-option input[type="radio"]:checked + .attendance-label .att-icon {
-            border-color: var(--gold);
-            background: var(--white);
+            transform: scale(1.15);
         }
 
-        /* Submit — outlined CTA to match RSVP choices */
+        .attendance-option input[type="radio"]:checked + .att-yes .att-icon,
+        .attendance-option input[type="radio"]:checked + .attendance-label.att-yes .att-icon {
+            background: rgba(76, 175, 80, 0.25);
+            color: #81c784;
+            box-shadow: 0 0 16px rgba(76, 175, 80, 0.2);
+        }
+
+        .attendance-option input[type="radio"]:checked + .attendance-label.att-maybe .att-icon {
+            background: rgba(226, 202, 24, 0.25);
+            color: var(--gold-light);
+            box-shadow: 0 0 16px rgba(226, 202, 24, 0.2);
+        }
+
+        .attendance-option input[type="radio"]:checked + .attendance-label.att-no .att-icon {
+            background: rgba(255, 100, 100, 0.15);
+            color: #ef9a9a;
+            box-shadow: 0 0 16px rgba(255, 100, 100, 0.12);
+        }
+
+        /* Submit Button */
         .submit-btn {
             width: 100%;
             padding: 1.1rem 2rem;
@@ -810,33 +865,43 @@
             font-size: 0.95rem;
             font-weight: 600;
             letter-spacing: 0.05em;
-            color: var(--blue-deep);
-            background: var(--white);
-            border: 2px solid var(--blue-deep);
+            color: var(--blue-dark);
+            background: linear-gradient(135deg, var(--gold), var(--gold-warm));
+            border: none;
             border-radius: 1rem;
             cursor: pointer;
             position: relative;
-            transition: border-color 0.35s var(--ease-out-expo), color 0.35s ease, background 0.35s ease, box-shadow 0.35s ease, transform 0.35s var(--ease-out-expo);
+            overflow: hidden;
+            transition: all 0.4s var(--ease-out-expo);
+            box-shadow: 0 4px 24px rgba(226, 202, 24, 0.25);
             margin-top: 0.5rem;
-            box-shadow: inset 0 0 0 1px rgba(226, 202, 24, 0.35);
+        }
+
+        .submit-btn::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(135deg, var(--gold-light), var(--gold));
+            opacity: 0;
+            transition: opacity 0.3s ease;
         }
 
         .submit-btn:hover {
-            border-color: var(--gold-warm);
-            color: var(--blue-dark);
-            background: var(--gold-pale);
             transform: translateY(-2px);
-            box-shadow:
-                inset 0 0 0 1px rgba(226, 202, 24, 0.55),
-                0 8px 28px rgba(6, 74, 102, 0.12);
+            box-shadow: 0 8px 32px rgba(226, 202, 24, 0.35);
         }
 
-        .submit-btn:focus-visible {
-            outline: 2px solid var(--gold);
-            outline-offset: 3px;
+        .submit-btn:hover::before {
+            opacity: 1;
+        }
+
+        .submit-btn:active {
+            transform: translateY(0);
         }
 
         .submit-btn span {
+            position: relative;
+            z-index: 1;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -1027,6 +1092,10 @@
 
             .rsvp {
                 padding: 7rem 2.5rem;
+            }
+
+            .rsvp-card {
+                padding: 2.5rem 2rem;
             }
 
             .contact {
@@ -1271,57 +1340,73 @@
 
     <!-- ==================== RSVP ==================== -->
     <section class="rsvp" id="rsvp">
+        <div class="rsvp-glow"></div>
         <div class="rsvp-inner">
             <div class="rsvp-header">
                 <span class="section-label reveal"><span>RSVP</span></span>
                 <h2 class="rsvp-headline reveal reveal-delay-1">Will You Be <em>Joining Us?</em></h2>
                 <p class="rsvp-sub reveal reveal-delay-2">
-                    Share your name and whether you can join — we’ll be glad to welcome you
+                    Let us know if you can attend so we can prepare to welcome you
                 </p>
             </div>
 
-            <form class="rsvp-form" id="rsvpForm" onsubmit="return false;">
-                <div class="form-group reveal">
-                    <label class="form-label" for="fullName">Your name</label>
-                    <input type="text" id="fullName" name="fullName" class="form-input" placeholder="Your name" required autocomplete="name">
-                </div>
+            <div class="rsvp-card reveal reveal-delay-2">
+                <form class="rsvp-form" id="rsvpForm" onsubmit="return false;">
+                    <div class="form-group">
+                        <label class="form-label" for="fullName">Full Name</label>
+                        <input type="text" id="fullName" name="fullName" class="form-input" placeholder="Enter your full name" required autocomplete="name">
+                    </div>
 
-                <div class="form-group reveal reveal-delay-1">
-                    <label class="form-label">Will you attend?</label>
-                    <div class="attendance-group">
-                        <div class="attendance-option">
-                            <input type="radio" name="attendance" id="att-yes" value="yes" required>
-                            <label for="att-yes" class="attendance-label att-yes">
-                                <span class="att-icon"><i class="fas fa-check"></i></span>
-                                <span class="att-text">Yes, I'll be there</span>
-                            </label>
-                        </div>
-                        <div class="attendance-option">
-                            <input type="radio" name="attendance" id="att-maybe" value="maybe">
-                            <label for="att-maybe" class="attendance-label att-maybe">
-                                <span class="att-icon"><i class="fas fa-question"></i></span>
-                                <span class="att-text">Maybe</span>
-                            </label>
-                        </div>
-                        <div class="attendance-option">
-                            <input type="radio" name="attendance" id="att-no" value="no">
-                            <label for="att-no" class="attendance-label att-no">
-                                <span class="att-icon"><i class="fas fa-times"></i></span>
-                                <span class="att-text">Can't make it</span>
-                            </label>
+                    <div class="form-group">
+                        <label class="form-label" for="contact">Phone or Email</label>
+                        <input type="text" id="contact" name="contact" class="form-input" placeholder="How can we reach you?">
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Will you attend?</label>
+                        <div class="attendance-group">
+                            <div class="attendance-option">
+                                <input type="radio" name="attendance" id="att-yes" value="yes" required>
+                                <label for="att-yes" class="attendance-label att-yes">
+                                    <span class="att-icon"><i class="fas fa-check"></i></span>
+                                    <span class="att-text">Yes, I’ll be there</span>
+                                </label>
+                            </div>
+                            <div class="attendance-option">
+                                <input type="radio" name="attendance" id="att-maybe" value="maybe">
+                                <label for="att-maybe" class="attendance-label att-maybe">
+                                    <span class="att-icon"><i class="fas fa-question"></i></span>
+                                    <span class="att-text">Maybe</span>
+                                </label>
+                            </div>
+                            <div class="attendance-option">
+                                <input type="radio" name="attendance" id="att-no" value="no">
+                                <label for="att-no" class="attendance-label att-no">
+                                    <span class="att-icon"><i class="fas fa-times"></i></span>
+                                    <span class="att-text">Can’t make it</span>
+                                </label>
+                            </div>
                         </div>
                     </div>
-                </div>
 
-                <div class="reveal reveal-delay-2">
+                    <div class="form-group">
+                        <label class="form-label" for="guests">Number of Guests</label>
+                        <input type="number" id="guests" name="guests" class="form-input" placeholder="Including yourself" min="1" max="20" value="1">
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="dietary">Dietary Requirements</label>
+                        <textarea id="dietary" name="dietary" class="form-input" placeholder="Any allergies or dietary needs?" rows="3"></textarea>
+                    </div>
+
                     <button type="submit" class="submit-btn" id="submitBtn">
                         <span>
                             <i class="fas fa-paper-plane"></i>
                             Confirm Attendance
                         </span>
                     </button>
-                </div>
-            </form>
+                </form>
+            </div>
         </div>
     </section>
 
