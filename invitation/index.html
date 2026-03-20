@@ -714,25 +714,28 @@
             overflow: hidden;
         }
 
+        /* Tibeb pattern as background */
         .know-eotc::before {
             content: '';
             position: absolute;
             inset: 0;
-            opacity: 0.04;
-            background-image: url('../assets/images/orthodox-cross-outline.svg');
-            background-size: 70px 80px;
-            background-repeat: repeat;
+            background: url('Ethiopian_Design.png') repeat center;
+            background-size: auto 100%;
+            opacity: 0.08;
         }
 
+        /* Dark overlay to keep text readable */
         .know-eotc::after {
             content: '';
             position: absolute;
-            bottom: -200px;
-            right: -150px;
-            width: 500px;
-            height: 500px;
-            border-radius: 50%;
-            background: radial-gradient(circle, rgba(226, 202, 24, 0.08), transparent 65%);
+            inset: 0;
+            background: linear-gradient(
+                180deg,
+                rgba(6, 74, 102, 0.92) 0%,
+                rgba(6, 74, 102, 0.85) 30%,
+                rgba(6, 74, 102, 0.85) 70%,
+                rgba(6, 74, 102, 0.92) 100%
+            );
             pointer-events: none;
         }
 
@@ -1778,9 +1781,6 @@
 
     <!-- ==================== KNOW THE EOTC ==================== -->
     <section class="know-eotc">
-        <div class="geo-pattern geo-pattern--fade-edges">
-            <div class="geo-dots"></div>
-        </div>
         <div class="know-eotc-inner">
             <span class="section-label reveal"><span>Discover</span></span>
             <h2 class="know-headline reveal reveal-delay-1">Know the <em>Ethiopian Orthodox</em> Church</h2>
