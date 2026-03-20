@@ -1305,7 +1305,7 @@
         .contact-inner {
             position: relative;
             z-index: 1;
-            max-width: 500px;
+            max-width: 600px;
             margin: 0 auto;
         }
 
@@ -1331,8 +1331,10 @@
             align-items: center;
             gap: 1rem;
             padding: 1.25rem 1.5rem;
-            background: rgba(255, 255, 255, 0.06);
-            border: 1px solid rgba(226, 202, 24, 0.1);
+            background: rgba(4, 47, 66, 0.85);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(226, 202, 24, 0.15);
             border-radius: 1rem;
             text-decoration: none;
             color: var(--white);
@@ -1374,9 +1376,10 @@
         }
 
         .contact-value {
-            font-size: 0.85rem;
+            font-size: 0.9rem;
             font-weight: 400;
-            word-break: break-all;
+            overflow-wrap: break-word;
+            word-break: break-word;
         }
 
         /* Website CTA Button */
@@ -1546,7 +1549,7 @@
 
             .contact-item {
                 flex: 1;
-                max-width: 320px;
+                max-width: 400px;
             }
         }
 
