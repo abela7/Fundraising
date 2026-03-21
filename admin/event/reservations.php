@@ -37,30 +37,64 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['youtube_url'])) {
     }
 }
 
+// Ensure site_settings table exists
+$db->query("CREATE TABLE IF NOT EXISTS site_settings (
+    setting_key VARCHAR(100) PRIMARY KEY,
+    setting_value TEXT NOT NULL,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
+// Ensure event_reservations table exists
+$db->query("CREATE TABLE IF NOT EXISTS event_reservations (
+    id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    full_name VARCHAR(255) NOT NULL,
+    email VARCHAR(255) DEFAULT NULL,
+    phone VARCHAR(50) DEFAULT NULL,
+    attendance ENUM('yes','maybe','no') NOT NULL DEFAULT 'yes',
+    guests TINYINT UNSIGNED NOT NULL DEFAULT 1,
+    dietary TEXT DEFAULT NULL,
+    whatsapp_sent TINYINT(1) NOT NULL DEFAULT 0,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_attendance (attendance),
+    INDEX idx_phone (phone),
+    INDEX idx_created (created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
 // Get current YouTube ID
 $currentYoutubeId = '-8W1zuAOZeA'; // default
-$ytResult = $db->query("SELECT setting_value FROM site_settings WHERE setting_key = 'invitation_youtube_id' LIMIT 1");
-if ($ytResult && $row = $ytResult->fetch_assoc()) {
-    $currentYoutubeId = $row['setting_value'];
-}
+try {
+    $ytResult = $db->query("SELECT setting_value FROM site_settings WHERE setting_key = 'invitation_youtube_id' LIMIT 1");
+    if ($ytResult && $row = $ytResult->fetch_assoc()) {
+        $currentYoutubeId = $row['setting_value'];
+    }
+} catch (Exception $e) {}
 
 // Get reservation stats
-$stats = $db->query("
-    SELECT
-        COUNT(*) as total,
-        SUM(attendance = 'yes') as confirmed,
-        SUM(attendance = 'maybe') as maybe,
-        SUM(attendance = 'no') as declined,
-        SUM(guests) as total_guests,
-        SUM(whatsapp_sent = 1) as whatsapp_sent
-    FROM event_reservations
-")->fetch_assoc();
+$stats = ['total' => 0, 'confirmed' => 0, 'maybe' => 0, 'declined' => 0, 'total_guests' => 0, 'whatsapp_sent' => 0];
+try {
+    $statsResult = $db->query("
+        SELECT
+            COUNT(*) as total,
+            SUM(attendance = 'yes') as confirmed,
+            SUM(attendance = 'maybe') as maybe,
+            SUM(attendance = 'no') as declined,
+            SUM(guests) as total_guests,
+            SUM(whatsapp_sent = 1) as whatsapp_sent
+        FROM event_reservations
+    ");
+    if ($statsResult) {
+        $stats = $statsResult->fetch_assoc();
+    }
+} catch (Exception $e) {}
 
 // Get all reservations
-$reservations = $db->query("
-    SELECT * FROM event_reservations
-    ORDER BY created_at DESC
-");
+$reservations = null;
+try {
+    $reservations = $db->query("
+        SELECT * FROM event_reservations
+        ORDER BY created_at DESC
+    ");
+} catch (Exception $e) {}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -243,7 +277,7 @@ $reservations = $db->query("
                     </tr>
                 </thead>
                 <tbody>
-                <?php $i = 0; while ($r = $reservations->fetch_assoc()): $i++; ?>
+                <?php $i = 0; while ($reservations && $r = $reservations->fetch_assoc()): $i++; ?>
                     <tr data-attendance="<?php echo $r['attendance']; ?>">
                         <td><?php echo $i; ?></td>
                         <td class="fw-semibold"><?php echo htmlspecialchars($r['full_name']); ?></td>
