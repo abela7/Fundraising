@@ -2120,7 +2120,47 @@
                     return;
                 }
                 if (!form.reportValidity()) return;
-                /* Wire POST to your API when ready */
+
+                const btn = document.getElementById('submitBtn');
+                const btnSpan = btn.querySelector('span');
+                const originalHTML = btnSpan.innerHTML;
+                btnSpan.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...';
+                btn.disabled = true;
+
+                const formData = {
+                    fullName: document.getElementById('fullName').value.trim(),
+                    email: (emailEl && emailEl.value.trim()) || '',
+                    phone: (phoneEl && phoneEl.value.trim()) || '',
+                    attendance: (form.querySelector('input[name="attendance"]:checked') || {}).value || 'yes',
+                    guests: document.getElementById('guests').value || '1',
+                    dietary: document.getElementById('dietary').value.trim()
+                };
+
+                fetch('../api/reservation.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(formData)
+                })
+                .then(r => r.json())
+                .then(data => {
+                    if (data.success) {
+                        form.innerHTML = '<div style="text-align:center;padding:2rem 0;">'
+                            + '<div style="font-size:3rem;margin-bottom:1rem;">✓</div>'
+                            + '<h3 style="color:var(--gold);font-family:var(--font-display);font-size:1.8rem;margin-bottom:0.75rem;">Thank You!</h3>'
+                            + '<p style="color:rgba(255,255,255,0.7);line-height:1.6;">' + data.message + '</p>'
+                            + (data.whatsapp_sent ? '<p style="color:rgba(255,255,255,0.45);font-size:0.85rem;margin-top:0.75rem;"><i class="fab fa-whatsapp"></i> Confirmation sent to your WhatsApp</p>' : '')
+                            + '</div>';
+                    } else {
+                        alert(data.error || 'Something went wrong. Please try again.');
+                        btnSpan.innerHTML = originalHTML;
+                        btn.disabled = false;
+                    }
+                })
+                .catch(() => {
+                    alert('Network error. Please check your connection and try again.');
+                    btnSpan.innerHTML = originalHTML;
+                    btn.disabled = false;
+                });
             });
         })();
 
