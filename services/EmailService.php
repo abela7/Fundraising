@@ -18,7 +18,7 @@ class EmailService
 
     public function __construct(
         string $host = 'mail.abuneteklehaymanot.org',
-        string $username = 'stakeholder@abuneteklehaymanot.org',
+        string $username = 'noreplay@abuneteklehaymanot.org',
         string $password = '',
         int $port = 465,
         string $fromName = 'LMKAT EOTC'
