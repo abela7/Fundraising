@@ -31,29 +31,7 @@
             box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
         }
 
-        /* Pattern Two background */
-        .card-bg {
-            position: absolute;
-            inset: 0;
-            background: url('Pattern_Two!.jpeg') repeat;
-            background-size: 150px auto;
-            opacity: 0.2;
-            z-index: 0;
-        }
-
-        .card-overlay {
-            position: absolute;
-            inset: 0;
-            background: linear-gradient(
-                180deg,
-                rgba(6, 74, 102, 0.90) 0%,
-                rgba(6, 74, 102, 0.78) 15%,
-                rgba(6, 74, 102, 0.72) 50%,
-                rgba(6, 74, 102, 0.78) 85%,
-                rgba(6, 74, 102, 0.90) 100%
-            );
-            z-index: 1;
-        }
+        /* Plain background — no pattern */
 
         /* Pattern Two thin borders */
         .tibeb-top,
@@ -231,8 +209,6 @@
 <body>
 
     <div class="card">
-        <div class="card-bg"></div>
-        <div class="card-overlay"></div>
         <div class="tibeb-top"></div>
         <div class="tibeb-bottom"></div>
 
