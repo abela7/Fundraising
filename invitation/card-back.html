@@ -29,23 +29,31 @@
             height: 105mm;
             position: relative;
             overflow: hidden;
-            background: #faf8f2;
+            background: #0a1a2a;
             box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-            display: flex;
-            flex-direction: column;
         }
 
-        /* Same ambient flag colour glows */
-        .card::before {
+        /* Church photo as full background with dark overlay */
+        .card-bg {
+            position: absolute;
+            inset: 0;
+            z-index: 0;
+        }
+
+        .card-bg img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            opacity: 0.25;
+        }
+
+        /* Dark gradient overlay for readability */
+        .card-bg::after {
             content: '';
             position: absolute;
             inset: 0;
             background:
-                radial-gradient(ellipse 70% 55% at 5% 10%, rgba(0, 128, 55, 0.25), transparent),
-                radial-gradient(ellipse 60% 45% at 50% 40%, rgba(252, 209, 22, 0.18), transparent),
-                radial-gradient(ellipse 70% 55% at 95% 90%, rgba(186, 34, 34, 0.25), transparent);
-            z-index: 0;
-            pointer-events: none;
+                linear-gradient(135deg, rgba(10, 26, 42, 0.92) 0%, rgba(10, 50, 70, 0.85) 50%, rgba(10, 26, 42, 0.92) 100%);
         }
 
         /* Tibeb borders */
@@ -54,7 +62,7 @@
             position: absolute;
             left: 0;
             right: 0;
-            height: 12px;
+            height: 10px;
             background: url('Pattern_Two!.jpeg') repeat-x center;
             background-size: auto 100%;
             z-index: 10;
@@ -63,158 +71,228 @@
         .tibeb-top { top: 0; }
         .tibeb-bottom { bottom: 0; }
 
+        /* Main layout: two columns */
         .card-content {
             position: relative;
             z-index: 5;
+            display: flex;
+            height: 100%;
+            padding: 16px 14px;
+        }
+
+        /* LEFT: Photo collage column */
+        .photo-col {
+            width: 42%;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            padding-right: 12px;
+        }
+
+        .photo-frame {
+            position: relative;
+            border-radius: 6px;
+            overflow: hidden;
+            border: 1.5px solid rgba(212, 175, 55, 0.35);
+        }
+
+        .photo-frame img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+
+        .photo-main {
+            flex: 1.1;
+        }
+
+        .photo-row {
+            flex: 1;
+            display: flex;
+            gap: 5px;
+        }
+
+        .photo-row .photo-frame {
+            flex: 1;
+        }
+
+        /* Gold corner accents on main photo */
+        .photo-main::before,
+        .photo-main::after {
+            content: '';
+            position: absolute;
+            width: 14px;
+            height: 14px;
+            border-color: #D4AF37;
+            border-style: solid;
+            z-index: 2;
+        }
+
+        .photo-main::before {
+            top: 4px;
+            left: 4px;
+            border-width: 1.5px 0 0 1.5px;
+        }
+
+        .photo-main::after {
+            bottom: 4px;
+            right: 4px;
+            border-width: 0 1.5px 1.5px 0;
+        }
+
+        /* RIGHT: Info column */
+        .info-col {
             flex: 1;
             display: flex;
             flex-direction: column;
             justify-content: center;
             align-items: center;
-            padding: 28px 24px;
             text-align: center;
+            padding-left: 4px;
         }
 
-        /* Contact section */
+        /* EOTC Icon */
+        .eotc-icon {
+            width: 48px;
+            height: 48px;
+            margin-bottom: 8px;
+            border-radius: 50%;
+            overflow: hidden;
+            border: 1.5px solid rgba(212, 175, 55, 0.4);
+            background: rgba(255, 255, 255, 0.95);
+            padding: 3px;
+        }
+
+        .eotc-icon img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
+        /* Contact heading */
         .back-label {
             font-family: 'Outfit', sans-serif;
-            font-size: 0.55rem;
+            font-size: 0.42rem;
             font-weight: 600;
             text-transform: uppercase;
-            letter-spacing: 0.18em;
-            color: rgba(0, 0, 0, 0.4);
-            margin-bottom: 10px;
+            letter-spacing: 0.2em;
+            color: #D4AF37;
+            margin-bottom: 8px;
         }
 
-        .back-heading {
-            font-family: 'Outfit', sans-serif;
-            font-size: 0.85rem;
-            font-weight: 400;
-            color: #000;
-            margin-bottom: 14px;
-            line-height: 1.5;
-        }
-
-        .contact-row {
+        /* Contact items stacked */
+        .contact-stack {
             display: flex;
-            justify-content: center;
-            gap: 28px;
-            margin-bottom: 16px;
+            flex-direction: column;
+            gap: 6px;
+            margin-bottom: 10px;
+            width: 100%;
         }
 
         .contact-item {
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 7px;
+            justify-content: center;
         }
 
         .contact-icon {
-            width: 26px;
-            height: 26px;
+            width: 20px;
+            height: 20px;
             background: #D4AF37;
-            border-radius: 5px;
+            border-radius: 4px;
             display: flex;
             align-items: center;
             justify-content: center;
-            color: #000;
-            font-size: 0.6rem;
+            color: #0a1a2a;
+            font-size: 0.45rem;
+            flex-shrink: 0;
         }
 
-        .contact-detail {
+        .contact-text {
+            font-family: 'Outfit', sans-serif;
+            font-size: 0.5rem;
+            font-weight: 500;
+            color: rgba(255, 255, 255, 0.9);
             text-align: left;
         }
 
-        .contact-detail-label {
-            font-family: 'Outfit', sans-serif;
-            font-size: 0.45rem;
+        .contact-text small {
+            display: block;
+            font-size: 0.36rem;
             font-weight: 600;
             text-transform: uppercase;
-            letter-spacing: 0.08em;
-            color: rgba(0, 0, 0, 0.5);
-            line-height: 1;
-            margin-bottom: 2px;
-        }
-
-        .contact-detail-value {
-            font-family: 'Outfit', sans-serif;
-            font-size: 0.6rem;
-            font-weight: 500;
-            color: #000;
-            line-height: 1.2;
+            letter-spacing: 0.06em;
+            color: rgba(255, 255, 255, 0.45);
+            margin-bottom: 1px;
         }
 
         /* Divider */
-        .back-divider {
-            width: 60%;
+        .gold-line {
+            width: 50px;
             height: 1px;
-            background: rgba(0, 0, 0, 0.12);
-            margin: 12px auto;
+            background: linear-gradient(90deg, transparent, #D4AF37, transparent);
+            margin: 6px auto;
         }
 
-        /* QR + Signoff row */
-        .bottom-row {
-            display: flex;
-            align-items: center;
-            gap: 24px;
-        }
-
+        /* QR code */
         .qr-block {
             display: flex;
             flex-direction: column;
             align-items: center;
             gap: 3px;
+            margin-bottom: 8px;
         }
 
         .qr-block img {
-            width: 56px;
-            height: 56px;
+            width: 50px;
+            height: 50px;
             display: block;
-            border: 1.5px solid rgba(0, 0, 0, 0.12);
-            border-radius: 3px;
+            border: 1.5px solid rgba(212, 175, 55, 0.3);
+            border-radius: 4px;
+            background: #fff;
+            padding: 2px;
         }
 
         .qr-label {
             font-family: 'Outfit', sans-serif;
-            font-size: 0.35rem;
+            font-size: 0.32rem;
             font-weight: 600;
             text-transform: uppercase;
-            letter-spacing: 0.1em;
-            color: rgba(0, 0, 0, 0.45);
+            letter-spacing: 0.12em;
+            color: rgba(212, 175, 55, 0.6);
         }
 
-        .signoff {
-            text-align: left;
-        }
-
+        /* Signoff */
         .signoff-text {
             font-family: 'Outfit', sans-serif;
-            font-size: 0.65rem;
+            font-size: 0.5rem;
             font-style: italic;
-            color: #000;
-            margin-bottom: 2px;
+            color: rgba(255, 255, 255, 0.75);
+            margin-bottom: 1px;
         }
 
         .signoff-org {
             font-family: 'Outfit', sans-serif;
-            font-size: 0.7rem;
+            font-size: 0.55rem;
             font-weight: 700;
-            color: #000;
+            color: #D4AF37;
         }
 
-        /* Website link */
+        /* Website */
         .website-link {
-            margin-top: 10px;
+            margin-top: 6px;
             font-family: 'Outfit', sans-serif;
-            font-size: 0.45rem;
+            font-size: 0.36rem;
             font-weight: 500;
-            color: rgba(0, 0, 0, 0.5);
-            letter-spacing: 0.05em;
+            color: rgba(255, 255, 255, 0.35);
         }
 
         .website-link a {
-            color: rgba(0, 0, 0, 0.6);
+            color: rgba(255, 255, 255, 0.5);
             text-decoration: none;
-            border-bottom: 1px solid rgba(0, 0, 0, 0.15);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.15);
         }
 
         @media print {
@@ -242,47 +320,71 @@
 <body>
 
     <div class="card">
+        <!-- Church as subtle background -->
+        <div class="card-bg">
+            <img src="../assets/images/new-church.png" alt="">
+        </div>
+
         <div class="tibeb-top"></div>
         <div class="tibeb-bottom"></div>
 
         <div class="card-content">
 
-            <div class="back-label">For Further Information</div>
-
-            <div class="back-heading">Please contact us</div>
-
-            <div class="contact-row">
-                <div class="contact-item">
-                    <div class="contact-icon"><i class="fas fa-phone"></i></div>
-                    <div class="contact-detail">
-                        <div class="contact-detail-label">Phone</div>
-                        <div class="contact-detail-value">07951 403936</div>
-                    </div>
+            <!-- LEFT: Photo collage -->
+            <div class="photo-col">
+                <div class="photo-frame photo-main">
+                    <img src="EOTC_Members.jpg" alt="Church congregation">
                 </div>
-                <div class="contact-item">
-                    <div class="contact-icon"><i class="fas fa-envelope"></i></div>
-                    <div class="contact-detail">
-                        <div class="contact-detail-label">Email</div>
-                        <div class="contact-detail-value">stakeholder@abuneteklehaymanot.org</div>
+                <div class="photo-row">
+                    <div class="photo-frame">
+                        <img src="EOTC_Members_two.jpg" alt="Priests performing hymns">
+                    </div>
+                    <div class="photo-frame">
+                        <img src="../assets/images/new-church.png" alt="St Gabriel's Church">
                     </div>
                 </div>
             </div>
 
-            <div class="back-divider"></div>
+            <!-- RIGHT: Contact info + QR -->
+            <div class="info-col">
 
-            <div class="bottom-row">
+                <div class="eotc-icon">
+                    <img src="EOTC_Icon.png" alt="EOTC">
+                </div>
+
+                <div class="back-label">Get In Touch</div>
+
+                <div class="contact-stack">
+                    <div class="contact-item">
+                        <div class="contact-icon"><i class="fas fa-phone"></i></div>
+                        <div class="contact-text">
+                            <small>Phone</small>
+                            07951 403936
+                        </div>
+                    </div>
+                    <div class="contact-item">
+                        <div class="contact-icon"><i class="fas fa-envelope"></i></div>
+                        <div class="contact-text">
+                            <small>Email</small>
+                            stakeholder@<br>abuneteklehaymanot.org
+                        </div>
+                    </div>
+                </div>
+
+                <div class="gold-line"></div>
+
                 <div class="qr-block">
                     <img src="RSRV .jpeg" alt="RSVP QR Code">
                     <span class="qr-label">Scan to RSVP</span>
                 </div>
-                <div class="signoff">
-                    <div class="signoff-text">Looking forward to welcoming you,</div>
-                    <div class="signoff-org">LMKAT EOTC.</div>
-                </div>
-            </div>
 
-            <div class="website-link">
-                <i class="fas fa-globe"></i> <a href="https://abuneteklehaymanot.org">abuneteklehaymanot.org</a>
+                <div class="signoff-text">Looking forward to welcoming you,</div>
+                <div class="signoff-org">LMKAT EOTC.</div>
+
+                <div class="website-link">
+                    <i class="fas fa-globe"></i> <a href="https://abuneteklehaymanot.org">abuneteklehaymanot.org</a>
+                </div>
+
             </div>
 
         </div>
