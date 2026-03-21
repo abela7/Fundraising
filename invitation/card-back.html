@@ -89,33 +89,8 @@
             height: 105mm;
             position: relative;
             overflow: hidden;
-            background: #064a66;
+            background: #faf8f2;
             box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-        }
-
-        /* Tibeb pattern background */
-        .card-bg {
-            position: absolute;
-            inset: 0;
-            background: url('Ethiopian_Design.png') repeat;
-            background-size: 200px auto;
-            opacity: 0.25;
-            z-index: 0;
-        }
-
-        /* Blue overlay */
-        .card-overlay {
-            position: absolute;
-            inset: 0;
-            background: linear-gradient(
-                180deg,
-                rgba(6, 74, 102, 0.90) 0%,
-                rgba(6, 74, 102, 0.78) 15%,
-                rgba(6, 74, 102, 0.72) 50%,
-                rgba(6, 74, 102, 0.78) 85%,
-                rgba(6, 74, 102, 0.90) 100%
-            );
-            z-index: 0;
         }
 
         /* Background: church on left, priests on right — blended */
@@ -124,17 +99,17 @@
             position: absolute;
             top: 0;
             bottom: 0;
-            z-index: 1;
+            z-index: 0;
         }
 
         .bg-church {
             left: 0;
-            width: 55%;
+            width: 60%;
         }
 
         .bg-priests {
             right: 0;
-            width: 55%;
+            width: 60%;
         }
 
         .bg-church img,
@@ -147,26 +122,15 @@
         .bg-church img {
             opacity: 0.12;
             object-position: center;
+            mask-image: linear-gradient(to right, black 30%, transparent 100%);
+            -webkit-mask-image: linear-gradient(to right, black 30%, transparent 100%);
         }
 
         .bg-priests img {
             opacity: 0.15;
             object-position: center 30%;
-        }
-
-        /* Fade edges so they blend into each other seamlessly */
-        .bg-church::after {
-            content: '';
-            position: absolute;
-            inset: 0;
-            background: linear-gradient(to right, transparent 20%, rgba(6, 74, 102, 0.6) 60%, rgba(6, 74, 102, 1) 100%);
-        }
-
-        .bg-priests::after {
-            content: '';
-            position: absolute;
-            inset: 0;
-            background: linear-gradient(to left, transparent 20%, rgba(6, 74, 102, 0.6) 60%, rgba(6, 74, 102, 1) 100%);
+            mask-image: linear-gradient(to left, black 30%, transparent 100%);
+            -webkit-mask-image: linear-gradient(to left, black 30%, transparent 100%);
         }
 
         /* Same ambient flag colour glows as front */
@@ -230,6 +194,7 @@
             height: 80px;
             min-width: 80px;
             min-height: 80px;
+            margin-top: 8px;
             margin-bottom: 10px;
             border-radius: 50%;
             overflow: hidden;
@@ -253,7 +218,7 @@
             font-weight: 700;
             text-transform: uppercase;
             letter-spacing: 0.22em;
-            color: rgba(255, 255, 255, 0.7);
+            color: rgba(0, 0, 0, 0.55);
             margin-bottom: 12px;
             white-space: nowrap;
         }
@@ -303,7 +268,7 @@
             font-family: 'Outfit', sans-serif;
             font-size: 0.7rem;
             font-weight: 500;
-            color: #fff;
+            color: #000;
             text-align: left;
             line-height: 1.3;
             white-space: nowrap;
@@ -315,7 +280,7 @@
             font-weight: 600;
             text-transform: uppercase;
             letter-spacing: 0.08em;
-            color: rgba(255, 255, 255, 0.5);
+            color: rgba(0, 0, 0, 0.4);
             margin-bottom: 1px;
         }
 
@@ -323,8 +288,8 @@
         .thin-line {
             width: 70px;
             height: 1px;
-            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.25), transparent);
-            margin: 10px auto;
+            background: linear-gradient(90deg, transparent, rgba(0,0,0,0.18), transparent);
+            margin: 5px auto;
         }
 
         /* QR section */
@@ -332,15 +297,15 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            margin-bottom: 10px;
+            margin-bottom: 4px;
         }
 
         .qr-intro {
             font-family: 'Outfit', sans-serif;
             font-size: 0.55rem;
             font-weight: 400;
-            color: rgba(255, 255, 255, 0.65);
-            margin-bottom: 7px;
+            color: rgba(0, 0, 0, 0.55);
+            margin-bottom: 4px;
             line-height: 1.5;
             max-width: none;
             white-space: nowrap;
@@ -350,7 +315,7 @@
             width: 68px;
             height: 68px;
             display: block;
-            border: 1.5px solid rgba(255, 255, 255, 0.2);
+            border: 1.5px solid rgba(0, 0, 0, 0.1);
             border-radius: 5px;
             padding: 3px;
             background: #fff;
@@ -367,7 +332,7 @@
             font-size: 0.8rem;
             font-style: italic;
             font-weight: 400;
-            color: rgba(255, 255, 255, 0.7);
+            color: rgba(0, 0, 0, 0.6);
             margin-bottom: 3px;
             white-space: nowrap;
         }
@@ -376,7 +341,7 @@
             font-family: 'Outfit', sans-serif;
             font-size: 0.85rem;
             font-weight: 700;
-            color: #fff;
+            color: #000;
             letter-spacing: 0.06em;
         }
 
@@ -390,7 +355,7 @@
             font-family: 'Outfit', sans-serif;
             font-size: 0.45rem;
             font-weight: 500;
-            color: rgba(255, 255, 255, 0.45);
+            color: rgba(0, 0, 0, 0.35);
             white-space: nowrap;
         }
 
