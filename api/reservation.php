@@ -73,11 +73,13 @@ try {
         try {
             $whatsapp = UltraMsgService::fromDatabase($db);
             if ($whatsapp) {
+                $guestLine = $guests > 1 ? "👥 Guests: {$guests} (including yourself)\n" : "";
                 $message = "Dear {$fullName},\n\n"
                     . "Thank you for reserving your spot for our Community Engagement event! We're delighted to have you.\n\n"
                     . "📅 Sunday, 29 March 2026\n"
                     . "🕑 2:00 PM\n"
-                    . "📍 St Gabriel's Church, 16 Yates St, Liverpool L8 6RD\n\n"
+                    . "📍 St Gabriel's Church, 16 Yates St, Liverpool L8 6RD\n"
+                    . $guestLine . "\n"
                     . "We look forward to welcoming you with traditional coffee, authentic cuisine, and more.\n\n"
                     . "God bless you! 🙏\n\n"
                     . "- Liverpool Mekane Kiddusan Abune Teklehaymanot EOTC";
@@ -117,7 +119,7 @@ try {
         <p style="font-size:15px;color:#333;line-height:1.8;margin:0 0 25px;">
             Date: Sunday, 29 March 2026<br>
             Time: 2:00 PM<br>
-            Venue: St Gabriel\'s Church, 16 Yates St, Liverpool L8 6RD
+            Venue: St Gabriel\'s Church, 16 Yates St, Liverpool L8 6RD' . ($guests > 1 ? '<br>Guests: ' . (int)$guests . ' (including yourself)' : '') . '
         </p>
         <p style="font-size:15px;color:#333;line-height:1.6;margin:0 0 25px;">We look forward to welcoming you with traditional coffee, authentic cuisine, and more.</p>
     </td></tr>
@@ -141,6 +143,7 @@ try {
         'success' => true,
         'message' => 'Thank you for your reservation! We look forward to welcoming you.',
         'reservation_id' => $reservationId,
+        'guests' => $guests,
         'whatsapp_sent' => $whatsappSent,
         'email_sent' => $emailSent
     ]);
