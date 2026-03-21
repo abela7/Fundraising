@@ -16,7 +16,7 @@
         @font-face {
             font-family: 'Cormorant Garamond';
             font-style: italic;
-            font-weight: 400;
+            font-weight: 500;
             font-display: swap;
             src: url('https://fonts.gstatic.com/s/cormorantgaramond/v21/co3smX5slCNuHLi8bLeY9MK7whWMhyjYrGFEsdtdc62E6zd58jDOjw.ttf') format('truetype');
         }
@@ -32,7 +32,7 @@
         @font-face {
             font-family: 'Cormorant Garamond';
             font-style: normal;
-            font-weight: 400;
+            font-weight: 500;
             font-display: swap;
             src: url('https://fonts.gstatic.com/s/cormorantgaramond/v21/co3umX5slCNuHLi8bLeY9MK7whWMhyjypVO7abI26QOD_v86GnM.ttf') format('truetype');
         }
@@ -72,7 +72,7 @@
         @font-face {
             font-family: 'Outfit';
             font-style: normal;
-            font-weight: 400;
+            font-weight: 500;
             font-display: swap;
             src: url('https://fonts.gstatic.com/s/outfit/v15/QGYyz_MVcBeNP4NjuGObqx1XmO1I4TC1C4E.ttf') format('truetype');
         }
@@ -110,6 +110,7 @@
         body {
             background: #d0d0d0;
             display: flex;
+            flex-direction: column;
             justify-content: center;
             align-items: center;
             min-height: 100vh;
@@ -144,7 +145,7 @@
             right: 0;
             width: 60%;
             object-position: 85% 10%;
-            opacity: 0.08;
+            opacity: 0.15;
             mask-image: linear-gradient(to right, transparent, black 30%);
             -webkit-mask-image: linear-gradient(to right, transparent, black 30%);
         }
@@ -154,7 +155,7 @@
             left: 0;
             width: 50%;
             object-position: center 10%;
-            opacity: 0.11;
+            opacity: 0.18;
             mask-image: linear-gradient(to left, transparent, black 30%);
             -webkit-mask-image: linear-gradient(to left, transparent, black 30%);
         }
@@ -164,7 +165,7 @@
             content: '';
             position: absolute;
             inset: 0;
-            background: radial-gradient(ellipse at center, transparent 10%, rgba(250, 248, 242, 0.5) 60%, rgba(250, 248, 242, 0.85) 100%);
+            background: radial-gradient(ellipse at center, transparent 20%, rgba(250, 248, 242, 0.35) 65%, rgba(250, 248, 242, 0.7) 100%);
         }
 
         /* Ambient flag colour glows on dark background */
@@ -224,7 +225,7 @@
         .card-org {
             font-family: 'Outfit', sans-serif;
             font-size: 0.78rem;
-            font-weight: 400;
+            font-weight: 500;
             color: #000000;
             line-height: 1.45;
         }
@@ -240,7 +241,7 @@
             text-align: center;
             font-family: 'Outfit', sans-serif;
             font-size: 0.68rem;
-            font-weight: 400;
+            font-weight: 500;
             text-transform: uppercase;
             letter-spacing: 0.2em;
             color: #000000;
@@ -251,7 +252,7 @@
         .card-dear {
             font-family: 'Outfit', sans-serif;
             font-size: 0.82rem;
-            font-weight: 400;
+            font-weight: 500;
             font-style: italic;
             color: #000000;
             margin-bottom: 0.7rem;
@@ -271,9 +272,9 @@
 
         .card-body {
             font-family: 'Outfit', sans-serif;
-            font-size: 0.72rem;
-            font-weight: 400;
-            line-height: 2.2;
+            font-size: 0.78rem;
+            font-weight: 500;
+            line-height: 1.65;
             color: #000000;
             text-align: justify;
         }
@@ -288,13 +289,13 @@
 
         .card-body strong {
             color: #000000;
-            font-weight: 400;
+            font-weight: 500;
         }
 
         .card-body em {
             color: #000000;
             font-style: normal;
-            font-weight: 400;
+            font-weight: 500;
         }
 
         .card-event {
@@ -318,7 +319,7 @@
 
         .card-event-item strong {
             color: #000000;
-            font-weight: 400;
+            font-weight: 500;
         }
 
         .card-contact {
@@ -332,7 +333,7 @@
 
         .card-contact strong {
             color: #000000;
-            font-weight: 400;
+            font-weight: 500;
         }
 
         .card-signoff {
@@ -351,7 +352,7 @@
         .card-signoff-org {
             font-family: 'Outfit', sans-serif;
             font-size: 0.78rem;
-            font-weight: 400;
+            font-weight: 500;
             color: #000000;
         }
 
@@ -408,6 +409,39 @@
             box-shadow: 0 6px 20px rgba(10, 98, 134, 0.4);
         }
 
+        .card-nav {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin: 0 auto 20px;
+            flex-wrap: wrap;
+        }
+
+        .card-nav a {
+            font-family: 'Outfit', sans-serif;
+            font-size: 13px;
+            font-weight: 500;
+            text-decoration: none;
+            padding: 8px 18px;
+            border-radius: 6px;
+            color: #064a66;
+            background: #fff;
+            border: 1px solid #ddd;
+            transition: all 0.2s;
+        }
+
+        .card-nav a:hover {
+            background: #064a66;
+            color: #fff;
+            border-color: #064a66;
+        }
+
+        .card-nav a.active {
+            background: #064a66;
+            color: #fff;
+            border-color: #064a66;
+        }
+
         @media print {
             .download-btn { display: none; }
             body {
@@ -432,6 +466,15 @@
     </style>
 </head>
 <body>
+
+    <div class="card-nav">
+        <a href="card-front-v2.html" class="active">Front Light</a>
+        <a href="card-back.html">Back Light</a>
+        <a href="card-back-v2.html">Back V2</a>
+        <a href="card-front-v2-dark.html">Front Dark</a>
+        <a href="card-back-dark.html">Back Dark</a>
+        <a href="card-back-v2-dark.html">Back V2 Dark</a>
+    </div>
 
     <div class="card">
         <div class="bg-photos">

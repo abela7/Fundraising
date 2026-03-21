@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Invitation Card — Back (Dark)</title>
+    <style>
+        @font-face {
+            font-family: 'Cormorant Garamond';
+            font-style: italic;
+            font-weight: 500;
+            font-display: swap;
+            src: url('https://fonts.gstatic.com/s/cormorantgaramond/v21/co3smX5slCNuHLi8bLeY9MK7whWMhyjYrGFEsdtdc62E6zd58jDOjw.ttf') format('truetype');
+        }
+
+        @font-face {
+            font-family: 'Cormorant Garamond';
+            font-style: normal;
+            font-weight: 500;
+            font-display: swap;
+            src: url('https://fonts.gstatic.com/s/cormorantgaramond/v21/co3umX5slCNuHLi8bLeY9MK7whWMhyjypVO7abI26QOD_v86GnM.ttf') format('truetype');
+        }
+
+        @font-face {
+            font-family: 'Cormorant Garamond';
+            font-style: normal;
+            font-weight: 500;
+            font-display: swap;
+            src: url('https://fonts.gstatic.com/s/cormorantgaramond/v21/co3umX5slCNuHLi8bLeY9MK7whWMhyjypVO7abI26QOD_iE9GnM.ttf') format('truetype');
+        }
+
+        @font-face {
+            font-family: 'Outfit';
+            font-style: normal;
+            font-weight: 300;
+            font-display: swap;
+            src: url('https://fonts.gstatic.com/s/outfit/v15/QGYyz_MVcBeNP4NjuGObqx1XmO1I4W61C4E.ttf') format('truetype');
+        }
+
+        @font-face {
+            font-family: 'Outfit';
+            font-style: normal;
+            font-weight: 500;
+            font-display: swap;
+            src: url('https://fonts.gstatic.com/s/outfit/v15/QGYyz_MVcBeNP4NjuGObqx1XmO1I4TC1C4E.ttf') format('truetype');
+        }
+
+        @font-face {
+            font-family: 'Outfit';
+            font-style: normal;
+            font-weight: 500;
+            font-display: swap;
+            src: url('https://fonts.gstatic.com/s/outfit/v15/QGYyz_MVcBeNP4NjuGObqx1XmO1I4QK1C4E.ttf') format('truetype');
+        }
+
+        @font-face {
+            font-family: 'Outfit';
+            font-style: normal;
+            font-weight: 500;
+            font-display: swap;
+            src: url('https://fonts.gstatic.com/s/outfit/v15/QGYyz_MVcBeNP4NjuGObqx1XmO1I4e6yC4E.ttf') format('truetype');
+        }
+
+        @font-face {
+            font-family: 'Outfit';
+            font-style: normal;
+            font-weight: 500;
+            font-display: swap;
+            src: url('https://fonts.gstatic.com/s/outfit/v15/QGYyz_MVcBeNP4NjuGObqx1XmO1I4deyC4E.ttf') format('truetype');
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #d0d0d0;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 2rem;
+        }
+
+        .card {
+            width: 148mm;
+            height: 105mm;
+            position: relative;
+            overflow: hidden;
+            background: #064a66;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+
+        /* Blue overlay */
+        .card-overlay {
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(
+                180deg,
+                rgba(6, 74, 102, 0.90) 0%,
+                rgba(6, 74, 102, 0.78) 15%,
+                rgba(6, 74, 102, 0.72) 50%,
+                rgba(6, 74, 102, 0.78) 85%,
+                rgba(6, 74, 102, 0.90) 100%
+            );
+            z-index: 0;
+        }
+
+        /* Background: church on left, priests on right — blended */
+        .bg-church,
+        .bg-priests {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            z-index: 1;
+        }
+
+        .bg-church {
+            left: 0;
+            width: 60%;
+        }
+
+        .bg-priests {
+            right: 0;
+            width: 60%;
+        }
+
+        .bg-church img,
+        .bg-priests img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .bg-church img {
+            opacity: 0.12;
+            object-position: center;
+            mask-image: linear-gradient(to right, black 30%, transparent 100%);
+            -webkit-mask-image: linear-gradient(to right, black 30%, transparent 100%);
+        }
+
+        .bg-priests img {
+            opacity: 0.15;
+            object-position: center 30%;
+            mask-image: linear-gradient(to left, black 30%, transparent 100%);
+            -webkit-mask-image: linear-gradient(to left, black 30%, transparent 100%);
+        }
+
+        /* Same ambient flag colour glows as front */
+        .card::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background:
+                radial-gradient(ellipse 70% 55% at 5% 10%, rgba(0, 128, 55, 0.25), transparent),
+                radial-gradient(ellipse 60% 45% at 50% 40%, rgba(252, 209, 22, 0.18), transparent),
+                radial-gradient(ellipse 70% 55% at 95% 90%, rgba(186, 34, 34, 0.25), transparent);
+            z-index: 1;
+            pointer-events: none;
+        }
+
+        /* Tibeb borders — full frame */
+        .tibeb-top,
+        .tibeb-bottom {
+            position: absolute;
+            left: 0;
+            right: 0;
+            height: 12px;
+            background: url('Pattern_Two!.jpeg') repeat-x center;
+            background-size: auto 100%;
+            z-index: 10;
+        }
+
+        .tibeb-top { top: 0; }
+        .tibeb-bottom { bottom: 0; }
+
+        .tibeb-left,
+        .tibeb-right {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 12px;
+            background: url('Pattern_Two! - Vertical.jpeg') repeat-y center;
+            background-size: 100% auto;
+            z-index: 10;
+        }
+
+        .tibeb-left { left: 0; }
+        .tibeb-right { right: 0; }
+
+        /* Center-aligned content */
+        .card-content {
+            position: relative;
+            z-index: 5;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            padding: 20px 24px;
+        }
+
+        /* EOTC Icon — large and prominent */
+        .eotc-icon {
+            width: 80px;
+            height: 80px;
+            min-width: 80px;
+            min-height: 80px;
+            margin-top: 8px;
+            margin-bottom: 10px;
+            border-radius: 50%;
+            overflow: hidden;
+            border: 2.5px solid rgba(212, 175, 55, 0.5);
+            background: rgba(255, 255, 255, 0.92);
+            padding: 4px;
+            box-shadow: 0 3px 14px rgba(0, 0, 0, 0.1);
+            aspect-ratio: 1 / 1;
+            flex-shrink: 0;
+        }
+
+        .eotc-icon img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
+        .back-label {
+            font-family: 'Outfit', sans-serif;
+            font-size: 0.6rem;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.22em;
+            color: rgba(255, 255, 255, 0.7);
+            margin-bottom: 12px;
+            white-space: nowrap;
+        }
+
+        /* Contact wrapper — centers the block, content left-aligned inside */
+        .contact-wrapper {
+            display: flex;
+            justify-content: center;
+            width: 100%;
+            margin-bottom: 10px;
+        }
+
+        .contact-stack {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 8px;
+        }
+
+        .contact-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            width: 100%;
+        }
+
+        .contact-icon {
+            width: 30px;
+            height: 30px;
+            background: #D4AF37;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+            font-size: 0.6rem;
+            flex-shrink: 0;
+        }
+
+        .contact-icon svg {
+            width: 14px;
+            height: 14px;
+            fill: #fff;
+        }
+
+        .contact-text {
+            font-family: 'Outfit', sans-serif;
+            font-size: 0.7rem;
+            font-weight: 500;
+            color: #fff;
+            text-align: left;
+            line-height: 1.3;
+            white-space: nowrap;
+        }
+
+        .contact-text small {
+            display: block;
+            font-size: 0.42rem;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: rgba(255, 255, 255, 0.65);
+            margin-bottom: 1px;
+        }
+
+        /* Thin divider */
+        .thin-line {
+            width: 70px;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.25), transparent);
+            margin: 5px auto;
+        }
+
+        /* QR section */
+        .qr-section {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-bottom: 4px;
+        }
+
+        .qr-intro {
+            font-family: 'Outfit', sans-serif;
+            font-size: 0.55rem;
+            font-weight: 500;
+            color: rgba(255, 255, 255, 0.7);
+            margin-bottom: 4px;
+            line-height: 1.5;
+            max-width: none;
+            white-space: nowrap;
+        }
+
+        .qr-section img {
+            width: 68px;
+            height: 68px;
+            display: block;
+            border: 1.5px solid rgba(255, 255, 255, 0.2);
+            border-radius: 5px;
+            padding: 3px;
+            background: #fff;
+        }
+
+        /* Signoff */
+        .signoff {
+            text-align: center;
+            margin-top: 4px;
+        }
+
+        .signoff-text {
+            font-family: 'Cormorant Garamond', serif;
+            font-size: 0.8rem;
+            font-style: italic;
+            font-weight: 500;
+            color: rgba(255, 255, 255, 0.75);
+            margin-bottom: 3px;
+            white-space: nowrap;
+        }
+
+        .signoff-org {
+            font-family: 'Outfit', sans-serif;
+            font-size: 0.85rem;
+            font-weight: 500;
+            color: #fff;
+            letter-spacing: 0.06em;
+        }
+
+        /* Website */
+        .website-link {
+            margin-top: 7px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+            font-family: 'Outfit', sans-serif;
+            font-size: 0.45rem;
+            font-weight: 500;
+            color: rgba(255, 255, 255, 0.6);
+            white-space: nowrap;
+        }
+
+        .website-icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 13px;
+            height: 13px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.1);
+            color: rgba(255, 255, 255, 0.7);
+            flex-shrink: 0;
+        }
+
+        .website-icon svg {
+            width: 9px;
+            height: 9px;
+            stroke: currentColor;
+            fill: none;
+            stroke-width: 1.7;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+
+        .website-link a {
+            display: inline-block;
+            line-height: 1;
+            color: rgba(255, 255, 255, 0.7);
+            text-decoration: none;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .download-btn {
+            display: block;
+            margin: 20px auto;
+            padding: 14px 36px;
+            background: linear-gradient(135deg, #0a6286, #0d7da8);
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            font-family: 'Cormorant Garamond', serif;
+            font-size: 16px;
+            font-weight: 500;
+            letter-spacing: 1px;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .download-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(10, 98, 134, 0.4);
+        }
+
+        .card-nav {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin: 0 auto 20px;
+            flex-wrap: wrap;
+        }
+
+        .card-nav a {
+            font-family: 'Outfit', sans-serif;
+            font-size: 13px;
+            font-weight: 500;
+            text-decoration: none;
+            padding: 8px 18px;
+            border-radius: 6px;
+            color: #064a66;
+            background: #fff;
+            border: 1px solid #ddd;
+            transition: all 0.2s;
+        }
+
+        .card-nav a:hover {
+            background: #064a66;
+            color: #fff;
+            border-color: #064a66;
+        }
+
+        .card-nav a.active {
+            background: #064a66;
+            color: #fff;
+            border-color: #064a66;
+        }
+
+        @media print {
+            .download-btn { display: none; }
+
+            body {
+                background: none;
+                display: block;
+                min-height: auto;
+                padding: 0;
+            }
+
+            .card {
+                box-shadow: none;
+                margin: 0;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+
+            @page {
+                size: 148mm 105mm;
+                margin: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="card-nav">
+        <a href="card-front-v2.html">Front Light</a>
+        <a href="card-back.html">Back Light</a>
+        <a href="card-back-v2.html">Back V2</a>
+        <a href="card-front-v2-dark.html">Front Dark</a>
+        <a href="card-back-dark.html" class="active">Back Dark</a>
+        <a href="card-back-v2-dark.html">Back V2 Dark</a>
+    </div>
+
+    <div class="card">
+        <div class="card-overlay"></div>
+        <!-- Church on left side, blended -->
+        <div class="bg-church">
+            <img src="../assets/images/new-church.png" alt="">
+        </div>
+        <!-- Priests on right side, blended -->
+        <div class="bg-priests">
+            <img src="EOTC_Members_two.jpg" alt="">
+        </div>
+
+        <div class="tibeb-top"></div>
+        <div class="tibeb-bottom"></div>
+        <div class="tibeb-left"></div>
+        <div class="tibeb-right"></div>
+
+        <div class="card-content">
+
+            <div class="eotc-icon">
+                <img src="EOTC_Icon.png" alt="EOTC">
+            </div>
+
+            <div class="back-label">For Further Information</div>
+
+            <div class="contact-wrapper">
+                <div class="contact-stack">
+                    <div class="contact-item">
+                        <div class="contact-icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><path d="M164.9 24.6c-7.7-18.6-28-28.5-47.4-23.2l-88 24C12.1 30.2 0 46 0 64c0 247.4 200.6 448 448 448c18 0 33.8-12.1 38.6-29.5l24-88c5.3-19.4-4.6-39.7-23.2-47.4l-96-40c-16.3-6.8-35.2-2.1-46.3 11.6L304.7 368c-70.4-33.3-127.4-90.3-160.7-160.7l49.3-40.4c13.7-11.2 18.4-30 11.6-46.3l-40-96z"/></svg></div>
+                        <div class="contact-text">
+                            <small>Phone</small>
+                            07951 403936
+                        </div>
+                    </div>
+                    <div class="contact-item">
+                        <div class="contact-icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><path d="M48 64C21.5 64 0 85.5 0 112c0 15.1 7.1 29.3 19.2 38.4L236.8 313.6c11.4 8.5 27 8.5 38.4 0L492.8 150.4c12.1-9.1 19.2-23.3 19.2-38.4c0-26.5-21.5-48-48-48H48zM0 176V384c0 35.3 28.7 64 64 64H448c35.3 0 64-28.7 64-64V176L294.4 339.2c-22.8 17.1-54 17.1-76.8 0L0 176z"/></svg></div>
+                        <div class="contact-text">
+                            <small>Email</small>
+                            stakeholder@abuneteklehaymanot.org
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="thin-line"></div>
+
+            <div class="qr-section">
+                <div class="qr-intro">Scan here to get more information and reserve if you are interested</div>
+                <img src="RSRV .jpeg" alt="RSVP QR Code">
+            </div>
+
+            <div class="signoff">
+                <div class="signoff-text">Looking forward to welcoming you,</div>
+                <div class="signoff-org">LMKAT EOTC.</div>
+            </div>
+
+            <div class="website-link">
+                <span class="website-icon" aria-hidden="true">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                        <circle cx="12" cy="12" r="8.25"></circle>
+                        <path d="M3.75 12h16.5"></path>
+                        <path d="M12 3.75c2.55 2.1 4.25 5.05 4.25 8.25s-1.7 6.15-4.25 8.25c-2.55-2.1-4.25-5.05-4.25-8.25s1.7-6.15 4.25-8.25z"></path>
+                    </svg>
+                </span>
+                <a href="https://abuneteklehaymanot.org">abuneteklehaymanot.org</a>
+            </div>
+
+        </div>
+    </div>
+
+    <button class="download-btn" onclick="downloadCard()">Download Back Card (High Quality)</button>
+
+    <script src="https://cdn.jsdelivr.net/npm/dom-to-image-more@3.4.5/dist/dom-to-image-more.min.js"></script>
+    <script>
+        async function downloadCard() {
+            const card = document.querySelector('.card');
+            const btn = document.querySelector('.download-btn');
+            const w = card.offsetWidth;
+            const h = card.offsetHeight;
+            const scale = 4;
+
+            btn.textContent = 'Generating...';
+            btn.disabled = true;
+
+            try {
+                if (document.fonts && document.fonts.ready) {
+                    await document.fonts.ready;
+                }
+
+                const dataUrl = await domtoimage.toPng(card, {
+                    width: w * scale,
+                    height: h * scale,
+                    quality: 1,
+                    cacheBust: true,
+                    bgcolor: '#faf8f2',
+                    style: {
+                        transform: `scale(${scale})`,
+                        transformOrigin: 'top left',
+                        width: `${w}px`,
+                        height: `${h}px`
+                    }
+                });
+
+                const link = document.createElement('a');
+                link.download = 'LMKAT-EOTC-Invitation-Back-Dark.png';
+                link.href = dataUrl;
+                link.click();
+            } catch (err) {
+                console.error('Download failed:', err);
+            } finally {
+                btn.textContent = 'Download Back Card (High Quality)';
+                btn.disabled = false;
+            }
+        }
+    </script>
+</body>
+</html>
+

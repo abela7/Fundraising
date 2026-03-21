@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Invitation Card — Design 2 (Dark)</title>
+    <style>
+        @font-face {
+            font-family: 'Cormorant Garamond';
+            font-style: italic;
+            font-weight: 300;
+            font-display: swap;
+            src: url('https://fonts.gstatic.com/s/cormorantgaramond/v21/co3smX5slCNuHLi8bLeY9MK7whWMhyjYrGFEsdtdc62E6zd5rDDOjw.ttf') format('truetype');
+        }
+
+        @font-face {
+            font-family: 'Cormorant Garamond';
+            font-style: italic;
+            font-weight: 500;
+            font-display: swap;
+            src: url('https://fonts.gstatic.com/s/cormorantgaramond/v21/co3smX5slCNuHLi8bLeY9MK7whWMhyjYrGFEsdtdc62E6zd58jDOjw.ttf') format('truetype');
+        }
+
+        @font-face {
+            font-family: 'Cormorant Garamond';
+            font-style: normal;
+            font-weight: 300;
+            font-display: swap;
+            src: url('https://fonts.gstatic.com/s/cormorantgaramond/v21/co3umX5slCNuHLi8bLeY9MK7whWMhyjypVO7abI26QOD_qE6GnM.ttf') format('truetype');
+        }
+
+        @font-face {
+            font-family: 'Cormorant Garamond';
+            font-style: normal;
+            font-weight: 500;
+            font-display: swap;
+            src: url('https://fonts.gstatic.com/s/cormorantgaramond/v21/co3umX5slCNuHLi8bLeY9MK7whWMhyjypVO7abI26QOD_v86GnM.ttf') format('truetype');
+        }
+
+        @font-face {
+            font-family: 'Cormorant Garamond';
+            font-style: normal;
+            font-weight: 500;
+            font-display: swap;
+            src: url('https://fonts.gstatic.com/s/cormorantgaramond/v21/co3umX5slCNuHLi8bLeY9MK7whWMhyjypVO7abI26QOD_s06GnM.ttf') format('truetype');
+        }
+
+        @font-face {
+            font-family: 'Cormorant Garamond';
+            font-style: normal;
+            font-weight: 600;
+            font-display: swap;
+            src: url('https://fonts.gstatic.com/s/cormorantgaramond/v21/co3umX5slCNuHLi8bLeY9MK7whWMhyjypVO7abI26QOD_iE9GnM.ttf') format('truetype');
+        }
+
+        @font-face {
+            font-family: 'Cormorant Garamond';
+            font-style: normal;
+            font-weight: 700;
+            font-display: swap;
+            src: url('https://fonts.gstatic.com/s/cormorantgaramond/v21/co3umX5slCNuHLi8bLeY9MK7whWMhyjypVO7abI26QOD_hg9GnM.ttf') format('truetype');
+        }
+
+        @font-face {
+            font-family: 'Outfit';
+            font-style: normal;
+            font-weight: 300;
+            font-display: swap;
+            src: url('https://fonts.gstatic.com/s/outfit/v15/QGYyz_MVcBeNP4NjuGObqx1XmO1I4W61C4E.ttf') format('truetype');
+        }
+
+        @font-face {
+            font-family: 'Outfit';
+            font-style: normal;
+            font-weight: 500;
+            font-display: swap;
+            src: url('https://fonts.gstatic.com/s/outfit/v15/QGYyz_MVcBeNP4NjuGObqx1XmO1I4TC1C4E.ttf') format('truetype');
+        }
+
+        @font-face {
+            font-family: 'Outfit';
+            font-style: normal;
+            font-weight: 500;
+            font-display: swap;
+            src: url('https://fonts.gstatic.com/s/outfit/v15/QGYyz_MVcBeNP4NjuGObqx1XmO1I4QK1C4E.ttf') format('truetype');
+        }
+
+        @font-face {
+            font-family: 'Outfit';
+            font-style: normal;
+            font-weight: 600;
+            font-display: swap;
+            src: url('https://fonts.gstatic.com/s/outfit/v15/QGYyz_MVcBeNP4NjuGObqx1XmO1I4e6yC4E.ttf') format('truetype');
+        }
+
+        @font-face {
+            font-family: 'Outfit';
+            font-style: normal;
+            font-weight: 700;
+            font-display: swap;
+            src: url('https://fonts.gstatic.com/s/outfit/v15/QGYyz_MVcBeNP4NjuGObqx1XmO1I4deyC4E.ttf') format('truetype');
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #d0d0d0;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 2rem;
+        }
+
+        .card {
+            width: 148mm;
+            height: 105mm;
+            position: relative;
+            overflow: hidden;
+            background: #064a66;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+
+        /* Blue overlay */
+        .card-overlay {
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(
+                180deg,
+                rgba(6, 74, 102, 0.90) 0%,
+                rgba(6, 74, 102, 0.78) 15%,
+                rgba(6, 74, 102, 0.72) 50%,
+                rgba(6, 74, 102, 0.78) 85%,
+                rgba(6, 74, 102, 0.90) 100%
+            );
+            z-index: 0;
+        }
+
+        /* Blended background photos */
+        .bg-photos {
+            position: absolute;
+            inset: 0;
+            z-index: 1;
+        }
+
+        .bg-photos .bg-img {
+            position: absolute;
+            top: 0;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        /* Church on the right side */
+        .bg-photos .bg-church {
+            right: 0;
+            width: 60%;
+            object-position: 85% 10%;
+            opacity: 0.15;
+            mask-image: linear-gradient(to right, transparent, black 30%);
+            -webkit-mask-image: linear-gradient(to right, transparent, black 30%);
+        }
+
+        /* Kesis on the left side — focus on the cross */
+        .bg-photos .bg-kesis {
+            left: 0;
+            width: 50%;
+            object-position: center 10%;
+            opacity: 0.18;
+            mask-image: linear-gradient(to left, transparent, black 30%);
+            -webkit-mask-image: linear-gradient(to left, transparent, black 30%);
+        }
+
+        /* Soft vignette overlay */
+        .bg-photos::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: radial-gradient(ellipse at center, transparent 20%, rgba(6, 74, 102, 0.35) 65%, rgba(6, 74, 102, 0.7) 100%);
+        }
+
+        /* Ambient flag colour glows on dark background */
+        .card::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background:
+                radial-gradient(ellipse 70% 55% at 5% 10%, rgba(0, 128, 55, 0.25), transparent),
+                radial-gradient(ellipse 60% 45% at 50% 40%, rgba(252, 209, 22, 0.18), transparent),
+                radial-gradient(ellipse 70% 55% at 95% 90%, rgba(186, 34, 34, 0.25), transparent);
+            z-index: 1;
+            pointer-events: none;
+        }
+
+        /* Pattern Two thin borders — full frame */
+        .tibeb-top,
+        .tibeb-bottom {
+            position: absolute;
+            left: 0;
+            right: 0;
+            height: 12px;
+            background: url('Pattern_Two!.jpeg') repeat-x center;
+            background-size: auto 100%;
+            z-index: 10;
+        }
+
+        .tibeb-top { top: 0; }
+        .tibeb-bottom { bottom: 0; }
+
+        .tibeb-left,
+        .tibeb-right {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 12px;
+            background: url('Pattern_Two! - Vertical.jpeg') repeat-y center;
+            background-size: 100% auto;
+            z-index: 10;
+        }
+
+        .tibeb-left { left: 0; }
+        .tibeb-right { right: 0; }
+
+        .card-content {
+            position: relative;
+            z-index: 5;
+            padding: 1.8rem 1.4rem 1.6rem;
+            color: #ffffff;
+        }
+
+        .card-header {
+            text-align: center;
+            margin-bottom: 0.2rem;
+        }
+
+        .card-org {
+            font-family: 'Outfit', sans-serif;
+            font-size: 0.78rem;
+            font-weight: 500;
+            color: #ffffff;
+            line-height: 1.45;
+        }
+
+        .card-divider {
+            width: 100%;
+            height: 1px;
+            background: rgba(255, 255, 255, 0.25);
+            margin: 0.6rem 0;
+        }
+
+        .card-title {
+            text-align: center;
+            font-family: 'Outfit', sans-serif;
+            font-size: 0.68rem;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.2em;
+            color: #ffffff;
+            margin-bottom: 0.8rem;
+            white-space: nowrap;
+        }
+
+        .card-dear {
+            font-family: 'Outfit', sans-serif;
+            font-size: 0.82rem;
+            font-weight: 500;
+            font-style: italic;
+            color: #ffffff;
+            margin-bottom: 0.7rem;
+            display: flex;
+            align-items: baseline;
+            gap: 0.4rem;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 0.35rem 0.6rem;
+            border-radius: 4px;
+        }
+
+        .card-dear-line {
+            width: 45%;
+            height: 1px;
+            background: rgba(255, 255, 255, 0.4);
+        }
+
+        .card-body {
+            font-family: 'Outfit', sans-serif;
+            font-size: 0.78rem;
+            font-weight: 500;
+            line-height: 1.65;
+            color: #ffffff;
+            text-align: justify;
+        }
+
+        .card-body p {
+            margin-bottom: 0.65rem;
+        }
+
+        .card-body p:last-child {
+            margin-bottom: 0;
+        }
+
+        .card-body strong {
+            color: #ffffff;
+            font-weight: 500;
+        }
+
+        .card-body em {
+            color: #ffffff;
+            font-style: normal;
+            font-weight: 500;
+        }
+
+        .card-event {
+            display: flex;
+            justify-content: center;
+            gap: 1.5rem;
+            margin: 0.7rem 0;
+            padding: 0.5rem 0;
+            border-top: 1px solid rgba(255, 255, 255, 0.15);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+            flex-wrap: nowrap;
+        }
+
+        .card-event-item {
+            font-family: 'Outfit', sans-serif;
+            font-size: 0.75rem;
+            color: #ffffff;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+
+        .card-event-item strong {
+            color: #ffffff;
+            font-weight: 500;
+        }
+
+        .card-contact {
+            font-family: 'Outfit', sans-serif;
+            font-size: 0.65rem;
+            color: #ffffff;
+            text-align: center;
+            margin-top: 0.5rem;
+            line-height: 1.7;
+        }
+
+        .card-contact strong {
+            color: #ffffff;
+            font-weight: 500;
+        }
+
+        .card-signoff {
+            text-align: center;
+            margin-top: 0.7rem;
+        }
+
+        .card-signoff-text {
+            font-family: 'Outfit', sans-serif;
+            font-size: 0.75rem;
+            font-style: italic;
+            color: #ffffff;
+            margin-bottom: 0.15rem;
+        }
+
+        .card-signoff-org {
+            font-family: 'Outfit', sans-serif;
+            font-size: 0.78rem;
+            font-weight: 500;
+            color: #ffffff;
+        }
+
+        .card-footer {
+            display: flex;
+            align-items: flex-end;
+            justify-content: space-between;
+            margin-top: 0.6rem;
+            padding-bottom: 0.3rem;
+        }
+
+        .qr-block {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.15rem;
+        }
+
+        .qr-block img {
+            width: 62px;
+            height: 62px;
+            display: block;
+            border: 1.5px solid rgba(255, 255, 255, 0.25);
+            border-radius: 4px;
+        }
+
+        .qr-label {
+            font-family: 'Outfit', sans-serif;
+            font-size: 0.5rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.12em;
+            color: rgba(255, 255, 255, 0.6);
+        }
+
+        .download-btn {
+            display: block;
+            margin: 20px auto;
+            padding: 14px 36px;
+            background: linear-gradient(135deg, #0a6286, #0d7da8);
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            font-family: 'Cormorant Garamond', serif;
+            font-size: 16px;
+            font-weight: 700;
+            letter-spacing: 1px;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .download-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(10, 98, 134, 0.4);
+        }
+
+        .card-nav {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin: 0 auto 20px;
+            flex-wrap: wrap;
+        }
+
+        .card-nav a {
+            font-family: 'Outfit', sans-serif;
+            font-size: 13px;
+            font-weight: 500;
+            text-decoration: none;
+            padding: 8px 18px;
+            border-radius: 6px;
+            color: #064a66;
+            background: #fff;
+            border: 1px solid #ddd;
+            transition: all 0.2s;
+        }
+
+        .card-nav a:hover {
+            background: #064a66;
+            color: #fff;
+            border-color: #064a66;
+        }
+
+        .card-nav a.active {
+            background: #064a66;
+            color: #fff;
+            border-color: #064a66;
+        }
+
+        @media print {
+            .download-btn { display: none; }
+            body {
+                background: none;
+                display: block;
+                min-height: auto;
+                padding: 0;
+            }
+
+            .card {
+                box-shadow: none;
+                margin: 0;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+
+            @page {
+                size: 148mm 105mm;
+                margin: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="card-nav">
+        <a href="card-front-v2.html">Front Light</a>
+        <a href="card-back.html">Back Light</a>
+        <a href="card-back-v2.html">Back V2</a>
+        <a href="card-front-v2-dark.html" class="active">Front Dark</a>
+        <a href="card-back-dark.html">Back Dark</a>
+        <a href="card-back-v2-dark.html">Back V2 Dark</a>
+    </div>
+
+    <div class="card">
+        <div class="card-overlay"></div>
+        <div class="bg-photos">
+            <img src="Kesis_Birhanu.jpg" alt="" class="bg-img bg-kesis">
+            <img src="Church_Photo_front.png" alt="" class="bg-img bg-church">
+        </div>
+        <div class="tibeb-top"></div>
+        <div class="tibeb-bottom"></div>
+        <div class="tibeb-left"></div>
+        <div class="tibeb-right"></div>
+
+        <div class="card-content">
+
+            <div class="card-header">
+                <div class="card-org">
+                    The Liverpool Mekane Kidusan Abune Teklehymanot Ethiopian Orthodox Tewahedo Church (LMKAT EOTC) Diocese of Great Britain and Northern Ireland
+                </div>
+            </div>
+
+            <div class="card-divider"></div>
+
+            <div class="card-title">Community engagement invitation</div>
+
+            <div class="card-dear">
+                To <span class="card-dear-line"></span>
+            </div>
+
+            <div class="card-body">
+                <p>
+                    Praise be to the Almighty, we are pleased to announce that <strong>LMKAT EOTC</strong> will begin worshiping as <em>St Gabriel's Church</em>, located at <strong>16 Yates Street, Liverpool, L8 6RD</strong>.
+                </p>
+                <p>
+                    You are warmly invited to join us for a community engagement event, ahead of the consecration, to meet us, learn about the Ethiopian Orthodox Tewahedo Church (EOTC), and explore opportunities for future collaboration.
+                </p>
+                <p>
+                    Please join us to share your views and experience our ancient hymns, cultural cuisine, and traditional attire, as well as view the recent church renovations.
+                </p>
+            </div>
+
+            <div class="card-event">
+                <div class="card-event-item"><strong>Date:</strong> Sunday, 29 March 2026</div>
+                <div class="card-event-item"><strong>Time:</strong> 2pm to 5pm</div>
+            </div>
+
+
+        </div>
+    </div>
+
+    <button class="download-btn" onclick="downloadCard()">Download Front Card (High Quality)</button>
+
+    <script src="https://cdn.jsdelivr.net/npm/dom-to-image-more@3.4.5/dist/dom-to-image-more.min.js"></script>
+    <script>
+        async function downloadCard() {
+            const card = document.querySelector('.card');
+            const btn = document.querySelector('.download-btn');
+            const w = card.offsetWidth;
+            const h = card.offsetHeight;
+            const scale = 4;
+
+            btn.textContent = 'Generating...';
+            btn.disabled = true;
+
+            try {
+                if (document.fonts && document.fonts.ready) {
+                    await document.fonts.ready;
+                }
+
+                const dataUrl = await domtoimage.toPng(card, {
+                    width: w * scale,
+                    height: h * scale,
+                    quality: 1,
+                    cacheBust: true,
+                    bgcolor: '#1d4f73',
+                    style: {
+                        transform: `scale(${scale})`,
+                        transformOrigin: 'top left',
+                        width: `${w}px`,
+                        height: `${h}px`
+                    }
+                });
+
+                const link = document.createElement('a');
+                link.download = 'LMKAT-EOTC-Invitation-Front-Dark.png';
+                link.href = dataUrl;
+                link.click();
+            } catch (err) {
+                console.error('Download failed:', err);
+            } finally {
+                btn.textContent = 'Download Front Card (High Quality)';
+                btn.disabled = false;
+            }
+        }
+    </script>
+</body>
+</html>
+

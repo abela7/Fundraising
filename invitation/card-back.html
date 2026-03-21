@@ -8,7 +8,7 @@
         @font-face {
             font-family: 'Cormorant Garamond';
             font-style: italic;
-            font-weight: 400;
+            font-weight: 500;
             font-display: swap;
             src: url('https://fonts.gstatic.com/s/cormorantgaramond/v21/co3smX5slCNuHLi8bLeY9MK7whWMhyjYrGFEsdtdc62E6zd58jDOjw.ttf') format('truetype');
         }
@@ -16,7 +16,7 @@
         @font-face {
             font-family: 'Cormorant Garamond';
             font-style: normal;
-            font-weight: 400;
+            font-weight: 500;
             font-display: swap;
             src: url('https://fonts.gstatic.com/s/cormorantgaramond/v21/co3umX5slCNuHLi8bLeY9MK7whWMhyjypVO7abI26QOD_v86GnM.ttf') format('truetype');
         }
@@ -24,7 +24,7 @@
         @font-face {
             font-family: 'Cormorant Garamond';
             font-style: normal;
-            font-weight: 600;
+            font-weight: 500;
             font-display: swap;
             src: url('https://fonts.gstatic.com/s/cormorantgaramond/v21/co3umX5slCNuHLi8bLeY9MK7whWMhyjypVO7abI26QOD_iE9GnM.ttf') format('truetype');
         }
@@ -40,7 +40,7 @@
         @font-face {
             font-family: 'Outfit';
             font-style: normal;
-            font-weight: 400;
+            font-weight: 500;
             font-display: swap;
             src: url('https://fonts.gstatic.com/s/outfit/v15/QGYyz_MVcBeNP4NjuGObqx1XmO1I4TC1C4E.ttf') format('truetype');
         }
@@ -56,7 +56,7 @@
         @font-face {
             font-family: 'Outfit';
             font-style: normal;
-            font-weight: 600;
+            font-weight: 500;
             font-display: swap;
             src: url('https://fonts.gstatic.com/s/outfit/v15/QGYyz_MVcBeNP4NjuGObqx1XmO1I4e6yC4E.ttf') format('truetype');
         }
@@ -64,7 +64,7 @@
         @font-face {
             font-family: 'Outfit';
             font-style: normal;
-            font-weight: 700;
+            font-weight: 500;
             font-display: swap;
             src: url('https://fonts.gstatic.com/s/outfit/v15/QGYyz_MVcBeNP4NjuGObqx1XmO1I4deyC4E.ttf') format('truetype');
         }
@@ -78,6 +78,7 @@
         body {
             background: #d0d0d0;
             display: flex;
+            flex-direction: column;
             justify-content: center;
             align-items: center;
             min-height: 100vh;
@@ -215,10 +216,10 @@
         .back-label {
             font-family: 'Outfit', sans-serif;
             font-size: 0.6rem;
-            font-weight: 700;
+            font-weight: 500;
             text-transform: uppercase;
             letter-spacing: 0.22em;
-            color: rgba(0, 0, 0, 0.55);
+            color: rgba(0, 0, 0, 0.75);
             margin-bottom: 12px;
             white-space: nowrap;
         }
@@ -277,10 +278,10 @@
         .contact-text small {
             display: block;
             font-size: 0.42rem;
-            font-weight: 600;
+            font-weight: 500;
             text-transform: uppercase;
             letter-spacing: 0.08em;
-            color: rgba(0, 0, 0, 0.4);
+            color: rgba(0, 0, 0, 0.7);
             margin-bottom: 1px;
         }
 
@@ -303,8 +304,8 @@
         .qr-intro {
             font-family: 'Outfit', sans-serif;
             font-size: 0.55rem;
-            font-weight: 400;
-            color: rgba(0, 0, 0, 0.55);
+            font-weight: 500;
+            color: rgba(0, 0, 0, 0.75);
             margin-bottom: 4px;
             line-height: 1.5;
             max-width: none;
@@ -331,8 +332,8 @@
             font-family: 'Cormorant Garamond', serif;
             font-size: 0.8rem;
             font-style: italic;
-            font-weight: 400;
-            color: rgba(0, 0, 0, 0.6);
+            font-weight: 500;
+            color: rgba(0, 0, 0, 0.8);
             margin-bottom: 3px;
             white-space: nowrap;
         }
@@ -340,7 +341,7 @@
         .signoff-org {
             font-family: 'Outfit', sans-serif;
             font-size: 0.85rem;
-            font-weight: 700;
+            font-weight: 500;
             color: #000;
             letter-spacing: 0.06em;
         }
@@ -355,7 +356,7 @@
             font-family: 'Outfit', sans-serif;
             font-size: 0.45rem;
             font-weight: 500;
-            color: rgba(0, 0, 0, 0.35);
+            color: rgba(0, 0, 0, 0.65);
             white-space: nowrap;
         }
 
@@ -367,7 +368,7 @@
             height: 13px;
             border-radius: 50%;
             background: rgba(0, 0, 0, 0.05);
-            color: rgba(0, 0, 0, 0.48);
+            color: rgba(0, 0, 0, 0.75);
             flex-shrink: 0;
         }
 
@@ -384,7 +385,7 @@
         .website-link a {
             display: inline-block;
             line-height: 1;
-            color: rgba(0, 0, 0, 0.5);
+            color: rgba(0, 0, 0, 0.75);
             text-decoration: none;
             border-bottom: 1px solid rgba(0, 0, 0, 0.12);
         }
@@ -399,7 +400,7 @@
             border-radius: 8px;
             font-family: 'Cormorant Garamond', serif;
             font-size: 16px;
-            font-weight: 700;
+            font-weight: 500;
             letter-spacing: 1px;
             cursor: pointer;
             transition: transform 0.2s, box-shadow 0.2s;
@@ -408,6 +409,39 @@
         .download-btn:hover {
             transform: translateY(-2px);
             box-shadow: 0 6px 20px rgba(10, 98, 134, 0.4);
+        }
+
+        .card-nav {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin: 0 auto 20px;
+            flex-wrap: wrap;
+        }
+
+        .card-nav a {
+            font-family: 'Outfit', sans-serif;
+            font-size: 13px;
+            font-weight: 500;
+            text-decoration: none;
+            padding: 8px 18px;
+            border-radius: 6px;
+            color: #064a66;
+            background: #fff;
+            border: 1px solid #ddd;
+            transition: all 0.2s;
+        }
+
+        .card-nav a:hover {
+            background: #064a66;
+            color: #fff;
+            border-color: #064a66;
+        }
+
+        .card-nav a.active {
+            background: #064a66;
+            color: #fff;
+            border-color: #064a66;
         }
 
         @media print {
@@ -435,6 +469,15 @@
     </style>
 </head>
 <body>
+
+    <div class="card-nav">
+        <a href="card-front-v2.html">Front Light</a>
+        <a href="card-back.html" class="active">Back Light</a>
+        <a href="card-back-v2.html">Back V2</a>
+        <a href="card-front-v2-dark.html">Front Dark</a>
+        <a href="card-back-dark.html">Back Dark</a>
+        <a href="card-back-v2-dark.html">Back V2 Dark</a>
+    </div>
 
     <div class="card">
         <!-- Church on left side, blended -->

@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Invitation Card — Back V2 Dark</title>
+    <style>
+        @font-face {
+            font-family: 'Outfit';
+            font-style: normal;
+            font-weight: 300;
+            font-display: swap;
+            src: url('https://fonts.gstatic.com/s/outfit/v15/QGYyz_MVcBeNP4NjuGObqx1XmO1I4W61C4E.ttf') format('truetype');
+        }
+        @font-face {
+            font-family: 'Outfit';
+            font-style: normal;
+            font-weight: 400;
+            font-display: swap;
+            src: url('https://fonts.gstatic.com/s/outfit/v15/QGYyz_MVcBeNP4NjuGObqx1XmO1I4TC1C4E.ttf') format('truetype');
+        }
+        @font-face {
+            font-family: 'Outfit';
+            font-style: normal;
+            font-weight: 500;
+            font-display: swap;
+            src: url('https://fonts.gstatic.com/s/outfit/v15/QGYyz_MVcBeNP4NjuGObqx1XmO1I4QK1C4E.ttf') format('truetype');
+        }
+        @font-face {
+            font-family: 'Outfit';
+            font-style: normal;
+            font-weight: 600;
+            font-display: swap;
+            src: url('https://fonts.gstatic.com/s/outfit/v15/QGYyz_MVcBeNP4NjuGObqx1XmO1I4e6yC4E.ttf') format('truetype');
+        }
+        @font-face {
+            font-family: 'Outfit';
+            font-style: normal;
+            font-weight: 700;
+            font-display: swap;
+            src: url('https://fonts.gstatic.com/s/outfit/v15/QGYyz_MVcBeNP4NjuGObqx1XmO1I4deyC4E.ttf') format('truetype');
+        }
+        @font-face {
+            font-family: 'Cormorant Garamond';
+            font-style: italic;
+            font-weight: 400;
+            font-display: swap;
+            src: url('https://fonts.gstatic.com/s/cormorantgaramond/v21/co3smX5slCNuHLi8bLeY9MK7whWMhyjYrGFEsdtdc62E6zd58jDOjw.ttf') format('truetype');
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #1a1a1a;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 2rem;
+        }
+
+        .card {
+            width: 148mm;
+            height: 105mm;
+            position: relative;
+            overflow: hidden;
+            background: #1c1c1e;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .bg-pattern {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+            background: url('Ethiopian_Design.png') repeat;
+            background-size: 80px;
+            opacity: 0.05;
+            filter: invert(1);
+        }
+
+        .card-top {
+            display: flex;
+            flex: 1;
+        }
+
+        .left-side .circle-item {
+            flex-shrink: 0;
+        }
+
+        /* Ambient flag colour glows */
+        .card::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background:
+                radial-gradient(ellipse 75% 60% at 5% 10%, rgba(0, 128, 55, 0.65), transparent),
+                radial-gradient(ellipse 65% 50% at 50% 40%, rgba(252, 209, 22, 0.5), transparent),
+                radial-gradient(ellipse 75% 60% at 95% 90%, rgba(186, 34, 34, 0.65), transparent);
+            z-index: 2;
+            pointer-events: none;
+        }
+
+        /* Tibeb borders — full frame */
+        .tibeb-top, .tibeb-bottom {
+            position: absolute;
+            left: 0;
+            right: 0;
+            height: 12px;
+            background: url('Pattern_Two!.jpeg') repeat-x center;
+            background-size: auto 100%;
+            z-index: 10;
+        }
+        .tibeb-top { top: 0; }
+        .tibeb-bottom { bottom: 0; }
+
+        .tibeb-left, .tibeb-right {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 12px;
+            background: url('Pattern_Two! - Vertical.jpeg') repeat-y center;
+            background-size: 100% auto;
+            z-index: 10;
+        }
+        .tibeb-left { left: 0; }
+        .tibeb-right { right: 0; }
+
+        /* ===== RIGHT SIDE CONTENT ===== */
+        .left-side {
+            width: 60%;
+            margin-left: auto;
+            position: relative;
+            z-index: 3;
+            flex: 1;
+            min-height: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            padding: 12px 18px 10px 14px;
+            text-align: center;
+        }
+
+        .right-lower {
+            margin-top: auto;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding-bottom: 4px;
+        }
+
+        .church-photo {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 50%;
+            height: 100%;
+            z-index: 2;
+            overflow: hidden;
+            border-radius: 0;
+            box-shadow: none;
+            -webkit-mask-image: linear-gradient(to left, transparent 0%, black 18%);
+            mask-image: linear-gradient(to left, transparent 0%, black 18%);
+        }
+
+        .church-photo img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            object-position: left bottom;
+            filter: brightness(0.7);
+        }
+
+        .circle-row {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 14px;
+            padding: 8px 20px 14px;
+            position: relative;
+            z-index: 3;
+        }
+
+        .circle-pair {
+            position: absolute;
+            top: 42%;
+            right: 20px;
+            left: auto;
+            transform: translateY(-50%);
+            display: flex;
+            gap: 14px;
+            align-items: center;
+            z-index: 5;
+        }
+
+        .circle-frame {
+            width: 155px;
+            height: 155px;
+            border-radius: 50%;
+            overflow: hidden;
+            border: 2.5px solid rgba(212, 175, 55, 0.4);
+            background: rgba(30, 30, 30, 0.9);
+            padding: 3px;
+            box-shadow: 0 3px 12px rgba(0, 0, 0, 0.3);
+            flex-shrink: 0;
+        }
+
+        .circle-frame img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 50%;
+        }
+
+        .circle-label {
+            font-family: 'Outfit', sans-serif;
+            font-size: 0.38rem;
+            font-weight: 500;
+            color: rgba(255, 255, 255, 0.6);
+            text-align: center;
+            margin-top: 3px;
+            line-height: 1.3;
+        }
+
+        .circle-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        /* Signoff */
+        .signoff {
+            text-align: center;
+            margin-bottom: 8px;
+        }
+
+        .signoff-text {
+            font-family: 'Cormorant Garamond', serif;
+            font-size: 0.8rem;
+            font-style: italic;
+            font-weight: 500;
+            color: rgba(255, 255, 255, 0.7);
+            margin-bottom: 2px;
+        }
+
+        .signoff-org {
+            font-family: 'Outfit', sans-serif;
+            font-size: 0.7rem;
+            font-weight: 500;
+            color: rgba(255, 255, 255, 0.9);
+            letter-spacing: 0.06em;
+        }
+
+        .qr-block {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-bottom: 4px;
+        }
+
+        .qr-block img {
+            width: 62px;
+            height: 62px;
+            display: block;
+            border: 1.5px solid rgba(255, 255, 255, 0.15);
+            border-radius: 5px;
+            padding: 3px;
+            background: #fff;
+        }
+
+        .contact-icons {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            margin-top: 5px;
+        }
+
+        .contact-icon-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-family: 'Outfit', sans-serif;
+            font-size: 0.52rem;
+            font-weight: 600;
+            color: rgba(255, 255, 255, 0.85);
+        }
+
+        .contact-icon-item svg {
+            width: 13px;
+            height: 13px;
+            flex-shrink: 0;
+        }
+
+        .download-btn {
+            display: block;
+            margin: 20px auto;
+            padding: 14px 36px;
+            background: linear-gradient(135deg, #0a6286, #0d7da8);
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            font-family: 'Cormorant Garamond', serif;
+            font-size: 16px;
+            font-weight: 700;
+            letter-spacing: 1px;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .download-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(10, 98, 134, 0.4);
+        }
+
+        .card-nav {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin: 0 auto 20px;
+            flex-wrap: wrap;
+        }
+
+        .card-nav a {
+            font-family: 'Outfit', sans-serif;
+            font-size: 13px;
+            font-weight: 500;
+            text-decoration: none;
+            padding: 8px 18px;
+            border-radius: 6px;
+            color: #8ec5d6;
+            background: #2a2a2e;
+            border: 1px solid #3a3a3e;
+            transition: all 0.2s;
+        }
+
+        .card-nav a:hover {
+            background: #0a6286;
+            color: #fff;
+            border-color: #0a6286;
+        }
+
+        .card-nav a.active {
+            background: #0a6286;
+            color: #fff;
+            border-color: #0a6286;
+        }
+
+        @media print {
+            .download-btn, .card-nav { display: none; }
+            body { background: none; display: block; min-height: auto; padding: 0; }
+            .card { box-shadow: none; margin: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            @page { size: 148mm 105mm; margin: 0; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="card-nav">
+        <a href="card-front-v2.html">Front Light</a>
+        <a href="card-back.html">Back Light</a>
+        <a href="card-back-v2.html">Back V2</a>
+        <a href="card-front-v2-dark.html">Front Dark</a>
+        <a href="card-back-dark.html">Back Dark</a>
+        <a href="card-back-v2-dark.html" class="active">Back V2 Dark</a>
+    </div>
+
+    <div class="card">
+        <div class="bg-pattern"></div>
+        <div class="tibeb-top"></div>
+        <div class="tibeb-bottom"></div>
+        <div class="tibeb-left"></div>
+        <div class="tibeb-right"></div>
+
+        <!-- Church photo — faded on the right side -->
+        <div class="church-photo">
+            <img src="Church_pic.png" alt="St Gabriel's Church">
+        </div>
+
+        <!-- Circle photos -->
+        <div class="circle-pair">
+            <div class="circle-item">
+                <div class="circle-frame">
+                    <img src="Coffe cermony.jpg" alt="Coffee Ceremony">
+                </div>
+                <div class="circle-label">Traditional Coffee</div>
+            </div>
+            <div class="circle-item">
+                <div class="circle-frame">
+                    <img src="Food_pic.jpg" alt="Ethiopian Food">
+                </div>
+                <div class="circle-label">Authentic Cuisine</div>
+            </div>
+        </div>
+
+        <!-- RIGHT CONTENT -->
+        <div class="left-side">
+            <div class="right-lower">
+                <div class="signoff">
+                    <div class="signoff-text">Looking forward to welcoming you,</div>
+                    <div class="signoff-org">LMKAT EOTC.</div>
+                </div>
+                <div class="qr-block">
+                    <img src="RSRV .jpeg" alt="RSVP QR Code">
+                </div>
+                <div class="contact-icons">
+                    <span class="contact-icon-item">
+                        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6.62 10.79a15.05 15.05 0 006.59 6.59l2.2-2.2a1 1 0 011.01-.24 11.72 11.72 0 003.66.58 1 1 0 011 1v3.61a1 1 0 01-1 1A17 17 0 013 4a1 1 0 011-1h3.61a1 1 0 011 1 11.72 11.72 0 00.58 3.66 1 1 0 01-.24 1.01l-2.33 2.12z"/></svg>
+                        <span>07951 403936</span>
+                    </span>
+                    <span class="contact-icon-item">
+                        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 4H4a2 2 0 00-2 2v12a2 2 0 002 2h16a2 2 0 002-2V6a2 2 0 00-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/></svg>
+                        <span>stakeholder@abuneteklehaymanot.org</span>
+                    </span>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <button class="download-btn" onclick="downloadCard()">Download Back V2 Dark (High Quality)</button>
+
+    <script src="https://cdn.jsdelivr.net/npm/dom-to-image-more@3.4.5/dist/dom-to-image-more.min.js"></script>
+    <script>
+        async function downloadCard() {
+            const card = document.querySelector('.card');
+            const btn = document.querySelector('.download-btn');
+            const w = card.offsetWidth;
+            const h = card.offsetHeight;
+            const scale = 4;
+
+            btn.textContent = 'Generating...';
+            btn.disabled = true;
+
+            try {
+                if (document.fonts && document.fonts.ready) {
+                    await document.fonts.ready;
+                }
+
+                const dataUrl = await domtoimage.toPng(card, {
+                    width: w * scale,
+                    height: h * scale,
+                    quality: 1,
+                    cacheBust: true,
+                    bgcolor: '#1c1c1e',
+                    style: {
+                        transform: `scale(${scale})`,
+                        transformOrigin: 'top left',
+                        width: `${w}px`,
+                        height: `${h}px`
+                    }
+                });
+
+                const link = document.createElement('a');
+                link.download = 'LMKAT-EOTC-Invitation-Back-V2-Dark.png';
+                link.href = dataUrl;
+                link.click();
+            } catch (err) {
+                console.error('Download failed:', err);
+            } finally {
+                btn.textContent = 'Download Back V2 Dark (High Quality)';
+                btn.disabled = false;
+            }
+        }
+    </script>
+</body>
+</html>
