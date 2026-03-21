@@ -373,6 +373,11 @@
             animation: scrollPulse 2s ease-in-out infinite;
         }
 
+        @keyframes modalFadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
         @keyframes fadeUp {
             from { opacity: 0; transform: translateY(30px); }
             to { opacity: 1; transform: translateY(0); }
@@ -2145,18 +2150,45 @@
                 .then(r => r.json())
                 .then(data => {
                     if (data.success) {
-                        form.innerHTML = '<div style="text-align:center;padding:2rem 0;">'
+                        // Reset form
+                        form.reset();
+                        btnSpan.innerHTML = originalHTML;
+                        btn.disabled = false;
+
+                        // Show confirmation popup
+                        var modal = document.createElement('div');
+                        modal.id = 'rsvpConfirmModal';
+                        modal.style.cssText = 'position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;padding:1.25rem;animation:modalFadeIn 0.4s ease;';
+                        modal.innerHTML = ''
+                            // Backdrop
+                            + '<div onclick="document.getElementById(\'rsvpConfirmModal\').remove()" style="position:absolute;inset:0;background:rgba(0,0,0,0.65);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);"></div>'
+                            // Card
+                            + '<div style="position:relative;width:100%;max-width:440px;border-radius:1.25rem;overflow:hidden;box-shadow:0 25px 60px rgba(0,0,0,0.4);">'
+                            // Pattern background
+                            + '<div style="position:absolute;inset:0;background:url(\'Ethiopian_Design.png\') repeat;background-size:200px auto;opacity:0.25;"></div>'
+                            // Overlay
+                            + '<div style="position:absolute;inset:0;background:linear-gradient(180deg,rgba(6,74,102,0.85) 0%,rgba(6,74,102,0.75) 50%,rgba(6,74,102,0.85) 100%);"></div>'
+                            // Tibeb borders
+                            + '<div style="position:absolute;top:0;left:0;right:0;height:10px;background:url(\'Pattern_Two!.jpeg\') repeat-x center;background-size:auto 100%;z-index:2;"></div>'
+                            + '<div style="position:absolute;bottom:0;left:0;right:0;height:10px;background:url(\'Pattern_Two!.jpeg\') repeat-x center;background-size:auto 100%;z-index:2;"></div>'
+                            + '<div style="position:absolute;top:0;bottom:0;left:0;width:10px;background:url(\'Pattern_Two! - Vertical.jpeg\') repeat-y center;background-size:100% auto;z-index:2;"></div>'
+                            + '<div style="position:absolute;top:0;bottom:0;right:0;width:10px;background:url(\'Pattern_Two! - Vertical.jpeg\') repeat-y center;background-size:100% auto;z-index:2;"></div>'
+                            // Content
+                            + '<div style="position:relative;z-index:3;padding:2.5rem 2rem;text-align:center;">'
                             + '<div style="width:64px;height:64px;border-radius:50%;background:rgba(34,197,94,0.15);display:flex;align-items:center;justify-content:center;margin:0 auto 1.25rem;"><i class="fas fa-check" style="font-size:1.8rem;color:#22c55e;"></i></div>'
-                            + '<h3 style="color:var(--gold);font-family:var(--font-display);font-size:1.8rem;margin-bottom:0.5rem;">You\'re All Set!</h3>'
-                            + '<p style="color:rgba(255,255,255,0.7);line-height:1.6;margin-bottom:1.25rem;">Thank you, <strong style="color:var(--gold);">' + formData.fullName + '</strong>. Your reservation has been confirmed.</p>'
-                            + '<div style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:1rem;padding:1.25rem;text-align:left;margin-bottom:1.25rem;">'
-                            + '<div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:0.75rem;color:rgba(255,255,255,0.85);font-size:0.95rem;"><i class="fas fa-calendar-alt" style="color:var(--gold);width:20px;"></i> Sunday, 29 March 2026</div>'
-                            + '<div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:0.75rem;color:rgba(255,255,255,0.85);font-size:0.95rem;"><i class="fas fa-clock" style="color:var(--gold);width:20px;"></i> 2:00 PM</div>'
-                            + '<div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:0.75rem;color:rgba(255,255,255,0.85);font-size:0.95rem;"><i class="fas fa-map-marker-alt" style="color:var(--gold);width:20px;"></i> St Gabriel\'s Church</div>'
-                            + '<div style="display:flex;align-items:center;gap:0.75rem;color:rgba(255,255,255,0.6);font-size:0.85rem;padding-left:2rem;">16 Yates St, Liverpool L8 6RD</div>'
+                            + '<h3 style="color:#e2ca18;font-family:\'Cormorant Garamond\',serif;font-size:1.8rem;font-weight:400;margin-bottom:0.5rem;">You\'re All Set!</h3>'
+                            + '<p style="color:rgba(255,255,255,0.75);line-height:1.6;margin-bottom:1.5rem;font-size:0.95rem;">Thank you, <strong style="color:#e2ca18;">' + formData.fullName + '</strong>. Your reservation has been confirmed.</p>'
+                            + '<div style="background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.12);border-radius:1rem;padding:1.25rem;text-align:left;margin-bottom:1.5rem;">'
+                            + '<div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:0.75rem;color:rgba(255,255,255,0.9);font-size:0.95rem;"><i class="fas fa-calendar-alt" style="color:#e2ca18;width:20px;text-align:center;"></i> Sunday, 29 March 2026</div>'
+                            + '<div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:0.75rem;color:rgba(255,255,255,0.9);font-size:0.95rem;"><i class="fas fa-clock" style="color:#e2ca18;width:20px;text-align:center;"></i> 2:00 PM</div>'
+                            + '<div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:0.4rem;color:rgba(255,255,255,0.9);font-size:0.95rem;"><i class="fas fa-map-marker-alt" style="color:#e2ca18;width:20px;text-align:center;"></i> St Gabriel\'s Church</div>'
+                            + '<div style="color:rgba(255,255,255,0.55);font-size:0.85rem;padding-left:2.75rem;">16 Yates St, Liverpool L8 6RD</div>'
                             + '</div>'
-                            + (data.whatsapp_sent ? '<div style="display:flex;align-items:center;justify-content:center;gap:0.5rem;color:#25d366;font-size:0.88rem;"><i class="fab fa-whatsapp" style="font-size:1.1rem;"></i> Confirmation sent to your WhatsApp</div>' : '')
+                            + (data.whatsapp_sent ? '<div style="display:flex;align-items:center;justify-content:center;gap:0.5rem;color:#25d366;font-size:0.88rem;margin-bottom:1.25rem;"><i class="fab fa-whatsapp" style="font-size:1.1rem;"></i> Confirmation sent to your WhatsApp</div>' : '')
+                            + '<button onclick="document.getElementById(\'rsvpConfirmModal\').remove()" style="background:linear-gradient(135deg,#e2ca18,#d4a017);color:#1a1a1a;border:none;padding:0.85rem 2.5rem;border-radius:0.75rem;font-family:\'Outfit\',sans-serif;font-size:0.9rem;font-weight:600;cursor:pointer;transition:transform 0.2s,box-shadow 0.2s;" onmouseover="this.style.transform=\'translateY(-2px)\';this.style.boxShadow=\'0 6px 20px rgba(226,202,24,0.35)\'" onmouseout="this.style.transform=\'none\';this.style.boxShadow=\'none\'"><i class="fas fa-times me-1"></i> Close</button>'
+                            + '</div>'
                             + '</div>';
+                        document.body.appendChild(modal);
                     } else {
                         alert(data.error || 'Something went wrong. Please try again.');
                         btnSpan.innerHTML = originalHTML;
