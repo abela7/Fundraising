@@ -32,27 +32,46 @@
             box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
         }
 
-        /* Blended background photo */
-        .bg-photo {
+        /* Blended background photos */
+        .bg-photos {
             position: absolute;
             inset: 0;
             z-index: 0;
         }
 
-        .bg-photo img {
-            width: 100%;
+        .bg-photos .bg-img {
+            position: absolute;
+            top: 0;
             height: 100%;
             object-fit: cover;
-            object-position: center 20%;
-            opacity: 0.1;
         }
 
-        /* Soft vignette so photo fades at edges */
-        .bg-photo::after {
+        /* Church on the right side */
+        .bg-photos .bg-church {
+            right: 0;
+            width: 60%;
+            object-position: center center;
+            opacity: 0.12;
+            mask-image: linear-gradient(to right, transparent, black 30%);
+            -webkit-mask-image: linear-gradient(to right, transparent, black 30%);
+        }
+
+        /* Kesis on the left side */
+        .bg-photos .bg-kesis {
+            left: 0;
+            width: 50%;
+            object-position: center 15%;
+            opacity: 0.1;
+            mask-image: linear-gradient(to left, transparent, black 30%);
+            -webkit-mask-image: linear-gradient(to left, transparent, black 30%);
+        }
+
+        /* Soft vignette overlay */
+        .bg-photos::after {
             content: '';
             position: absolute;
             inset: 0;
-            background: radial-gradient(ellipse at center, transparent 20%, rgba(250, 248, 242, 0.65) 70%, rgba(250, 248, 242, 0.9) 100%);
+            background: radial-gradient(ellipse at center, transparent 10%, rgba(250, 248, 242, 0.5) 60%, rgba(250, 248, 242, 0.85) 100%);
         }
 
         /* Ambient flag colour glows on dark background */
@@ -276,8 +295,9 @@
 <body>
 
     <div class="card">
-        <div class="bg-photo">
-            <img src="Kesis_Birhanu.jpg" alt="">
+        <div class="bg-photos">
+            <img src="Kesis_Birhanu.jpg" alt="" class="bg-img bg-kesis">
+            <img src="Church_Photo_front.png" alt="" class="bg-img bg-church">
         </div>
         <div class="tibeb-top"></div>
         <div class="tibeb-bottom"></div>
