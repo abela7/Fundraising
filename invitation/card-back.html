@@ -129,6 +129,8 @@
         .eotc-icon {
             width: 80px;
             height: 80px;
+            min-width: 80px;
+            min-height: 80px;
             margin-bottom: 10px;
             border-radius: 50%;
             overflow: hidden;
@@ -136,6 +138,8 @@
             background: rgba(255, 255, 255, 0.92);
             padding: 4px;
             box-shadow: 0 3px 14px rgba(0, 0, 0, 0.1);
+            aspect-ratio: 1 / 1;
+            flex-shrink: 0;
         }
 
         .eotc-icon img {
