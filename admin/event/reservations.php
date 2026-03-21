@@ -8,6 +8,41 @@ require_once __DIR__ . '/../../config/db.php';
 $page_title = 'Event Reservations';
 $db = db();
 
+// Handle delete reservation
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_reservation_id'])) {
+    $delId = (int)$_POST['delete_reservation_id'];
+    $stmt = $db->prepare("DELETE FROM event_reservations WHERE id = ?");
+    $stmt->bind_param('i', $delId);
+    $stmt->execute();
+    $stmt->close();
+    header('Location: reservations.php?deleted=1');
+    exit;
+}
+
+// Handle update reservation
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['edit_reservation_id'])) {
+    $editId     = (int)$_POST['edit_reservation_id'];
+    $editName   = trim($_POST['edit_name'] ?? '');
+    $editEmail  = trim($_POST['edit_email'] ?? '');
+    $editPhone  = trim($_POST['edit_phone'] ?? '');
+    $editAttend = $_POST['edit_attendance'] ?? 'yes';
+    $editGuests = max(1, min(20, (int)($_POST['edit_guests'] ?? 1)));
+    $editDiet   = trim($_POST['edit_dietary'] ?? '');
+
+    if ($editName !== '') {
+        $editEmailVal = $editEmail !== '' ? $editEmail : null;
+        $editPhoneVal = $editPhone !== '' ? $editPhone : null;
+        $editDietVal  = $editDiet !== '' ? $editDiet : null;
+
+        $stmt = $db->prepare("UPDATE event_reservations SET full_name=?, email=?, phone=?, attendance=?, guests=?, dietary=? WHERE id=?");
+        $stmt->bind_param('ssssisi', $editName, $editEmailVal, $editPhoneVal, $editAttend, $editGuests, $editDietVal, $editId);
+        $stmt->execute();
+        $stmt->close();
+    }
+    header('Location: reservations.php?updated=1');
+    exit;
+}
+
 // Handle YouTube URL update
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['youtube_url'])) {
     $youtubeUrl = trim($_POST['youtube_url']);
@@ -189,6 +224,18 @@ try {
 <div class="page-wrap">
     <h4 class="fw-bold mb-3"><i class="fas fa-calendar-check text-primary me-2"></i><?php echo $page_title; ?></h4>
 
+    <?php if (isset($_GET['deleted'])): ?>
+        <div class="alert alert-success alert-dismissible fade show py-2" role="alert">
+            <small><i class="fas fa-check-circle me-1"></i>Reservation deleted successfully.</small>
+            <button type="button" class="btn-close btn-close-sm" data-bs-dismiss="alert"></button>
+        </div>
+    <?php elseif (isset($_GET['updated'])): ?>
+        <div class="alert alert-success alert-dismissible fade show py-2" role="alert">
+            <small><i class="fas fa-check-circle me-1"></i>Reservation updated successfully.</small>
+            <button type="button" class="btn-close btn-close-sm" data-bs-dismiss="alert"></button>
+        </div>
+    <?php endif; ?>
+
     <!-- Stats -->
     <div class="stat-cards">
         <div class="stat-card stat-total">
@@ -275,6 +322,7 @@ try {
                         <th>Dietary</th>
                         <th>WhatsApp</th>
                         <th>Date</th>
+                        <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -303,6 +351,24 @@ try {
                             <?php endif; ?>
                         </td>
                         <td class="text-nowrap"><small><?php echo date('d M Y H:i', strtotime($r['created_at'])); ?></small></td>
+                        <td class="text-nowrap">
+                            <button class="btn btn-sm btn-outline-primary me-1" title="Edit"
+                                onclick="openEditModal(<?php echo htmlspecialchars(json_encode([
+                                    'id' => $r['id'],
+                                    'name' => $r['full_name'],
+                                    'email' => $r['email'] ?? '',
+                                    'phone' => $r['phone'] ?? '',
+                                    'attendance' => $r['attendance'],
+                                    'guests' => (int)$r['guests'],
+                                    'dietary' => $r['dietary'] ?? ''
+                                ])); ?>)">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button class="btn btn-sm btn-outline-danger" title="Delete"
+                                onclick="confirmDelete(<?php echo (int)$r['id']; ?>, '<?php echo htmlspecialchars($r['full_name'], ENT_QUOTES); ?>')">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </td>
                     </tr>
                 <?php endwhile; ?>
                 </tbody>
@@ -310,6 +376,63 @@ try {
         </div>
     </div>
 </div>
+
+<!-- Edit Modal -->
+<div class="modal fade" id="editModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="POST">
+                <input type="hidden" name="edit_reservation_id" id="editId">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="fas fa-edit me-2"></i>Edit Reservation</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Full Name <span class="text-danger">*</span></label>
+                        <input type="text" name="edit_name" id="editName" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Email</label>
+                        <input type="email" name="edit_email" id="editEmail" class="form-control">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Phone</label>
+                        <input type="text" name="edit_phone" id="editPhone" class="form-control">
+                    </div>
+                    <div class="row">
+                        <div class="col-6 mb-3">
+                            <label class="form-label fw-semibold">Attendance</label>
+                            <select name="edit_attendance" id="editAttendance" class="form-select">
+                                <option value="yes">Confirmed</option>
+                                <option value="maybe">Maybe</option>
+                                <option value="no">Declined</option>
+                            </select>
+                        </div>
+                        <div class="col-6 mb-3">
+                            <label class="form-label fw-semibold">Guests</label>
+                            <input type="number" name="edit_guests" id="editGuests" class="form-control" min="1" max="20" value="1">
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Dietary Requirements</label>
+                        <textarea name="edit_dietary" id="editDietary" class="form-control" rows="2"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary"><i class="fas fa-save me-1"></i>Update</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Form (hidden) -->
+<form id="deleteForm" method="POST" style="display:none;">
+    <input type="hidden" name="delete_reservation_id" id="deleteId">
+</form>
+
 </main>
 </div>
 </div>
@@ -328,6 +451,26 @@ document.querySelectorAll('.filter-tab').forEach(tab => {
         });
     });
 });
+
+// Edit modal
+function openEditModal(data) {
+    document.getElementById('editId').value = data.id;
+    document.getElementById('editName').value = data.name;
+    document.getElementById('editEmail').value = data.email;
+    document.getElementById('editPhone').value = data.phone;
+    document.getElementById('editAttendance').value = data.attendance;
+    document.getElementById('editGuests').value = data.guests;
+    document.getElementById('editDietary').value = data.dietary;
+    new bootstrap.Modal(document.getElementById('editModal')).show();
+}
+
+// Delete confirmation
+function confirmDelete(id, name) {
+    if (confirm('Are you sure you want to delete the reservation for "' + name + '"?')) {
+        document.getElementById('deleteId').value = id;
+        document.getElementById('deleteForm').submit();
+    }
+}
 
 // Export CSV
 function exportCSV() {
