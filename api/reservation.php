@@ -97,13 +97,16 @@ try {
         try {
             $whatsapp = UltraMsgService::fromDatabase($db);
             if ($whatsapp) {
-                $message = "ሰላም ጤና ይስጥልን የተከበሩ {$fullName}፣\n\n"
-                    . "ለ ሊቨርፑል መካነ ቅዱሳን አቡነ ተክለሃይማኖት ቤተክርስቲያን Community Engagement ፕሮግራም ያሳዩትን ፍላጎት በእግዚአብሔር ስም እናመሰግናለን።\n\n"
-                    . "እሑድ March 29, 2026 ከቀኑ 2:00 PM ጀምሮ በ St Gabriel's Church, 16 Yates St, Liverpool L8 6RD እንጠብቆታለን።\n\n"
-                    . "ለበለጠ መረጃ፡\n"
+                $message = "Dear {$fullName},\n\n"
+                    . "Thank you for reserving your spot for our Community Engagement event! We're delighted to have you join us.\n\n"
+                    . "📅 Sunday, 29 March 2026\n"
+                    . "🕑 2:00 PM\n"
+                    . "📍 St Gabriel's Church, 16 Yates St, Liverpool L8 6RD\n\n"
+                    . "We look forward to welcoming you with traditional coffee, authentic cuisine, and a wonderful time of fellowship.\n\n"
+                    . "For more details:\n"
                     . "https://donate.abuneteklehaymanot.org/invitation\n\n"
-                    . "እግዚአብሔር ይባርክዎ! 🙏\n\n"
-                    . "- ሊቨርፑል መካነ ቅዱሳን አቡነ ተክለሃይማኖት ቤተ ክርስቲያን";
+                    . "God bless you! 🙏\n\n"
+                    . "- Liverpool Mekane Kiddusan Abune Teklehaymanot EOTC";
 
                 $result = $whatsapp->send($phone, $message, ['log' => true]);
                 $whatsappSent = !empty($result['success']);
