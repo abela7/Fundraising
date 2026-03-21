@@ -28,15 +28,40 @@
             height: 105mm;
             position: relative;
             overflow: hidden;
-            background: #faf8f2;
+            background: #064a66;
             box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+
+        /* Tibeb pattern background */
+        .card-bg {
+            position: absolute;
+            inset: 0;
+            background: url('Ethiopian_Design.png') repeat;
+            background-size: 200px auto;
+            opacity: 0.25;
+            z-index: 0;
+        }
+
+        /* Blue overlay */
+        .card-overlay {
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(
+                180deg,
+                rgba(6, 74, 102, 0.90) 0%,
+                rgba(6, 74, 102, 0.78) 15%,
+                rgba(6, 74, 102, 0.72) 50%,
+                rgba(6, 74, 102, 0.78) 85%,
+                rgba(6, 74, 102, 0.90) 100%
+            );
+            z-index: 0;
         }
 
         /* Blended background photos */
         .bg-photos {
             position: absolute;
             inset: 0;
-            z-index: 0;
+            z-index: 1;
         }
 
         .bg-photos .bg-img {
@@ -71,7 +96,7 @@
             content: '';
             position: absolute;
             inset: 0;
-            background: radial-gradient(ellipse at center, transparent 10%, rgba(250, 248, 242, 0.5) 60%, rgba(250, 248, 242, 0.85) 100%);
+            background: radial-gradient(ellipse at center, transparent 10%, rgba(6, 74, 102, 0.5) 60%, rgba(6, 74, 102, 0.85) 100%);
         }
 
         /* Ambient flag colour glows on dark background */
@@ -87,7 +112,7 @@
             pointer-events: none;
         }
 
-        /* Pattern Two thin borders */
+        /* Pattern Two thin borders — full frame */
         .tibeb-top,
         .tibeb-bottom {
             position: absolute;
@@ -102,11 +127,25 @@
         .tibeb-top { top: 0; }
         .tibeb-bottom { bottom: 0; }
 
+        .tibeb-left,
+        .tibeb-right {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 12px;
+            background: url('Pattern_Two! - Vertical.jpeg') repeat-y center;
+            background-size: 100% auto;
+            z-index: 10;
+        }
+
+        .tibeb-left { left: 0; }
+        .tibeb-right { right: 0; }
+
         .card-content {
             position: relative;
             z-index: 5;
             padding: 1.8rem 1.4rem 1.6rem;
-            color: #000000;
+            color: #ffffff;
         }
 
         .card-header {
@@ -118,14 +157,14 @@
             font-family: 'Outfit', sans-serif;
             font-size: 0.78rem;
             font-weight: 500;
-            color: #000000;
+            color: #ffffff;
             line-height: 1.45;
         }
 
         .card-divider {
             width: 100%;
             height: 1px;
-            background: rgba(0, 0, 0, 0.15);
+            background: rgba(255, 255, 255, 0.25);
             margin: 0.6rem 0;
         }
 
@@ -136,7 +175,7 @@
             font-weight: 700;
             text-transform: uppercase;
             letter-spacing: 0.2em;
-            color: #000000;
+            color: #ffffff;
             margin-bottom: 0.8rem;
             white-space: nowrap;
         }
@@ -146,13 +185,17 @@
             font-size: 0.82rem;
             font-weight: 500;
             font-style: italic;
-            color: #000000;
+            color: #ffffff;
             margin-bottom: 0.7rem;
+            display: flex;
+            align-items: baseline;
+            gap: 0.4rem;
         }
 
-        .card-dear-dots {
-            letter-spacing: 0.15em;
-            color: rgba(0, 0, 0, 0.25);
+        .card-dear-line {
+            width: 45%;
+            height: 1px;
+            background: rgba(255, 255, 255, 0.4);
         }
 
         .card-body {
@@ -160,7 +203,7 @@
             font-size: 0.72rem;
             font-weight: 400;
             line-height: 2.2;
-            color: #000000;
+            color: #ffffff;
             text-align: justify;
         }
 
@@ -173,12 +216,12 @@
         }
 
         .card-body strong {
-            color: #000000;
+            color: #ffffff;
             font-weight: 600;
         }
 
         .card-body em {
-            color: #000000;
+            color: #ffffff;
             font-style: normal;
             font-weight: 600;
         }
@@ -189,32 +232,35 @@
             gap: 1.5rem;
             margin: 0.7rem 0;
             padding: 0.5rem 0;
-            border-top: 1px solid rgba(0, 0, 0, 0.12);
-            border-bottom: 1px solid rgba(0, 0, 0, 0.12);
+            border-top: 1px solid rgba(255, 255, 255, 0.2);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+            flex-wrap: nowrap;
         }
 
         .card-event-item {
             font-family: 'Outfit', sans-serif;
             font-size: 0.75rem;
-            color: #000000;
+            color: #ffffff;
+            white-space: nowrap;
+            flex-shrink: 0;
         }
 
         .card-event-item strong {
-            color: #000000;
+            color: #ffffff;
             font-weight: 600;
         }
 
         .card-contact {
             font-family: 'Outfit', sans-serif;
             font-size: 0.65rem;
-            color: #000000;
+            color: #ffffff;
             text-align: center;
             margin-top: 0.5rem;
             line-height: 1.7;
         }
 
         .card-contact strong {
-            color: #000000;
+            color: #ffffff;
             font-weight: 600;
         }
 
@@ -227,7 +273,7 @@
             font-family: 'Outfit', sans-serif;
             font-size: 0.75rem;
             font-style: italic;
-            color: #000000;
+            color: #ffffff;
             margin-bottom: 0.15rem;
         }
 
@@ -235,7 +281,7 @@
             font-family: 'Outfit', sans-serif;
             font-size: 0.78rem;
             font-weight: 700;
-            color: #000000;
+            color: #ffffff;
         }
 
         .card-footer {
@@ -257,7 +303,7 @@
             width: 62px;
             height: 62px;
             display: block;
-            border: 1.5px solid rgba(0, 0, 0, 0.15);
+            border: 1.5px solid rgba(255, 255, 255, 0.25);
             border-radius: 4px;
         }
 
@@ -267,7 +313,7 @@
             font-weight: 600;
             text-transform: uppercase;
             letter-spacing: 0.12em;
-            color: rgba(0, 0, 0, 0.5);
+            color: rgba(255, 255, 255, 0.5);
         }
 
         .download-btn {
@@ -317,12 +363,16 @@
 <body>
 
     <div class="card">
+        <div class="card-bg"></div>
+        <div class="card-overlay"></div>
         <div class="bg-photos">
             <img src="Kesis_Birhanu.jpg" alt="" class="bg-img bg-kesis">
             <img src="Church_Photo_front.png" alt="" class="bg-img bg-church">
         </div>
         <div class="tibeb-top"></div>
         <div class="tibeb-bottom"></div>
+        <div class="tibeb-left"></div>
+        <div class="tibeb-right"></div>
 
         <div class="card-content">
 
@@ -337,7 +387,7 @@
             <div class="card-title">Community engagement invitation</div>
 
             <div class="card-dear">
-                Dear<span class="card-dear-dots">&#8230;&#8230;&#8230;&#8230;&#8230;&#8230;&#8230;&#8230;&#8230;&#8230;&#8230;&#8230;&#8230;&#8230;&#8230;&#8230;&#8230;&#8230;&#8230;&#8230;&#8230;&#8230;&#8230;&#8230;&#8230;&#8230;&#8230;</span>
+                To <span class="card-dear-line"></span>
             </div>
 
             <div class="card-body">
@@ -363,7 +413,7 @@
 
     <button class="download-btn" onclick="downloadCard()">Download Front Card (High Quality)</button>
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dom-to-image-more@3.4.5/dist/dom-to-image-more.min.js"></script>
     <script>
         function downloadCard() {
             const card = document.querySelector('.card');
@@ -371,21 +421,37 @@
             btn.textContent = 'Generating...';
             btn.disabled = true;
 
-            html2canvas(card, {
-                scale: 4,
-                useCORS: true,
-                allowTaint: true,
-                backgroundColor: null,
-                width: card.offsetWidth,
-                height: card.offsetHeight
-            }).then(canvas => {
-                const link = document.createElement('a');
-                link.download = 'LMKAT-EOTC-Invitation-Front.png';
-                link.href = canvas.toDataURL('image/png', 1.0);
-                link.click();
-                btn.textContent = 'Download Front Card (High Quality)';
-                btn.disabled = false;
-            }).catch(() => {
+            var w = card.offsetWidth;
+            var h = card.offsetHeight;
+
+            // Capture at native size — no transform, no reflow
+            domtoimage.toPng(card, {
+                width: w,
+                height: h,
+                quality: 1.0
+            }).then(function(dataUrl) {
+                // Draw onto a 4x canvas for high-res output
+                var scale = 4;
+                var canvas = document.createElement('canvas');
+                canvas.width = w * scale;
+                canvas.height = h * scale;
+                var ctx = canvas.getContext('2d');
+                ctx.imageSmoothingEnabled = true;
+                ctx.imageSmoothingQuality = 'high';
+
+                var img = new Image();
+                img.onload = function() {
+                    ctx.drawImage(img, 0, 0, w * scale, h * scale);
+                    var link = document.createElement('a');
+                    link.download = 'LMKAT-EOTC-Invitation-Front.png';
+                    link.href = canvas.toDataURL('image/png', 1.0);
+                    link.click();
+                    btn.textContent = 'Download Front Card (High Quality)';
+                    btn.disabled = false;
+                };
+                img.src = dataUrl;
+            }).catch(function(err) {
+                console.error('Download failed:', err);
                 btn.textContent = 'Download Front Card (High Quality)';
                 btn.disabled = false;
             });

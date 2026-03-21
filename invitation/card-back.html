@@ -4,11 +4,71 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Invitation Card — Back</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <style>
+        @font-face {
+            font-family: 'Cormorant Garamond';
+            font-style: italic;
+            font-weight: 400;
+            font-display: swap;
+            src: url('https://fonts.gstatic.com/s/cormorantgaramond/v21/co3smX5slCNuHLi8bLeY9MK7whWMhyjYrGFEsdtdc62E6zd58jDOjw.ttf') format('truetype');
+        }
+
+        @font-face {
+            font-family: 'Cormorant Garamond';
+            font-style: normal;
+            font-weight: 400;
+            font-display: swap;
+            src: url('https://fonts.gstatic.com/s/cormorantgaramond/v21/co3umX5slCNuHLi8bLeY9MK7whWMhyjypVO7abI26QOD_v86GnM.ttf') format('truetype');
+        }
+
+        @font-face {
+            font-family: 'Cormorant Garamond';
+            font-style: normal;
+            font-weight: 600;
+            font-display: swap;
+            src: url('https://fonts.gstatic.com/s/cormorantgaramond/v21/co3umX5slCNuHLi8bLeY9MK7whWMhyjypVO7abI26QOD_iE9GnM.ttf') format('truetype');
+        }
+
+        @font-face {
+            font-family: 'Outfit';
+            font-style: normal;
+            font-weight: 300;
+            font-display: swap;
+            src: url('https://fonts.gstatic.com/s/outfit/v15/QGYyz_MVcBeNP4NjuGObqx1XmO1I4W61C4E.ttf') format('truetype');
+        }
+
+        @font-face {
+            font-family: 'Outfit';
+            font-style: normal;
+            font-weight: 400;
+            font-display: swap;
+            src: url('https://fonts.gstatic.com/s/outfit/v15/QGYyz_MVcBeNP4NjuGObqx1XmO1I4TC1C4E.ttf') format('truetype');
+        }
+
+        @font-face {
+            font-family: 'Outfit';
+            font-style: normal;
+            font-weight: 500;
+            font-display: swap;
+            src: url('https://fonts.gstatic.com/s/outfit/v15/QGYyz_MVcBeNP4NjuGObqx1XmO1I4QK1C4E.ttf') format('truetype');
+        }
+
+        @font-face {
+            font-family: 'Outfit';
+            font-style: normal;
+            font-weight: 600;
+            font-display: swap;
+            src: url('https://fonts.gstatic.com/s/outfit/v15/QGYyz_MVcBeNP4NjuGObqx1XmO1I4e6yC4E.ttf') format('truetype');
+        }
+
+        @font-face {
+            font-family: 'Outfit';
+            font-style: normal;
+            font-weight: 700;
+            font-display: swap;
+            src: url('https://fonts.gstatic.com/s/outfit/v15/QGYyz_MVcBeNP4NjuGObqx1XmO1I4deyC4E.ttf') format('truetype');
+        }
+
         * {
             margin: 0;
             padding: 0;
@@ -29,8 +89,33 @@
             height: 105mm;
             position: relative;
             overflow: hidden;
-            background: #faf8f2;
+            background: #064a66;
             box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+
+        /* Tibeb pattern background */
+        .card-bg {
+            position: absolute;
+            inset: 0;
+            background: url('Ethiopian_Design.png') repeat;
+            background-size: 200px auto;
+            opacity: 0.25;
+            z-index: 0;
+        }
+
+        /* Blue overlay */
+        .card-overlay {
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(
+                180deg,
+                rgba(6, 74, 102, 0.90) 0%,
+                rgba(6, 74, 102, 0.78) 15%,
+                rgba(6, 74, 102, 0.72) 50%,
+                rgba(6, 74, 102, 0.78) 85%,
+                rgba(6, 74, 102, 0.90) 100%
+            );
+            z-index: 0;
         }
 
         /* Background: church on left, priests on right — blended */
@@ -39,7 +124,7 @@
             position: absolute;
             top: 0;
             bottom: 0;
-            z-index: 0;
+            z-index: 1;
         }
 
         .bg-church {
@@ -74,14 +159,14 @@
             content: '';
             position: absolute;
             inset: 0;
-            background: linear-gradient(to right, transparent 20%, rgba(250, 248, 242, 0.6) 60%, rgba(250, 248, 242, 1) 100%);
+            background: linear-gradient(to right, transparent 20%, rgba(6, 74, 102, 0.6) 60%, rgba(6, 74, 102, 1) 100%);
         }
 
         .bg-priests::after {
             content: '';
             position: absolute;
             inset: 0;
-            background: linear-gradient(to left, transparent 20%, rgba(250, 248, 242, 0.6) 60%, rgba(250, 248, 242, 1) 100%);
+            background: linear-gradient(to left, transparent 20%, rgba(6, 74, 102, 0.6) 60%, rgba(6, 74, 102, 1) 100%);
         }
 
         /* Same ambient flag colour glows as front */
@@ -97,7 +182,7 @@
             pointer-events: none;
         }
 
-        /* Tibeb borders */
+        /* Tibeb borders — full frame */
         .tibeb-top,
         .tibeb-bottom {
             position: absolute;
@@ -111,6 +196,20 @@
 
         .tibeb-top { top: 0; }
         .tibeb-bottom { bottom: 0; }
+
+        .tibeb-left,
+        .tibeb-right {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 12px;
+            background: url('Pattern_Two! - Vertical.jpeg') repeat-y center;
+            background-size: 100% auto;
+            z-index: 10;
+        }
+
+        .tibeb-left { left: 0; }
+        .tibeb-right { right: 0; }
 
         /* Center-aligned content */
         .card-content {
@@ -154,8 +253,9 @@
             font-weight: 700;
             text-transform: uppercase;
             letter-spacing: 0.22em;
-            color: rgba(0, 0, 0, 0.55);
+            color: rgba(255, 255, 255, 0.7);
             margin-bottom: 12px;
+            white-space: nowrap;
         }
 
         /* Contact wrapper — centers the block, content left-aligned inside */
@@ -193,13 +293,20 @@
             flex-shrink: 0;
         }
 
+        .contact-icon svg {
+            width: 14px;
+            height: 14px;
+            fill: #fff;
+        }
+
         .contact-text {
             font-family: 'Outfit', sans-serif;
             font-size: 0.7rem;
             font-weight: 500;
-            color: #000;
+            color: #fff;
             text-align: left;
             line-height: 1.3;
+            white-space: nowrap;
         }
 
         .contact-text small {
@@ -208,7 +315,7 @@
             font-weight: 600;
             text-transform: uppercase;
             letter-spacing: 0.08em;
-            color: rgba(0, 0, 0, 0.4);
+            color: rgba(255, 255, 255, 0.5);
             margin-bottom: 1px;
         }
 
@@ -216,7 +323,7 @@
         .thin-line {
             width: 70px;
             height: 1px;
-            background: linear-gradient(90deg, transparent, rgba(0,0,0,0.18), transparent);
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.25), transparent);
             margin: 10px auto;
         }
 
@@ -232,17 +339,18 @@
             font-family: 'Outfit', sans-serif;
             font-size: 0.55rem;
             font-weight: 400;
-            color: rgba(0, 0, 0, 0.55);
+            color: rgba(255, 255, 255, 0.65);
             margin-bottom: 7px;
             line-height: 1.5;
-            max-width: 320px;
+            max-width: none;
+            white-space: nowrap;
         }
 
         .qr-section img {
             width: 68px;
             height: 68px;
             display: block;
-            border: 1.5px solid rgba(0, 0, 0, 0.1);
+            border: 1.5px solid rgba(255, 255, 255, 0.2);
             border-radius: 5px;
             padding: 3px;
             background: #fff;
@@ -259,28 +367,58 @@
             font-size: 0.8rem;
             font-style: italic;
             font-weight: 400;
-            color: rgba(0, 0, 0, 0.6);
+            color: rgba(255, 255, 255, 0.7);
             margin-bottom: 3px;
+            white-space: nowrap;
         }
 
         .signoff-org {
             font-family: 'Outfit', sans-serif;
             font-size: 0.85rem;
             font-weight: 700;
-            color: #000;
+            color: #fff;
             letter-spacing: 0.06em;
         }
 
         /* Website */
         .website-link {
             margin-top: 7px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
             font-family: 'Outfit', sans-serif;
             font-size: 0.45rem;
             font-weight: 500;
-            color: rgba(0, 0, 0, 0.35);
+            color: rgba(255, 255, 255, 0.45);
+            white-space: nowrap;
+        }
+
+        .website-icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 13px;
+            height: 13px;
+            border-radius: 50%;
+            background: rgba(0, 0, 0, 0.05);
+            color: rgba(0, 0, 0, 0.48);
+            flex-shrink: 0;
+        }
+
+        .website-icon svg {
+            width: 9px;
+            height: 9px;
+            stroke: currentColor;
+            fill: none;
+            stroke-width: 1.7;
+            stroke-linecap: round;
+            stroke-linejoin: round;
         }
 
         .website-link a {
+            display: inline-block;
+            line-height: 1;
             color: rgba(0, 0, 0, 0.5);
             text-decoration: none;
             border-bottom: 1px solid rgba(0, 0, 0, 0.12);
@@ -345,6 +483,8 @@
 
         <div class="tibeb-top"></div>
         <div class="tibeb-bottom"></div>
+        <div class="tibeb-left"></div>
+        <div class="tibeb-right"></div>
 
         <div class="card-content">
 
@@ -357,14 +497,14 @@
             <div class="contact-wrapper">
                 <div class="contact-stack">
                     <div class="contact-item">
-                        <div class="contact-icon"><i class="fas fa-phone"></i></div>
+                        <div class="contact-icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><path d="M164.9 24.6c-7.7-18.6-28-28.5-47.4-23.2l-88 24C12.1 30.2 0 46 0 64c0 247.4 200.6 448 448 448c18 0 33.8-12.1 38.6-29.5l24-88c5.3-19.4-4.6-39.7-23.2-47.4l-96-40c-16.3-6.8-35.2-2.1-46.3 11.6L304.7 368c-70.4-33.3-127.4-90.3-160.7-160.7l49.3-40.4c13.7-11.2 18.4-30 11.6-46.3l-40-96z"/></svg></div>
                         <div class="contact-text">
                             <small>Phone</small>
                             07951 403936
                         </div>
                     </div>
                     <div class="contact-item">
-                        <div class="contact-icon"><i class="fas fa-envelope"></i></div>
+                        <div class="contact-icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><path d="M48 64C21.5 64 0 85.5 0 112c0 15.1 7.1 29.3 19.2 38.4L236.8 313.6c11.4 8.5 27 8.5 38.4 0L492.8 150.4c12.1-9.1 19.2-23.3 19.2-38.4c0-26.5-21.5-48-48-48H48zM0 176V384c0 35.3 28.7 64 64 64H448c35.3 0 64-28.7 64-64V176L294.4 339.2c-22.8 17.1-54 17.1-76.8 0L0 176z"/></svg></div>
                         <div class="contact-text">
                             <small>Email</small>
                             stakeholder@abuneteklehaymanot.org
@@ -386,7 +526,14 @@
             </div>
 
             <div class="website-link">
-                <i class="fas fa-globe"></i> <a href="https://abuneteklehaymanot.org">abuneteklehaymanot.org</a>
+                <span class="website-icon" aria-hidden="true">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                        <circle cx="12" cy="12" r="8.25"></circle>
+                        <path d="M3.75 12h16.5"></path>
+                        <path d="M12 3.75c2.55 2.1 4.25 5.05 4.25 8.25s-1.7 6.15-4.25 8.25c-2.55-2.1-4.25-5.05-4.25-8.25s1.7-6.15 4.25-8.25z"></path>
+                    </svg>
+                </span>
+                <a href="https://abuneteklehaymanot.org">abuneteklehaymanot.org</a>
             </div>
 
         </div>
@@ -394,33 +541,49 @@
 
     <button class="download-btn" onclick="downloadCard()">Download Back Card (High Quality)</button>
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dom-to-image-more@3.4.5/dist/dom-to-image-more.min.js"></script>
     <script>
-        function downloadCard() {
+        async function downloadCard() {
             const card = document.querySelector('.card');
             const btn = document.querySelector('.download-btn');
+            const w = card.offsetWidth;
+            const h = card.offsetHeight;
+            const scale = 4;
+
             btn.textContent = 'Generating...';
             btn.disabled = true;
 
-            html2canvas(card, {
-                scale: 4,
-                useCORS: true,
-                allowTaint: true,
-                backgroundColor: null,
-                width: card.offsetWidth,
-                height: card.offsetHeight
-            }).then(canvas => {
+            try {
+                if (document.fonts && document.fonts.ready) {
+                    await document.fonts.ready;
+                }
+
+                const dataUrl = await domtoimage.toPng(card, {
+                    width: w * scale,
+                    height: h * scale,
+                    quality: 1,
+                    cacheBust: true,
+                    bgcolor: '#faf8f2',
+                    style: {
+                        transform: `scale(${scale})`,
+                        transformOrigin: 'top left',
+                        width: `${w}px`,
+                        height: `${h}px`
+                    }
+                });
+
                 const link = document.createElement('a');
                 link.download = 'LMKAT-EOTC-Invitation-Back.png';
-                link.href = canvas.toDataURL('image/png', 1.0);
+                link.href = dataUrl;
                 link.click();
+            } catch (err) {
+                console.error('Download failed:', err);
+            } finally {
                 btn.textContent = 'Download Back Card (High Quality)';
                 btn.disabled = false;
-            }).catch(() => {
-                btn.textContent = 'Download Back Card (High Quality)';
-                btn.disabled = false;
-            });
+            }
         }
     </script>
 </body>
 </html>
+
