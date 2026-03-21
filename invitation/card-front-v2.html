@@ -195,6 +195,38 @@
             color: #000000;
         }
 
+        .card-footer {
+            display: flex;
+            align-items: flex-end;
+            justify-content: space-between;
+            margin-top: 0.6rem;
+            padding-bottom: 0.3rem;
+        }
+
+        .qr-block {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.15rem;
+        }
+
+        .qr-block img {
+            width: 62px;
+            height: 62px;
+            display: block;
+            border: 1.5px solid rgba(0, 0, 0, 0.15);
+            border-radius: 4px;
+        }
+
+        .qr-label {
+            font-family: 'Outfit', sans-serif;
+            font-size: 0.5rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.12em;
+            color: rgba(0, 0, 0, 0.5);
+        }
+
         @media print {
             body {
                 background: none;
@@ -262,9 +294,15 @@
                 <strong>Email:</strong> stakeholder@abuneteklehaymanot.org
             </div>
 
-            <div class="card-signoff">
-                <div class="card-signoff-text">Looking forward to welcoming you,</div>
-                <div class="card-signoff-org">LMKAT EOTC.</div>
+            <div class="card-footer">
+                <div class="qr-block">
+                    <img src="RSRV .jpeg" alt="RSVP QR Code">
+                    <span class="qr-label">Scan to RSVP</span>
+                </div>
+                <div class="card-signoff">
+                    <div class="card-signoff-text">Looking forward to welcoming you,</div>
+                    <div class="card-signoff-org">LMKAT EOTC.</div>
+                </div>
             </div>
 
         </div>
