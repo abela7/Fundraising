@@ -19,6 +19,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 
 require_once __DIR__ . '/../config/db.php';
 require_once __DIR__ . '/../services/UltraMsgService.php';
+require_once __DIR__ . '/../services/EmailService.php';
 
 try {
     $db = db();
@@ -102,8 +103,10 @@ try {
     $emailSent = false;
     if ($email !== '') {
         try {
-            $subject = 'Reservation Confirmed - LMKAT EOTC Community Engagement';
-            $htmlBody = '
+            $emailService = EmailService::fromDatabase($db);
+            if ($emailService) {
+                $subject = 'Reservation Confirmed - LMKAT EOTC Community Engagement';
+                $htmlBody = '
 <!DOCTYPE html>
 <html>
 <head><meta charset="utf-8"></head>
@@ -145,12 +148,9 @@ try {
 </body>
 </html>';
 
-            $headers = "From: LMKAT EOTC <stakeholder@abuneteklehaymanot.org>\r\n";
-            $headers .= "Reply-To: stakeholder@abuneteklehaymanot.org\r\n";
-            $headers .= "MIME-Version: 1.0\r\n";
-            $headers .= "Content-Type: text/html; charset=UTF-8\r\n";
-
-            $emailSent = mail($email, $subject, $htmlBody, $headers);
+                $result = $emailService->send($email, $subject, $htmlBody);
+                $emailSent = !empty($result['success']);
+            }
         } catch (Throwable $e) {
             error_log("Reservation email error: " . $e->getMessage());
         }

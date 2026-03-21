@@ -11,7 +11,10 @@
       "Bash(test:*)",
       "Bash(git add:*)",
       "Bash(git commit:*)",
-      "Bash(git -C \"C:\\\\xampp\\\\htdocs\\\\Fundraising\" diff --stat HEAD)"
+      "Bash(git -C \"C:\\\\xampp\\\\htdocs\\\\Fundraising\" diff --stat HEAD)",
+      "Bash(curl -sL -o PHPMailer.php \"https://raw.githubusercontent.com/PHPMailer/PHPMailer/master/src/PHPMailer.php\")",
+      "Bash(curl -sL -o SMTP.php \"https://raw.githubusercontent.com/PHPMailer/PHPMailer/master/src/SMTP.php\")",
+      "Bash(curl -sL -o Exception.php \"https://raw.githubusercontent.com/PHPMailer/PHPMailer/master/src/Exception.php\")"
     ]
   }
 }
