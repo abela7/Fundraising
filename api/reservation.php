@@ -79,8 +79,6 @@ try {
                     . "🕑 2:00 PM\n"
                     . "📍 St Gabriel's Church, 16 Yates St, Liverpool L8 6RD\n\n"
                     . "We look forward to welcoming you with traditional coffee, authentic cuisine, and more.\n\n"
-                    . "For more details:\n"
-                    . "https://donate.abuneteklehaymanot.org/invitation\n\n"
                     . "God bless you! 🙏\n\n"
                     . "- Liverpool Mekane Kiddusan Abune Teklehaymanot EOTC";
 
@@ -122,9 +120,6 @@ try {
             Venue: St Gabriel\'s Church, 16 Yates St, Liverpool L8 6RD
         </p>
         <p style="font-size:15px;color:#333;line-height:1.6;margin:0 0 25px;">We look forward to welcoming you with traditional coffee, authentic cuisine, and more.</p>
-        <p style="font-size:15px;color:#333;line-height:1.6;margin:0 0 10px;">For more details visit:<br>
-            <a href="https://donate.abuneteklehaymanot.org/invitation" style="color:#064a66;">https://donate.abuneteklehaymanot.org/invitation</a>
-        </p>
     </td></tr>
     <tr><td style="padding:20px 30px;border-top:1px solid #eee;">
         <p style="color:#999;font-size:13px;margin:0;">God bless you!</p>
