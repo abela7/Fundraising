@@ -46,23 +46,24 @@
             object-fit: cover;
         }
 
-        /* Church centered as main background */
+        /* Church on the right side */
         .bg-photos .bg-church {
-            left: 50%;
-            transform: translateX(-50%);
-            width: 100%;
+            right: 0;
+            width: 60%;
             object-position: center center;
-            opacity: 0.2;
+            opacity: 0.12;
+            mask-image: linear-gradient(to right, transparent, black 30%);
+            -webkit-mask-image: linear-gradient(to right, transparent, black 30%);
         }
 
-        /* Kesis on the left side, softer */
+        /* Kesis on the left side */
         .bg-photos .bg-kesis {
             left: 0;
-            width: 45%;
+            width: 50%;
             object-position: center 15%;
-            opacity: 0.18;
-            mask-image: linear-gradient(to left, transparent 5%, black 40%);
-            -webkit-mask-image: linear-gradient(to left, transparent 5%, black 40%);
+            opacity: 0.1;
+            mask-image: linear-gradient(to left, transparent, black 30%);
+            -webkit-mask-image: linear-gradient(to left, transparent, black 30%);
         }
 
         /* Soft vignette overlay */
