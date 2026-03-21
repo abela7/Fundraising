@@ -313,12 +313,19 @@ try {
         </span>
         <span class="nav-label">Grid Allocation</span>
       </a>
-      <a href="<?php echo url_for('admin/certificates/'); ?>" 
+      <a href="<?php echo url_for('admin/certificates/'); ?>"
          class="nav-link <?php echo $current_dir === 'certificates' ? 'active' : ''; ?>">
         <span class="nav-icon">
           <i class="fas fa-certificate" style="color: #ffc107;"></i>
         </span>
         <span class="nav-label">Certificates</span>
+      </a>
+      <a href="<?php echo url_for('admin/event/reservations.php'); ?>"
+         class="nav-link <?php echo $current_dir === 'event' ? 'active' : ''; ?>">
+        <span class="nav-icon">
+          <i class="fas fa-calendar-check"></i>
+        </span>
+        <span class="nav-label">Event Reservations</span>
       </a>
       <a href="<?php echo url_for('admin/audit/'); ?>" 
          class="nav-link <?php echo $current_dir === 'audit' ? 'active' : ''; ?>">

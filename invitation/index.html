@@ -1951,6 +1951,7 @@
             <div class="video-frame reveal reveal-delay-2">
                 <div class="video-wrapper">
                     <iframe
+                        id="youtubePlayer"
                         src="https://www.youtube.com/embed/-8W1zuAOZeA?rel=0&modestbranding=1"
                         title="About the Ethiopian Orthodox Tewahedo Church"
                         allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
@@ -2171,6 +2172,17 @@
             toggle.classList.toggle('active');
             body.classList.toggle('open');
         }
+
+        /* ---- Load dynamic YouTube video ---- */
+        fetch('../api/settings.php?key=invitation_youtube_id')
+            .then(r => r.json())
+            .then(data => {
+                if (data.value) {
+                    const iframe = document.getElementById('youtubePlayer');
+                    if (iframe) iframe.src = 'https://www.youtube.com/embed/' + data.value + '?rel=0&modestbranding=1';
+                }
+            })
+            .catch(() => {});
 
         /* ---- Parallax on hero (desktop only) ---- */
         if (window.matchMedia('(min-width: 768px)').matches) {
