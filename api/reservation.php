@@ -53,31 +53,6 @@ try {
         $attendance = 'yes';
     }
 
-    // Check for duplicate reservation by phone or email
-    if ($phone !== '') {
-        $checkStmt = $db->prepare("SELECT id FROM event_reservations WHERE phone = ? LIMIT 1");
-        $checkStmt->bind_param('s', $phone);
-        $checkStmt->execute();
-        if ($checkStmt->get_result()->num_rows > 0) {
-            $checkStmt->close();
-            echo json_encode(['success' => true, 'message' => 'You have already reserved. We look forward to seeing you!', 'duplicate' => true]);
-            exit;
-        }
-        $checkStmt->close();
-    }
-
-    if ($email !== '') {
-        $checkStmt = $db->prepare("SELECT id FROM event_reservations WHERE email = ? LIMIT 1");
-        $checkStmt->bind_param('s', $email);
-        $checkStmt->execute();
-        if ($checkStmt->get_result()->num_rows > 0) {
-            $checkStmt->close();
-            echo json_encode(['success' => true, 'message' => 'You have already reserved. We look forward to seeing you!', 'duplicate' => true]);
-            exit;
-        }
-        $checkStmt->close();
-    }
-
     // Insert reservation
     $stmt = $db->prepare("
         INSERT INTO event_reservations (full_name, email, phone, attendance, guests, dietary, created_at)
