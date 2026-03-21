@@ -6,7 +6,7 @@
     <title>Invitation Card — Back</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <style>
         * {
@@ -154,19 +154,26 @@
             margin-bottom: 7px;
         }
 
-        /* Contact stacked in single column, two rows */
+        /* Contact wrapper — centers the block, content left-aligned inside */
+        .contact-wrapper {
+            display: flex;
+            justify-content: center;
+            width: 100%;
+            margin-bottom: 7px;
+        }
+
         .contact-stack {
             display: flex;
             flex-direction: column;
-            align-items: center;
+            align-items: flex-start;
             gap: 5px;
-            margin-bottom: 7px;
         }
 
         .contact-item {
             display: flex;
             align-items: center;
             gap: 7px;
+            width: 100%;
         }
 
         .contact-icon {
@@ -219,12 +226,12 @@
 
         .qr-intro {
             font-family: 'Outfit', sans-serif;
-            font-size: 0.36rem;
+            font-size: 0.44rem;
             font-weight: 400;
-            color: rgba(0, 0, 0, 0.5);
-            margin-bottom: 4px;
-            line-height: 1.4;
-            max-width: 200px;
+            color: rgba(0, 0, 0, 0.55);
+            margin-bottom: 5px;
+            line-height: 1.5;
+            max-width: 260px;
         }
 
         .qr-section img {
@@ -240,21 +247,24 @@
         /* Signoff */
         .signoff {
             text-align: center;
+            margin-top: 2px;
         }
 
         .signoff-text {
-            font-family: 'Outfit', sans-serif;
-            font-size: 0.48rem;
+            font-family: 'Cormorant Garamond', serif;
+            font-size: 0.58rem;
             font-style: italic;
+            font-weight: 400;
             color: rgba(0, 0, 0, 0.6);
-            margin-bottom: 1px;
+            margin-bottom: 2px;
         }
 
         .signoff-org {
             font-family: 'Outfit', sans-serif;
-            font-size: 0.55rem;
+            font-size: 0.6rem;
             font-weight: 700;
             color: #000;
+            letter-spacing: 0.05em;
         }
 
         /* Website */
@@ -317,19 +327,21 @@
 
             <div class="back-label">For Further Information</div>
 
-            <div class="contact-stack">
-                <div class="contact-item">
-                    <div class="contact-icon"><i class="fas fa-phone"></i></div>
-                    <div class="contact-text">
-                        <small>Phone</small>
-                        07951 403936
+            <div class="contact-wrapper">
+                <div class="contact-stack">
+                    <div class="contact-item">
+                        <div class="contact-icon"><i class="fas fa-phone"></i></div>
+                        <div class="contact-text">
+                            <small>Phone</small>
+                            07951 403936
+                        </div>
                     </div>
-                </div>
-                <div class="contact-item">
-                    <div class="contact-icon"><i class="fas fa-envelope"></i></div>
-                    <div class="contact-text">
-                        <small>Email</small>
-                        stakeholder@abuneteklehaymanot.org
+                    <div class="contact-item">
+                        <div class="contact-icon"><i class="fas fa-envelope"></i></div>
+                        <div class="contact-text">
+                            <small>Email</small>
+                            stakeholder@abuneteklehaymanot.org
+                        </div>
                     </div>
                 </div>
             </div>
