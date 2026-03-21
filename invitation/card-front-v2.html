@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Invitation Card — Design 2</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #d0d0d0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 2rem;
+        }
+
+        .card {
+            width: 5in;
+            position: relative;
+            overflow: hidden;
+            background: #064a66;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+
+        /* Pattern Two background */
+        .card-bg {
+            position: absolute;
+            inset: 0;
+            background: url('Pattern_Two!.jpeg') repeat;
+            background-size: 150px auto;
+            opacity: 0.2;
+            z-index: 0;
+        }
+
+        .card-overlay {
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(
+                180deg,
+                rgba(6, 74, 102, 0.90) 0%,
+                rgba(6, 74, 102, 0.78) 15%,
+                rgba(6, 74, 102, 0.72) 50%,
+                rgba(6, 74, 102, 0.78) 85%,
+                rgba(6, 74, 102, 0.90) 100%
+            );
+            z-index: 1;
+        }
+
+        /* Pattern Two thin borders */
+        .tibeb-top,
+        .tibeb-bottom {
+            position: absolute;
+            left: 0;
+            right: 0;
+            height: 12px;
+            background: url('Pattern_Two!.jpeg') repeat-x center;
+            background-size: auto 100%;
+            z-index: 10;
+        }
+
+        .tibeb-top { top: 0; }
+        .tibeb-bottom { bottom: 0; }
+
+        .card-content {
+            position: relative;
+            z-index: 5;
+            padding: 1.8rem 1.4rem 1.6rem;
+            color: #ffffff;
+        }
+
+        .card-header {
+            text-align: center;
+            margin-bottom: 0.2rem;
+        }
+
+        .card-org {
+            font-family: 'Cormorant Garamond', Georgia, serif;
+            font-size: 0.82rem;
+            font-weight: 400;
+            color: #ffffff;
+            line-height: 1.45;
+        }
+
+        .card-divider {
+            width: 100%;
+            height: 1px;
+            background: rgba(226, 202, 24, 0.5);
+            margin: 0.6rem 0;
+        }
+
+        .card-title {
+            text-align: center;
+            font-family: 'Cormorant Garamond', Georgia, serif;
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.2em;
+            color: #e2ca18;
+            margin-bottom: 0.8rem;
+            white-space: nowrap;
+        }
+
+        .card-dear {
+            font-family: 'Cormorant Garamond', Georgia, serif;
+            font-size: 0.95rem;
+            font-weight: 400;
+            font-style: italic;
+            color: #ffffff;
+            margin-bottom: 0.7rem;
+        }
+
+        .card-dear-dots {
+            letter-spacing: 0.15em;
+            color: rgba(255, 255, 255, 0.35);
+        }
+
+        .card-body {
+            font-family: 'Cormorant Garamond', Georgia, serif;
+            font-size: 0.88rem;
+            font-weight: 400;
+            line-height: 1.75;
+            color: #ffffff;
+            text-align: justify;
+        }
+
+        .card-body p {
+            margin-bottom: 0.45rem;
+        }
+
+        .card-body p:last-child {
+            margin-bottom: 0;
+        }
+
+        .card-body strong {
+            color: #ffffff;
+            font-weight: 600;
+        }
+
+        .card-body em {
+            color: #e2ca18;
+            font-style: normal;
+            font-weight: 600;
+        }
+
+        .card-event {
+            display: flex;
+            justify-content: center;
+            gap: 1.5rem;
+            margin: 0.7rem 0;
+            padding: 0.5rem 0;
+            border-top: 1px solid rgba(226, 202, 24, 0.25);
+            border-bottom: 1px solid rgba(226, 202, 24, 0.25);
+        }
+
+        .card-event-item {
+            font-family: 'Cormorant Garamond', Georgia, serif;
+            font-size: 0.88rem;
+            color: #ffffff;
+        }
+
+        .card-event-item strong {
+            color: #e2ca18;
+            font-weight: 600;
+        }
+
+        .card-contact {
+            font-family: 'Cormorant Garamond', Georgia, serif;
+            font-size: 0.8rem;
+            color: #ffffff;
+            text-align: center;
+            margin-top: 0.5rem;
+            line-height: 1.7;
+        }
+
+        .card-contact strong {
+            color: #ffffff;
+            font-weight: 600;
+        }
+
+        .card-signoff {
+            text-align: center;
+            margin-top: 0.7rem;
+        }
+
+        .card-signoff-text {
+            font-family: 'Cormorant Garamond', Georgia, serif;
+            font-size: 0.88rem;
+            font-style: italic;
+            color: #ffffff;
+            margin-bottom: 0.15rem;
+        }
+
+        .card-signoff-org {
+            font-family: 'Cormorant Garamond', Georgia, serif;
+            font-size: 0.9rem;
+            font-weight: 700;
+            color: #e2ca18;
+        }
+
+        @media print {
+            body {
+                background: none;
+                display: block;
+                min-height: auto;
+                padding: 0;
+            }
+
+            .card {
+                box-shadow: none;
+                margin: 0;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+
+            @page {
+                size: 5in auto;
+                margin: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="card">
+        <div class="card-bg"></div>
+        <div class="card-overlay"></div>
+        <div class="tibeb-top"></div>
+        <div class="tibeb-bottom"></div>
+
+        <div class="card-content">
+
+            <div class="card-header">
+                <div class="card-org">
+                    The Liverpool Mekane Kidusan Abune Teklehymanot Ethiopian Orthodox Tewahedo Church (LMKAT EOTC) Diocese of Great Britain and Northern Ireland
+                </div>
+            </div>
+
+            <div class="card-divider"></div>
+
+            <div class="card-title">Community engagement invitation</div>
+
+            <div class="card-dear">
+                Dear<span class="card-dear-dots">&#8230;&#8230;&#8230;&#8230;&#8230;&#8230;&#8230;&#8230;&#8230;&#8230;&#8230;&#8230;&#8230;&#8230;&#8230;&#8230;&#8230;&#8230;&#8230;&#8230;&#8230;&#8230;&#8230;&#8230;&#8230;&#8230;&#8230;</span>
+            </div>
+
+            <div class="card-body">
+                <p>
+                    Praise be to the Almighty, we are pleased to announce that <strong>LMKAT EOTC</strong> will begin worshiping as <em>St Gabriel's Church</em>, located at <strong>16 Yates Street, Liverpool, L8 6RD</strong>.
+                </p>
+                <p>
+                    You are warmly invited to join us for a community engagement event, ahead of the consecration, to meet us, learn about the Ethiopian Orthodox Tewahedo Church (EOTC), and explore opportunities for future collaboration.
+                </p>
+                <p>
+                    Please join us to share your views and experience our ancient hymns, cultural cuisine, and traditional attire, as well as view the recent church renovations.
+                </p>
+            </div>
+
+            <div class="card-event">
+                <div class="card-event-item"><strong>Date:</strong> Sunday, 29 March 2026</div>
+                <div class="card-event-item"><strong>Time:</strong> 2pm to 5pm</div>
+            </div>
+
+            <div class="card-contact">
+                For further information, please contact:<br>
+                <strong>Phone:</strong> 07951 403936<br>
+                <strong>Email:</strong> stakeholder@abuneteklehaymanot.org
+            </div>
+
+            <div class="card-signoff">
+                <div class="card-signoff-text">Looking forward to welcoming you,</div>
+                <div class="card-signoff-org">LMKAT EOTC.</div>
+            </div>
+
+        </div>
+    </div>
+
+</body>
+</html>
