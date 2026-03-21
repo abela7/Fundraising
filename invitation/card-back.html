@@ -286,7 +286,30 @@
             border-bottom: 1px solid rgba(0, 0, 0, 0.12);
         }
 
+        .download-btn {
+            display: block;
+            margin: 20px auto;
+            padding: 14px 36px;
+            background: linear-gradient(135deg, #0a6286, #0d7da8);
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            font-family: 'Cormorant Garamond', serif;
+            font-size: 16px;
+            font-weight: 700;
+            letter-spacing: 1px;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .download-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(10, 98, 134, 0.4);
+        }
+
         @media print {
+            .download-btn { display: none; }
+
             body {
                 background: none;
                 display: block;
@@ -369,5 +392,35 @@
         </div>
     </div>
 
+    <button class="download-btn" onclick="downloadCard()">Download Back Card (High Quality)</button>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script>
+        function downloadCard() {
+            const card = document.querySelector('.card');
+            const btn = document.querySelector('.download-btn');
+            btn.textContent = 'Generating...';
+            btn.disabled = true;
+
+            html2canvas(card, {
+                scale: 4,
+                useCORS: true,
+                allowTaint: true,
+                backgroundColor: null,
+                width: card.offsetWidth,
+                height: card.offsetHeight
+            }).then(canvas => {
+                const link = document.createElement('a');
+                link.download = 'LMKAT-EOTC-Invitation-Back.png';
+                link.href = canvas.toDataURL('image/png', 1.0);
+                link.click();
+                btn.textContent = 'Download Back Card (High Quality)';
+                btn.disabled = false;
+            }).catch(() => {
+                btn.textContent = 'Download Back Card (High Quality)';
+                btn.disabled = false;
+            });
+        }
+    </script>
 </body>
 </html>
