@@ -180,10 +180,11 @@ try {
 </style>
 </head>
 <body>
+<div class="admin-wrapper">
 <?php include __DIR__ . '/../includes/sidebar.php'; ?>
-
-<main class="main-content">
+<div class="admin-content">
 <?php include __DIR__ . '/../includes/topbar.php'; ?>
+<main class="main-content">
 
 <div class="page-wrap">
     <h4 class="fw-bold mb-3"><i class="fas fa-calendar-check text-primary me-2"></i><?php echo $page_title; ?></h4>
@@ -310,6 +311,8 @@ try {
     </div>
 </div>
 </main>
+</div>
+</div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="../assets/admin.js"></script>
