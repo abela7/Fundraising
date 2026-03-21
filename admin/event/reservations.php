@@ -251,18 +251,10 @@ $reservations = $db->query("
                         <td><?php echo $r['phone'] ? htmlspecialchars($r['phone']) : '<span class="text-muted">—</span>'; ?></td>
                         <td>
                             <?php
-                            $badgeClass = match($r['attendance']) {
-                                'yes' => 'badge-yes',
-                                'maybe' => 'badge-maybe',
-                                'no' => 'badge-no',
-                                default => ''
-                            };
-                            $label = match($r['attendance']) {
-                                'yes' => 'Confirmed',
-                                'maybe' => 'Maybe',
-                                'no' => 'Declined',
-                                default => $r['attendance']
-                            };
+                            $badgeMap = ['yes' => 'badge-yes', 'maybe' => 'badge-maybe', 'no' => 'badge-no'];
+                            $labelMap = ['yes' => 'Confirmed', 'maybe' => 'Maybe', 'no' => 'Declined'];
+                            $badgeClass = $badgeMap[$r['attendance']] ?? '';
+                            $label = $labelMap[$r['attendance']] ?? $r['attendance'];
                             ?>
                             <span class="badge <?php echo $badgeClass; ?>"><?php echo $label; ?></span>
                         </td>
