@@ -111,39 +111,25 @@ try {
 <html>
 <head><meta charset="utf-8"></head>
 <body style="margin:0;padding:0;background:#f4f4f4;font-family:Arial,sans-serif;">
-<table width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;margin:20px auto;background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.08);">
-    <tr><td style="background:#064a66;padding:4px 0;text-align:center;"><img src="https://donate.abuneteklehaymanot.org/invitation/Pattern_Two!.jpeg" style="width:100%;height:12px;object-fit:cover;" alt=""></td></tr>
-    <tr><td style="background:#064a66;padding:30px 30px 20px;text-align:center;">
-        <h1 style="color:#e2ca18;font-size:24px;margin:0 0 8px;">You\'re All Set!</h1>
-        <p style="color:rgba(255,255,255,0.8);font-size:15px;margin:0;">Your reservation has been confirmed</p>
-    </td></tr>
-    <tr><td style="padding:30px;">
-        <p style="font-size:15px;color:#333;margin:0 0 20px;">Dear <strong>' . htmlspecialchars($fullName) . '</strong>,</p>
-        <p style="font-size:15px;color:#333;line-height:1.6;margin:0 0 25px;">Thank you for reserving your spot for our Community Engagement event! We\'re delighted to have you.</p>
-        <table width="100%" cellpadding="0" cellspacing="0" style="background:#f8f9fa;border-radius:10px;padding:5px;">
-            <tr><td style="padding:12px 18px;border-bottom:1px solid #e9ecef;">
-                <span style="color:#064a66;font-weight:bold;">📅</span>
-                <span style="color:#333;font-size:15px;margin-left:8px;">Sunday, 29 March 2026</span>
-            </td></tr>
-            <tr><td style="padding:12px 18px;border-bottom:1px solid #e9ecef;">
-                <span style="color:#064a66;font-weight:bold;">🕑</span>
-                <span style="color:#333;font-size:15px;margin-left:8px;">2:00 PM</span>
-            </td></tr>
-            <tr><td style="padding:12px 18px;">
-                <span style="color:#064a66;font-weight:bold;">📍</span>
-                <span style="color:#333;font-size:15px;margin-left:8px;">St Gabriel\'s Church, 16 Yates St, Liverpool L8 6RD</span>
-            </td></tr>
-        </table>
-        <p style="font-size:15px;color:#333;line-height:1.6;margin:25px 0 20px;">We look forward to welcoming you with traditional coffee, authentic cuisine, and more.</p>
-        <p style="text-align:center;margin:25px 0 0;">
-            <a href="https://donate.abuneteklehaymanot.org/invitation" style="display:inline-block;background:#064a66;color:#ffffff;text-decoration:none;padding:12px 30px;border-radius:8px;font-weight:bold;font-size:14px;">View Event Details</a>
+<table width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;margin:20px auto;background:#ffffff;">
+    <tr><td style="padding:30px 30px 20px;">
+        <h1 style="color:#064a66;font-size:22px;margin:0 0 15px;">Reservation Confirmed</h1>
+        <p style="font-size:15px;color:#333;margin:0 0 20px;">Dear ' . htmlspecialchars($fullName) . ',</p>
+        <p style="font-size:15px;color:#333;line-height:1.6;margin:0 0 25px;">Thank you for reserving your spot for our Community Engagement event! We are delighted to have you.</p>
+        <p style="font-size:15px;color:#333;line-height:1.8;margin:0 0 25px;">
+            Date: Sunday, 29 March 2026<br>
+            Time: 2:00 PM<br>
+            Venue: St Gabriel\'s Church, 16 Yates St, Liverpool L8 6RD
+        </p>
+        <p style="font-size:15px;color:#333;line-height:1.6;margin:0 0 25px;">We look forward to welcoming you with traditional coffee, authentic cuisine, and more.</p>
+        <p style="font-size:15px;color:#333;line-height:1.6;margin:0 0 10px;">For more details visit:<br>
+            <a href="https://donate.abuneteklehaymanot.org/invitation" style="color:#064a66;">https://donate.abuneteklehaymanot.org/invitation</a>
         </p>
     </td></tr>
-    <tr><td style="background:#064a66;padding:20px 30px;text-align:center;">
-        <p style="color:rgba(255,255,255,0.7);font-size:13px;margin:0;">God bless you! 🙏</p>
-        <p style="color:rgba(255,255,255,0.5);font-size:12px;margin:8px 0 0;">Liverpool Mekane Kiddusan Abune Teklehaymanot EOTC</p>
+    <tr><td style="padding:20px 30px;border-top:1px solid #eee;">
+        <p style="color:#999;font-size:13px;margin:0;">God bless you!</p>
+        <p style="color:#999;font-size:12px;margin:5px 0 0;">Liverpool Mekane Kiddusan Abune Teklehaymanot EOTC</p>
     </td></tr>
-    <tr><td style="background:#064a66;padding:0 0 4px;text-align:center;"><img src="https://donate.abuneteklehaymanot.org/invitation/Pattern_Two!.jpeg" style="width:100%;height:12px;object-fit:cover;" alt=""></td></tr>
 </table>
 </body>
 </html>';
