@@ -145,7 +145,7 @@ try {
 </body>
 </html>';
 
-            $headers = "From: LMKAT EOTC <noreply@abuneteklehaymanot.org>\r\n";
+            $headers = "From: LMKAT EOTC <stakeholder@abuneteklehaymanot.org>\r\n";
             $headers .= "Reply-To: stakeholder@abuneteklehaymanot.org\r\n";
             $headers .= "MIME-Version: 1.0\r\n";
             $headers .= "Content-Type: text/html; charset=UTF-8\r\n";
