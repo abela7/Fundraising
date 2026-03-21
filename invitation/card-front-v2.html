@@ -27,7 +27,20 @@
             width: 5in;
             position: relative;
             overflow: hidden;
-            background: #064a66;
+            background: linear-gradient(
+                160deg,
+                #1a5e3a 0%,
+                #1a6b40 15%,
+                #2a6e3e 25%,
+                #4a7a2e 35%,
+                #8a9a1e 45%,
+                #c4a818 50%,
+                #d4a020 55%,
+                #c87830 65%,
+                #b84a30 75%,
+                #a83228 85%,
+                #8b1a1a 100%
+            );
             box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
         }
 
@@ -71,7 +84,7 @@
         .card-divider {
             width: 100%;
             height: 1px;
-            background: rgba(226, 202, 24, 0.5);
+            background: rgba(255, 255, 255, 0.4);
             margin: 0.6rem 0;
         }
 
@@ -82,7 +95,7 @@
             font-weight: 700;
             text-transform: uppercase;
             letter-spacing: 0.2em;
-            color: #e2ca18;
+            color: #ffffff;
             margin-bottom: 0.8rem;
             white-space: nowrap;
         }
@@ -124,7 +137,7 @@
         }
 
         .card-body em {
-            color: #e2ca18;
+            color: #ffffff;
             font-style: normal;
             font-weight: 600;
         }
@@ -135,8 +148,8 @@
             gap: 1.5rem;
             margin: 0.7rem 0;
             padding: 0.5rem 0;
-            border-top: 1px solid rgba(226, 202, 24, 0.25);
-            border-bottom: 1px solid rgba(226, 202, 24, 0.25);
+            border-top: 1px solid rgba(255, 255, 255, 0.3);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.3);
         }
 
         .card-event-item {
@@ -146,7 +159,7 @@
         }
 
         .card-event-item strong {
-            color: #e2ca18;
+            color: #ffffff;
             font-weight: 600;
         }
 
@@ -181,7 +194,7 @@
             font-family: 'Cormorant Garamond', Georgia, serif;
             font-size: 0.9rem;
             font-weight: 700;
-            color: #e2ca18;
+            color: #ffffff;
         }
 
         @media print {
