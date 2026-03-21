@@ -29,31 +29,54 @@
             height: 105mm;
             position: relative;
             overflow: hidden;
-            background: #0a1a2a;
+            background: #faf8f2;
             box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
         }
 
-        /* Church photo as full background with dark overlay */
-        .card-bg {
+        /* Same ambient flag colour glows as front */
+        .card::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background:
+                radial-gradient(ellipse 70% 55% at 5% 10%, rgba(0, 128, 55, 0.25), transparent),
+                radial-gradient(ellipse 60% 45% at 50% 40%, rgba(252, 209, 22, 0.18), transparent),
+                radial-gradient(ellipse 70% 55% at 95% 90%, rgba(186, 34, 34, 0.25), transparent);
+            z-index: 1;
+            pointer-events: none;
+        }
+
+        /* Blended member photos as atmospheric background */
+        .bg-blend {
             position: absolute;
             inset: 0;
             z-index: 0;
         }
 
-        .card-bg img {
+        .bg-blend img {
+            position: absolute;
             width: 100%;
             height: 100%;
             object-fit: cover;
-            opacity: 0.25;
         }
 
-        /* Dark gradient overlay for readability */
-        .card-bg::after {
+        .bg-blend img:nth-child(1) {
+            opacity: 0.06;
+            object-position: center 30%;
+        }
+
+        .bg-blend img:nth-child(2) {
+            opacity: 0.05;
+            mix-blend-mode: overlay;
+            object-position: center 40%;
+        }
+
+        /* Soft vignette over blended photos */
+        .bg-blend::after {
             content: '';
             position: absolute;
             inset: 0;
-            background:
-                linear-gradient(135deg, rgba(10, 26, 42, 0.92) 0%, rgba(10, 50, 70, 0.85) 50%, rgba(10, 26, 42, 0.92) 100%);
+            background: radial-gradient(ellipse at center, transparent 30%, rgba(250, 248, 242, 0.7) 100%);
         }
 
         /* Tibeb borders */
@@ -62,7 +85,7 @@
             position: absolute;
             left: 0;
             right: 0;
-            height: 10px;
+            height: 12px;
             background: url('Pattern_Two!.jpeg') repeat-x center;
             background-size: auto 100%;
             z-index: 10;
@@ -71,97 +94,98 @@
         .tibeb-top { top: 0; }
         .tibeb-bottom { bottom: 0; }
 
-        /* Main layout: two columns */
+        /* Main layout */
         .card-content {
             position: relative;
             z-index: 5;
             display: flex;
             height: 100%;
-            padding: 16px 14px;
+            padding: 18px 16px;
         }
 
-        /* LEFT: Photo collage column */
-        .photo-col {
-            width: 42%;
+        /* LEFT: Church photo + EOTC icon */
+        .left-col {
+            width: 40%;
             display: flex;
             flex-direction: column;
-            gap: 5px;
+            align-items: center;
+            justify-content: center;
             padding-right: 12px;
+            gap: 8px;
         }
 
-        .photo-frame {
+        .church-frame {
             position: relative;
-            border-radius: 6px;
+            width: 100%;
+            flex: 1;
+            border-radius: 8px;
             overflow: hidden;
-            border: 1.5px solid rgba(212, 175, 55, 0.35);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+            border: 2px solid rgba(212, 175, 55, 0.3);
         }
 
-        .photo-frame img {
+        .church-frame img {
             width: 100%;
             height: 100%;
             object-fit: cover;
             display: block;
         }
 
-        .photo-main {
-            flex: 1.1;
-        }
-
-        .photo-row {
-            flex: 1;
-            display: flex;
-            gap: 5px;
-        }
-
-        .photo-row .photo-frame {
-            flex: 1;
-        }
-
-        /* Gold corner accents on main photo */
-        .photo-main::before,
-        .photo-main::after {
+        /* Gold corner accents */
+        .church-frame::before,
+        .church-frame::after {
             content: '';
             position: absolute;
-            width: 14px;
-            height: 14px;
+            width: 16px;
+            height: 16px;
             border-color: #D4AF37;
             border-style: solid;
             z-index: 2;
         }
 
-        .photo-main::before {
-            top: 4px;
-            left: 4px;
-            border-width: 1.5px 0 0 1.5px;
+        .church-frame::before {
+            top: 5px;
+            left: 5px;
+            border-width: 2px 0 0 2px;
         }
 
-        .photo-main::after {
-            bottom: 4px;
-            right: 4px;
-            border-width: 0 1.5px 1.5px 0;
+        .church-frame::after {
+            bottom: 5px;
+            right: 5px;
+            border-width: 0 2px 2px 0;
+        }
+
+        /* Church label */
+        .church-label {
+            font-family: 'Outfit', sans-serif;
+            font-size: 0.42rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.12em;
+            color: rgba(0, 0, 0, 0.45);
+            text-align: center;
         }
 
         /* RIGHT: Info column */
-        .info-col {
+        .right-col {
             flex: 1;
             display: flex;
             flex-direction: column;
             justify-content: center;
             align-items: center;
             text-align: center;
-            padding-left: 4px;
         }
 
         /* EOTC Icon */
         .eotc-icon {
-            width: 48px;
-            height: 48px;
-            margin-bottom: 8px;
+            width: 40px;
+            height: 40px;
+            margin-bottom: 6px;
             border-radius: 50%;
             overflow: hidden;
-            border: 1.5px solid rgba(212, 175, 55, 0.4);
-            background: rgba(255, 255, 255, 0.95);
-            padding: 3px;
+            border: 1.5px solid rgba(212, 175, 55, 0.35);
+            background: rgba(255, 255, 255, 0.9);
+            padding: 2px;
         }
 
         .eotc-icon img {
@@ -170,69 +194,67 @@
             object-fit: contain;
         }
 
-        /* Contact heading */
         .back-label {
             font-family: 'Outfit', sans-serif;
-            font-size: 0.42rem;
-            font-weight: 600;
+            font-size: 0.4rem;
+            font-weight: 700;
             text-transform: uppercase;
             letter-spacing: 0.2em;
-            color: #D4AF37;
+            color: rgba(0, 0, 0, 0.55);
             margin-bottom: 8px;
         }
 
-        /* Contact items stacked */
+        /* Contact items */
         .contact-stack {
             display: flex;
             flex-direction: column;
-            gap: 6px;
-            margin-bottom: 10px;
-            width: 100%;
+            gap: 5px;
+            margin-bottom: 8px;
         }
 
         .contact-item {
             display: flex;
             align-items: center;
-            gap: 7px;
-            justify-content: center;
+            gap: 6px;
         }
 
         .contact-icon {
-            width: 20px;
-            height: 20px;
+            width: 18px;
+            height: 18px;
             background: #D4AF37;
             border-radius: 4px;
             display: flex;
             align-items: center;
             justify-content: center;
-            color: #0a1a2a;
-            font-size: 0.45rem;
+            color: #fff;
+            font-size: 0.4rem;
             flex-shrink: 0;
         }
 
         .contact-text {
             font-family: 'Outfit', sans-serif;
-            font-size: 0.5rem;
+            font-size: 0.48rem;
             font-weight: 500;
-            color: rgba(255, 255, 255, 0.9);
+            color: #000;
             text-align: left;
+            line-height: 1.3;
         }
 
         .contact-text small {
             display: block;
-            font-size: 0.36rem;
+            font-size: 0.32rem;
             font-weight: 600;
             text-transform: uppercase;
             letter-spacing: 0.06em;
-            color: rgba(255, 255, 255, 0.45);
+            color: rgba(0, 0, 0, 0.4);
             margin-bottom: 1px;
         }
 
-        /* Divider */
-        .gold-line {
-            width: 50px;
+        /* Thin divider */
+        .thin-line {
+            width: 40px;
             height: 1px;
-            background: linear-gradient(90deg, transparent, #D4AF37, transparent);
+            background: linear-gradient(90deg, transparent, rgba(0,0,0,0.15), transparent);
             margin: 6px auto;
         }
 
@@ -241,58 +263,58 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            gap: 3px;
-            margin-bottom: 8px;
+            gap: 2px;
+            margin-bottom: 6px;
         }
 
         .qr-block img {
-            width: 50px;
-            height: 50px;
+            width: 44px;
+            height: 44px;
             display: block;
-            border: 1.5px solid rgba(212, 175, 55, 0.3);
-            border-radius: 4px;
-            background: #fff;
+            border: 1px solid rgba(0, 0, 0, 0.1);
+            border-radius: 3px;
             padding: 2px;
+            background: #fff;
         }
 
         .qr-label {
             font-family: 'Outfit', sans-serif;
-            font-size: 0.32rem;
+            font-size: 0.3rem;
             font-weight: 600;
             text-transform: uppercase;
             letter-spacing: 0.12em;
-            color: rgba(212, 175, 55, 0.6);
+            color: rgba(0, 0, 0, 0.35);
         }
 
         /* Signoff */
         .signoff-text {
             font-family: 'Outfit', sans-serif;
-            font-size: 0.5rem;
+            font-size: 0.48rem;
             font-style: italic;
-            color: rgba(255, 255, 255, 0.75);
+            color: rgba(0, 0, 0, 0.7);
             margin-bottom: 1px;
         }
 
         .signoff-org {
             font-family: 'Outfit', sans-serif;
-            font-size: 0.55rem;
+            font-size: 0.52rem;
             font-weight: 700;
-            color: #D4AF37;
+            color: #000;
         }
 
         /* Website */
         .website-link {
-            margin-top: 6px;
+            margin-top: 5px;
             font-family: 'Outfit', sans-serif;
-            font-size: 0.36rem;
+            font-size: 0.34rem;
             font-weight: 500;
-            color: rgba(255, 255, 255, 0.35);
+            color: rgba(0, 0, 0, 0.35);
         }
 
         .website-link a {
-            color: rgba(255, 255, 255, 0.5);
+            color: rgba(0, 0, 0, 0.5);
             text-decoration: none;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+            border-bottom: 1px solid rgba(0, 0, 0, 0.12);
         }
 
         @media print {
@@ -320,9 +342,10 @@
 <body>
 
     <div class="card">
-        <!-- Church as subtle background -->
-        <div class="card-bg">
-            <img src="../assets/images/new-church.png" alt="">
+        <!-- Blended member photos as subtle atmospheric background -->
+        <div class="bg-blend">
+            <img src="EOTC_Members.jpg" alt="">
+            <img src="EOTC_Members_two.jpg" alt="">
         </div>
 
         <div class="tibeb-top"></div>
@@ -330,29 +353,22 @@
 
         <div class="card-content">
 
-            <!-- LEFT: Photo collage -->
-            <div class="photo-col">
-                <div class="photo-frame photo-main">
-                    <img src="EOTC_Members.jpg" alt="Church congregation">
+            <!-- LEFT: Church building photo -->
+            <div class="left-col">
+                <div class="church-frame">
+                    <img src="../assets/images/new-church.png" alt="St Gabriel's Church">
                 </div>
-                <div class="photo-row">
-                    <div class="photo-frame">
-                        <img src="EOTC_Members_two.jpg" alt="Priests performing hymns">
-                    </div>
-                    <div class="photo-frame">
-                        <img src="../assets/images/new-church.png" alt="St Gabriel's Church">
-                    </div>
-                </div>
+                <div class="church-label">St Gabriel's Church, Liverpool</div>
             </div>
 
-            <!-- RIGHT: Contact info + QR -->
-            <div class="info-col">
+            <!-- RIGHT: Contact + QR -->
+            <div class="right-col">
 
                 <div class="eotc-icon">
                     <img src="EOTC_Icon.png" alt="EOTC">
                 </div>
 
-                <div class="back-label">Get In Touch</div>
+                <div class="back-label">For Further Information</div>
 
                 <div class="contact-stack">
                     <div class="contact-item">
@@ -366,12 +382,12 @@
                         <div class="contact-icon"><i class="fas fa-envelope"></i></div>
                         <div class="contact-text">
                             <small>Email</small>
-                            stakeholder@<br>abuneteklehaymanot.org
+                            stakeholder@<wbr>abuneteklehaymanot.org
                         </div>
                     </div>
                 </div>
 
-                <div class="gold-line"></div>
+                <div class="thin-line"></div>
 
                 <div class="qr-block">
                     <img src="RSRV .jpeg" alt="RSVP QR Code">
