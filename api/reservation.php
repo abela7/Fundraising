@@ -73,11 +73,11 @@ try {
             $whatsapp = UltraMsgService::fromDatabase($db);
             if ($whatsapp) {
                 $message = "Dear {$fullName},\n\n"
-                    . "Thank you for reserving your spot for our Community Engagement event! We're delighted to have you join us.\n\n"
+                    . "Thank you for reserving your spot for our Community Engagement event! We're delighted to have you.\n\n"
                     . "📅 Sunday, 29 March 2026\n"
                     . "🕑 2:00 PM\n"
                     . "📍 St Gabriel's Church, 16 Yates St, Liverpool L8 6RD\n\n"
-                    . "We look forward to welcoming you with traditional coffee, authentic cuisine, and a wonderful time of fellowship.\n\n"
+                    . "We look forward to welcoming you with traditional coffee, authentic cuisine, and more.\n\n"
                     . "For more details:\n"
                     . "https://donate.abuneteklehaymanot.org/invitation\n\n"
                     . "God bless you! 🙏\n\n"
