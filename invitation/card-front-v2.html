@@ -32,6 +32,29 @@
             box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
         }
 
+        /* Blended background photo */
+        .bg-photo {
+            position: absolute;
+            inset: 0;
+            z-index: 0;
+        }
+
+        .bg-photo img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            object-position: center 20%;
+            opacity: 0.1;
+        }
+
+        /* Soft vignette so photo fades at edges */
+        .bg-photo::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: radial-gradient(ellipse at center, transparent 20%, rgba(250, 248, 242, 0.65) 70%, rgba(250, 248, 242, 0.9) 100%);
+        }
+
         /* Ambient flag colour glows on dark background */
         .card::before {
             content: '';
@@ -41,7 +64,7 @@
                 radial-gradient(ellipse 70% 55% at 5% 10%, rgba(0, 128, 55, 0.25), transparent),
                 radial-gradient(ellipse 60% 45% at 50% 40%, rgba(252, 209, 22, 0.18), transparent),
                 radial-gradient(ellipse 70% 55% at 95% 90%, rgba(186, 34, 34, 0.25), transparent);
-            z-index: 0;
+            z-index: 1;
             pointer-events: none;
         }
 
@@ -253,6 +276,9 @@
 <body>
 
     <div class="card">
+        <div class="bg-photo">
+            <img src="Kesis_Birhanu.jpg" alt="">
+        </div>
         <div class="tibeb-top"></div>
         <div class="tibeb-bottom"></div>
 
