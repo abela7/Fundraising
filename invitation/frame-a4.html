@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ethiopian Frame — A4</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            background: #d0d0d0;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 2rem;
+        }
+
+        .frame {
+            width: 210mm;
+            height: 297mm;
+            position: relative;
+            overflow: hidden;
+            background: #fff;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+
+        /* Ethiopian pattern background */
+        .bg-pattern {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+            background: url('Ethiopian_Design.png') repeat;
+            background-size: 80px;
+            opacity: 0.045;
+        }
+
+        /* Tibeb borders */
+        .tibeb-top, .tibeb-bottom {
+            position: absolute;
+            left: 0;
+            right: 0;
+            height: 18px;
+            background: url('Pattern_Two!.jpeg') repeat-x center;
+            background-size: auto 100%;
+            z-index: 10;
+        }
+        .tibeb-top { top: 0; }
+        .tibeb-bottom { bottom: 0; }
+
+        .tibeb-left, .tibeb-right {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 18px;
+            background: url('Pattern_Two! - Vertical.jpeg') repeat-y center;
+            background-size: 100% auto;
+            z-index: 10;
+        }
+        .tibeb-left { left: 0; }
+        .tibeb-right { right: 0; }
+
+        /* Flag colour glows */
+        .frame::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background:
+                radial-gradient(ellipse 60% 40% at 5% 5%, rgba(0, 128, 55, 0.12), transparent),
+                radial-gradient(ellipse 50% 30% at 50% 50%, rgba(252, 209, 22, 0.08), transparent),
+                radial-gradient(ellipse 60% 40% at 95% 95%, rgba(186, 34, 34, 0.12), transparent);
+            z-index: 2;
+            pointer-events: none;
+        }
+
+        .download-btn {
+            display: block;
+            margin: 20px auto;
+            padding: 14px 36px;
+            background: linear-gradient(135deg, #0a6286, #0d7da8);
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            font-family: 'Segoe UI', sans-serif;
+            font-size: 16px;
+            font-weight: 600;
+            letter-spacing: 1px;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .download-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(10, 98, 134, 0.4);
+        }
+
+        .btn-row {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .card-nav {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin: 0 auto 20px;
+            flex-wrap: wrap;
+        }
+
+        .card-nav a {
+            font-family: 'Segoe UI', sans-serif;
+            font-size: 13px;
+            font-weight: 500;
+            text-decoration: none;
+            padding: 8px 18px;
+            border-radius: 6px;
+            color: #064a66;
+            background: #fff;
+            border: 1px solid #ddd;
+            transition: all 0.2s;
+        }
+
+        .card-nav a:hover {
+            background: #064a66;
+            color: #fff;
+            border-color: #064a66;
+        }
+
+        .card-nav a.active {
+            background: #064a66;
+            color: #fff;
+            border-color: #064a66;
+        }
+
+        @media print {
+            .download-btn, .card-nav, .btn-row { display: none; }
+            body { background: none; display: block; min-height: auto; padding: 0; }
+            .frame { box-shadow: none; margin: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            @page { size: A4; margin: 0; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="card-nav">
+        <a href="card-front-v2.html">Front Light</a>
+        <a href="card-back.html">Back Light</a>
+        <a href="card-back-v2.html">Back V2</a>
+        <a href="card-front-v2-dark.html">Front Dark</a>
+        <a href="card-back-dark.html">Back Dark</a>
+        <a href="card-back-v2-dark.html">Back V2 Dark</a>
+        <a href="frame-a4.html" class="active">A4 Frame</a>
+    </div>
+
+    <div class="frame" id="frameCard">
+        <div class="bg-pattern"></div>
+        <div class="tibeb-top"></div>
+        <div class="tibeb-bottom"></div>
+        <div class="tibeb-left"></div>
+        <div class="tibeb-right"></div>
+    </div>
+
+    <div class="btn-row">
+        <button class="download-btn" onclick="downloadFrame('png')">Download PNG</button>
+        <button class="download-btn" onclick="downloadFrame('transparent')">Download PNG (Transparent)</button>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/dom-to-image-more@3.4.5/dist/dom-to-image-more.min.js"></script>
+    <script>
+        async function downloadFrame(type) {
+            const frame = document.getElementById('frameCard');
+            const btns = document.querySelectorAll('.download-btn');
+            const w = frame.offsetWidth;
+            const h = frame.offsetHeight;
+            const scale = 4;
+
+            btns.forEach(b => { b.textContent = 'Generating...'; b.disabled = true; });
+
+            try {
+                const options = {
+                    width: w * scale,
+                    height: h * scale,
+                    quality: 1,
+                    cacheBust: true,
+                    style: {
+                        transform: `scale(${scale})`,
+                        transformOrigin: 'top left',
+                        width: `${w}px`,
+                        height: `${h}px`
+                    }
+                };
+
+                if (type === 'transparent') {
+                    // Remove white background, keep only border + pattern
+                    options.bgcolor = 'transparent';
+                } else {
+                    options.bgcolor = '#ffffff';
+                }
+
+                const dataUrl = await domtoimage.toPng(frame, options);
+
+                const link = document.createElement('a');
+                link.download = type === 'transparent'
+                    ? 'Ethiopian-Frame-A4-Transparent.png'
+                    : 'Ethiopian-Frame-A4.png';
+                link.href = dataUrl;
+                link.click();
+            } catch (err) {
+                console.error('Download failed:', err);
+            } finally {
+                btns[0].textContent = 'Download PNG';
+                btns[1].textContent = 'Download PNG (Transparent)';
+                btns.forEach(b => b.disabled = false);
+            }
+        }
+    </script>
+</body>
+</html>
