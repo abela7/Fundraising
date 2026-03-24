@@ -521,7 +521,7 @@
         <button class="download-btn" onclick="downloadCert()">Download High Quality PNG</button>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dom-to-image-more@3.4.5/dist/dom-to-image-more.min.js"></script>
     <script>
         function togglePattern(on) {
             document.getElementById('bgPattern').classList.toggle('active', on);
@@ -586,6 +586,8 @@
             document.activeElement.blur();
             const cert = document.getElementById('certCard');
             const btn = document.querySelector('.download-btn');
+            const w = cert.offsetWidth;
+            const h = cert.offsetHeight;
             const scale = 4;
 
             btn.textContent = 'Generating...';
@@ -594,19 +596,27 @@
             try {
                 if (document.fonts && document.fonts.ready) await document.fonts.ready;
 
-                const canvas = await html2canvas(cert, {
-                    scale: scale,
-                    useCORS: true,
-                    allowTaint: true,
-                    backgroundColor: '#faf8f2',
-                    logging: false,
-                    imageTimeout: 0
+                // Run twice — first call warms up image cache, second gets clean render
+                await domtoimage.toPng(cert, { width: w, height: h, cacheBust: true });
+
+                const dataUrl = await domtoimage.toPng(cert, {
+                    width: w * scale,
+                    height: h * scale,
+                    quality: 1,
+                    cacheBust: true,
+                    bgcolor: '#faf8f2',
+                    style: {
+                        transform: 'scale(' + scale + ')',
+                        transformOrigin: 'top left',
+                        width: w + 'px',
+                        height: h + 'px'
+                    }
                 });
 
                 const link = document.createElement('a');
                 const name = document.getElementById('fileName').value.trim() || 'LMKAT-EOTC-Certificate';
                 link.download = name + '.png';
-                link.href = canvas.toDataURL('image/png', 1.0);
+                link.href = dataUrl;
                 link.click();
             } catch (err) {
                 console.error('Download failed:', err);
