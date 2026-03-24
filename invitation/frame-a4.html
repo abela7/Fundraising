@@ -18,15 +18,22 @@
         }
 
         .frame {
-            width: 210mm;
-            height: 297mm;
             position: relative;
             overflow: hidden;
             background: #fff;
             box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            transition: width 0.3s, height 0.3s;
         }
 
-        .bg-pattern { display: none; }
+        .frame.portrait {
+            width: 210mm;
+            height: 297mm;
+        }
+
+        .frame.landscape {
+            width: 297mm;
+            height: 210mm;
+        }
 
         /* Tibeb borders */
         .tibeb-top, .tibeb-bottom {
@@ -53,10 +60,40 @@
         .tibeb-left { left: 0; }
         .tibeb-right { right: 0; }
 
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin: 0 auto 20px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .orient-btn {
+            font-family: 'Segoe UI', sans-serif;
+            font-size: 13px;
+            font-weight: 600;
+            text-decoration: none;
+            padding: 10px 22px;
+            border-radius: 6px;
+            color: #064a66;
+            background: #fff;
+            border: 2px solid #ddd;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .orient-btn:hover {
+            border-color: #0a6286;
+        }
+
+        .orient-btn.active {
+            background: #064a66;
+            color: #fff;
+            border-color: #064a66;
+        }
 
         .download-btn {
-            display: block;
-            margin: 20px auto;
+            display: inline-block;
             padding: 14px 36px;
             background: linear-gradient(135deg, #0a6286, #0d7da8);
             color: #fff;
@@ -80,6 +117,7 @@
             gap: 12px;
             justify-content: center;
             flex-wrap: wrap;
+            margin-top: 20px;
         }
 
         .card-nav {
@@ -115,11 +153,20 @@
             border-color: #064a66;
         }
 
+        .size-label {
+            font-family: 'Segoe UI', sans-serif;
+            font-size: 12px;
+            color: #888;
+            text-align: center;
+            margin-top: 8px;
+        }
+
         @media print {
-            .download-btn, .card-nav, .btn-row { display: none; }
+            .download-btn, .card-nav, .btn-row, .controls, .size-label { display: none; }
             body { background: none; display: block; min-height: auto; padding: 0; }
             .frame { box-shadow: none; margin: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-            @page { size: A4; margin: 0; }
+            .frame.portrait + .size-label ~ style { }
+            @page { margin: 0; }
         }
     </style>
 </head>
@@ -135,21 +182,43 @@
         <a href="frame-a4.html" class="active">A4 Frame</a>
     </div>
 
-    <div class="frame" id="frameCard">
-        <div class="bg-pattern"></div>
+    <div class="controls">
+        <button class="orient-btn active" onclick="setOrientation('portrait')">Portrait (21cm × 29.7cm)</button>
+        <button class="orient-btn" onclick="setOrientation('landscape')">Landscape (29.7cm × 21cm)</button>
+    </div>
+
+    <div class="frame portrait" id="frameCard">
         <div class="tibeb-top"></div>
         <div class="tibeb-bottom"></div>
         <div class="tibeb-left"></div>
         <div class="tibeb-right"></div>
     </div>
 
+    <div class="size-label" id="sizeLabel">A4 Portrait — 210mm × 297mm</div>
+
     <div class="btn-row">
-        <button class="download-btn" onclick="downloadFrame('png')">Download PNG</button>
+        <button class="download-btn" onclick="downloadFrame('png')">Download PNG (White)</button>
         <button class="download-btn" onclick="downloadFrame('transparent')">Download PNG (Transparent)</button>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/dom-to-image-more@3.4.5/dist/dom-to-image-more.min.js"></script>
     <script>
+        let currentOrientation = 'portrait';
+
+        function setOrientation(orient) {
+            currentOrientation = orient;
+            const frame = document.getElementById('frameCard');
+            frame.classList.remove('portrait', 'landscape');
+            frame.classList.add(orient);
+
+            document.querySelectorAll('.orient-btn').forEach(b => b.classList.remove('active'));
+            event.target.classList.add('active');
+
+            document.getElementById('sizeLabel').textContent = orient === 'portrait'
+                ? 'A4 Portrait — 210mm × 297mm'
+                : 'A4 Landscape — 297mm × 210mm';
+        }
+
         async function downloadFrame(type) {
             const frame = document.getElementById('frameCard');
             const btns = document.querySelectorAll('.download-btn');
@@ -174,7 +243,6 @@
                 };
 
                 if (type === 'transparent') {
-                    // Remove white background, keep only border + pattern
                     options.bgcolor = 'transparent';
                 } else {
                     options.bgcolor = '#ffffff';
@@ -182,16 +250,17 @@
 
                 const dataUrl = await domtoimage.toPng(frame, options);
 
+                const orient = currentOrientation === 'portrait' ? 'Portrait' : 'Landscape';
+                const suffix = type === 'transparent' ? '-Transparent' : '';
+
                 const link = document.createElement('a');
-                link.download = type === 'transparent'
-                    ? 'Ethiopian-Frame-A4-Transparent.png'
-                    : 'Ethiopian-Frame-A4.png';
+                link.download = `Ethiopian-Frame-A4-${orient}${suffix}.png`;
                 link.href = dataUrl;
                 link.click();
             } catch (err) {
                 console.error('Download failed:', err);
             } finally {
-                btns[0].textContent = 'Download PNG';
+                btns[0].textContent = 'Download PNG (White)';
                 btns[1].textContent = 'Download PNG (Transparent)';
                 btns.forEach(b => b.disabled = false);
             }
