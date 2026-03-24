@@ -371,7 +371,7 @@
         }
 
         @media print {
-            .download-btn, .card-nav, .controls, .edit-hint, .font-controls, .toggle-controls { display: none; }
+            .download-btn, .card-nav, .controls, .edit-hint, .font-controls, .toggle-controls, .slider-item { display: none; }
             body { background: none; display: block; min-height: auto; padding: 0; }
             .cert { box-shadow: none; margin: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
             @page { size: A4 landscape; margin: 0; }
@@ -434,9 +434,39 @@
         </div>
         <div class="slider-item">
             <span>Border:</span>
-            <input type="range" id="borderSize" min="10" max="60" value="20" oninput="updateBorder(this.value)">
+            <input type="range" id="borderSize" min="10" max="25" value="20" oninput="updateBorder(this.value)">
             <span class="slider-value" id="borderValue">20px</span>
         </div>
+        <div class="slider-item">
+            <span>Border Style:</span>
+            <select id="borderStyle" onchange="changeBorderStyle(this.value)" style="padding:4px 8px;border-radius:4px;border:1px solid #ccc;font-size:13px;">
+                <option value="pattern2">Pattern Two</option>
+                <option value="ethiopian">Ethiopian Design</option>
+            </select>
+        </div>
+    </div>
+
+    <div class="toggle-controls">
+        <div class="slider-item"><span>Icon Size:</span><input type="range" min="40" max="160" value="90" oninput="updateEl('.cert-icon', 'size', this.value, this)"><span class="slider-value">90px</span></div>
+        <div class="slider-item"><span>Icon X:</span><input type="range" min="-100" max="100" value="0" oninput="updateEl('.cert-icon', 'x', this.value, this)"><span class="slider-value">0px</span></div>
+        <div class="slider-item"><span>Icon Y:</span><input type="range" min="-50" max="50" value="0" oninput="updateEl('.cert-icon', 'y', this.value, this)"><span class="slider-value">0px</span></div>
+    </div>
+    <div class="toggle-controls">
+        <div class="slider-item"><span>Title X:</span><input type="range" min="-100" max="100" value="0" oninput="updateEl('.cert-title', 'x', this.value, this)"><span class="slider-value">0px</span></div>
+        <div class="slider-item"><span>Title Y:</span><input type="range" min="-50" max="50" value="0" oninput="updateEl('.cert-title', 'y', this.value, this)"><span class="slider-value">0px</span></div>
+        <div class="slider-item"><span>Dear X:</span><input type="range" min="-100" max="100" value="0" oninput="updateEl('.cert-dear', 'x', this.value, this)"><span class="slider-value">0px</span></div>
+        <div class="slider-item"><span>Dear Y:</span><input type="range" min="-50" max="50" value="0" oninput="updateEl('.cert-dear', 'y', this.value, this)"><span class="slider-value">0px</span></div>
+    </div>
+    <div class="toggle-controls">
+        <div class="slider-item"><span>Body X:</span><input type="range" min="-100" max="100" value="0" oninput="updateEl('.cert-body', 'x', this.value, this)"><span class="slider-value">0px</span></div>
+        <div class="slider-item"><span>Body Y:</span><input type="range" min="-50" max="50" value="0" oninput="updateEl('.cert-body', 'y', this.value, this)"><span class="slider-value">0px</span></div>
+        <div class="slider-item"><span>Cross Size:</span><input type="range" min="30" max="140" value="70" oninput="updateEl('.cert-cross', 'size', this.value, this)"><span class="slider-value">70px</span></div>
+        <div class="slider-item"><span>Cross X:</span><input type="range" min="-50" max="50" value="0" oninput="updateEl('.cert-cross', 'x', this.value, this)"><span class="slider-value">0px</span></div>
+        <div class="slider-item"><span>Cross Y:</span><input type="range" min="-30" max="30" value="0" oninput="updateEl('.cert-cross', 'y', this.value, this)"><span class="slider-value">0px</span></div>
+    </div>
+    <div class="toggle-controls">
+        <div class="slider-item"><span>Footer X:</span><input type="range" min="-100" max="100" value="0" oninput="updateEl('.cert-footer-text', 'x', this.value, this)"><span class="slider-value">0px</span></div>
+        <div class="slider-item"><span>Footer Y:</span><input type="range" min="-30" max="30" value="0" oninput="updateEl('.cert-footer-text', 'y', this.value, this)"><span class="slider-value">0px</span></div>
     </div>
 
     <div class="edit-hint">Click on any text to edit directly on the certificate</div>
@@ -488,6 +518,29 @@
             document.querySelectorAll('.tibeb-top, .tibeb-bottom').forEach(el => el.style.height = val + 'px');
             document.querySelectorAll('.tibeb-left, .tibeb-right').forEach(el => el.style.width = val + 'px');
             document.getElementById('borderValue').textContent = val + 'px';
+        }
+
+        function changeBorderStyle(style) {
+            const hImg = style === 'ethiopian' ? 'Ethiopian_Design.png' : 'Pattern_Two!.jpeg';
+            const vImg = style === 'ethiopian' ? 'Ethiopian_Design - Vertical.png' : 'Pattern_Two! - Vertical.jpeg';
+            document.querySelectorAll('.tibeb-top, .tibeb-bottom').forEach(el => el.style.backgroundImage = "url('" + hImg + "')");
+            document.querySelectorAll('.tibeb-left, .tibeb-right').forEach(el => el.style.backgroundImage = "url('" + vImg + "')");
+        }
+
+        function updateEl(selector, prop, val, input) {
+            document.querySelectorAll(selector).forEach(el => {
+                if (prop === 'size') {
+                    el.style.width = val + 'px';
+                    el.style.height = 'auto';
+                } else if (prop === 'x') {
+                    el.style.position = 'relative';
+                    el.style.left = val + 'px';
+                } else if (prop === 'y') {
+                    el.style.position = 'relative';
+                    el.style.top = val + 'px';
+                }
+            });
+            input.nextElementSibling.textContent = val + 'px';
         }
 
         function changeFontSize(selector, val, input) {
