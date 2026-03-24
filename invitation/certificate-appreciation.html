@@ -10,30 +10,6 @@
             src: local('Algerian');
         }
 
-        @font-face {
-            font-family: 'Outfit';
-            font-style: normal;
-            font-weight: 400;
-            font-display: swap;
-            src: url('https://fonts.gstatic.com/s/outfit/v15/QGYyz_MVcBeNP4NjuGObqx1XmO1I4TC1C4E.ttf') format('truetype');
-        }
-
-        @font-face {
-            font-family: 'Outfit';
-            font-style: normal;
-            font-weight: 600;
-            font-display: swap;
-            src: url('https://fonts.gstatic.com/s/outfit/v15/QGYyz_MVcBeNP4NjuGObqx1XmO1I4e6yC4E.ttf') format('truetype');
-        }
-
-        @font-face {
-            font-family: 'Outfit';
-            font-style: normal;
-            font-weight: 700;
-            font-display: swap;
-            src: url('https://fonts.gstatic.com/s/outfit/v15/QGYyz_MVcBeNP4NjuGObqx1XmO1I4deyC4E.ttf') format('truetype');
-        }
-
         * { margin: 0; padding: 0; box-sizing: border-box; }
 
         body {
@@ -53,9 +29,6 @@
             overflow: hidden;
             background: #faf8f2;
             box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
         }
 
         /* Sunburst rays */
@@ -68,19 +41,19 @@
             height: 200%;
             transform: translateX(-50%);
             background: repeating-conic-gradient(
-                rgba(10, 98, 134, 0.03) 0deg 5deg,
+                rgba(10, 98, 134, 0.035) 0deg 5deg,
                 transparent 5deg 10deg
             );
             z-index: 1;
             pointer-events: none;
         }
 
-        /* Soft radial overlay */
+        /* Soft radial fade */
         .cert::before {
             content: '';
             position: absolute;
             inset: 0;
-            background: radial-gradient(ellipse at center, transparent 30%, rgba(250, 248, 242, 0.7) 70%, rgba(250, 248, 242, 0.95) 100%);
+            background: radial-gradient(ellipse at center, transparent 20%, rgba(250, 248, 242, 0.6) 60%, rgba(250, 248, 242, 0.95) 100%);
             z-index: 2;
             pointer-events: none;
         }
@@ -90,7 +63,7 @@
             position: absolute;
             left: 0;
             right: 0;
-            height: 22px;
+            height: 20px;
             background: url('Pattern_Two!.jpeg') repeat-x center;
             background-size: auto 100%;
             z-index: 10;
@@ -102,7 +75,7 @@
             position: absolute;
             top: 0;
             bottom: 0;
-            width: 22px;
+            width: 20px;
             background: url('Pattern_Two! - Vertical.jpeg') repeat-y center;
             background-size: 100% auto;
             z-index: 10;
@@ -110,7 +83,7 @@
         .tibeb-left { left: 0; }
         .tibeb-right { right: 0; }
 
-        /* Content */
+        /* Content wrapper */
         .cert-content {
             position: relative;
             z-index: 5;
@@ -119,71 +92,73 @@
             align-items: center;
             width: 100%;
             height: 100%;
-            padding: 30px 60px 25px;
+            padding: 28px 70px 28px;
         }
 
+        /* EOTC Icon */
         .cert-icon {
-            width: 80px;
+            width: 90px;
             height: auto;
+            margin-bottom: 5px;
+        }
+
+        /* Title */
+        .cert-title {
+            font-family: 'Algerian', fantasy;
+            font-size: 2.8rem;
+            color: #0a6286;
+            text-transform: uppercase;
+            text-align: center;
+            line-height: 1.15;
             margin-bottom: 8px;
         }
 
-        .cert-title {
-            font-family: 'Algerian', 'Copperplate Gothic Bold', fantasy;
-            font-size: 2.6rem;
-            color: #0a6286;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-            margin-bottom: 6px;
-            text-align: center;
-            line-height: 1.1;
-        }
-
+        /* Dear line */
         .cert-dear {
-            font-family: 'Algerian', 'Copperplate Gothic Bold', fantasy;
-            font-size: 1.5rem;
+            font-family: 'Algerian', fantasy;
+            font-size: 1.55rem;
             color: #1a1a1a;
-            margin-bottom: 16px;
             text-align: center;
+            margin-bottom: 12px;
         }
 
         .cert-name {
             text-decoration: underline;
             text-decoration-thickness: 2px;
-            text-underline-offset: 4px;
+            text-underline-offset: 5px;
         }
 
+        /* Divider */
         .cert-divider {
-            width: 80%;
-            height: 2px;
-            background: linear-gradient(90deg, transparent, #0a6286, transparent);
-            margin-bottom: 18px;
+            width: 85%;
+            height: 1.5px;
+            background: linear-gradient(90deg, transparent, rgba(10, 98, 134, 0.4), transparent);
+            margin-bottom: 14px;
         }
 
+        /* Body text */
         .cert-body {
-            font-family: 'Algerian', 'Copperplate Gothic Bold', fantasy;
-            font-size: 0.92rem;
+            font-family: 'Algerian', fantasy;
+            font-size: 1.05rem;
             color: #2a2a2a;
-            line-height: 1.9;
+            line-height: 2;
             text-align: justify;
-            max-width: 88%;
-            margin-bottom: auto;
+            width: 85%;
         }
 
+        /* Footer */
         .cert-footer {
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 40px;
+            gap: 50px;
             width: 100%;
             margin-top: auto;
-            padding-top: 10px;
         }
 
         .cert-cross {
-            width: 65px;
+            width: 70px;
             height: auto;
-            opacity: 0.85;
         }
 
         .cert-footer-text {
@@ -191,33 +166,26 @@
         }
 
         .cert-office {
-            font-family: 'Algerian', 'Copperplate Gothic Bold', fantasy;
-            font-size: 1.1rem;
+            font-family: 'Algerian', fantasy;
+            font-size: 1.15rem;
             color: #1a1a1a;
-            font-weight: 700;
-            margin-bottom: 4px;
+            margin-bottom: 5px;
         }
 
         .cert-date {
-            font-family: 'Algerian', 'Copperplate Gothic Bold', fantasy;
-            font-size: 1rem;
+            font-family: 'Algerian', fantasy;
+            font-size: 1.05rem;
             color: #0a6286;
         }
 
-        /* Editable fields */
+        /* Editable */
         [contenteditable="true"] {
             outline: none;
             border-radius: 4px;
             transition: background 0.2s;
         }
-
-        [contenteditable="true"]:hover {
-            background: rgba(10, 98, 134, 0.06);
-        }
-
-        [contenteditable="true"]:focus {
-            background: rgba(10, 98, 134, 0.1);
-        }
+        [contenteditable="true"]:hover { background: rgba(10, 98, 134, 0.05); }
+        [contenteditable="true"]:focus { background: rgba(10, 98, 134, 0.1); }
 
         /* Controls */
         .controls {
@@ -229,7 +197,6 @@
         }
 
         .download-btn {
-            display: inline-block;
             padding: 14px 36px;
             background: linear-gradient(135deg, #0a6286, #0d7da8);
             color: #fff;
@@ -242,11 +209,7 @@
             cursor: pointer;
             transition: transform 0.2s, box-shadow 0.2s;
         }
-
-        .download-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(10, 98, 134, 0.4);
-        }
+        .download-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(10, 98, 134, 0.4); }
 
         .edit-hint {
             font-family: 'Segoe UI', sans-serif;
@@ -263,7 +226,6 @@
             margin: 0 auto 20px;
             flex-wrap: wrap;
         }
-
         .card-nav a {
             font-family: 'Segoe UI', sans-serif;
             font-size: 13px;
@@ -276,18 +238,8 @@
             border: 1px solid #ddd;
             transition: all 0.2s;
         }
-
-        .card-nav a:hover {
-            background: #064a66;
-            color: #fff;
-            border-color: #064a66;
-        }
-
-        .card-nav a.active {
-            background: #064a66;
-            color: #fff;
-            border-color: #064a66;
-        }
+        .card-nav a:hover { background: #064a66; color: #fff; border-color: #064a66; }
+        .card-nav a.active { background: #064a66; color: #fff; border-color: #064a66; }
 
         @media print {
             .download-btn, .card-nav, .controls, .edit-hint { display: none; }
@@ -325,12 +277,12 @@
             <div class="cert-body" contenteditable="true">The Congregation of Liverpool Mekane Kidusan Abune Teklehymanot Ethiopian Orthodox Tewahedo Church (LMKAT EOTC), Diocese of Great Britain & Northern Ireland, would like to express the utmost gratitude, for your kind and much appreciated support in making the process of signing an agreement, to use St. Gebriel's Church at 16 Yates Street, L8 6RD for worshiping, such a successful historical event. May the blessing of the Father, the Son, and the Holy Spirit be upon you. Amen.</div>
 
             <div class="cert-footer">
-                <img src="EOTC_Icon.png" alt="Cross" class="cert-cross">
+                <img src="CROSS.png" alt="Ethiopian Cross" class="cert-cross">
                 <div class="cert-footer-text">
                     <div class="cert-office" contenteditable="true">LMKAT EOTC Trustees Office</div>
                     <div class="cert-date" contenteditable="true">Date 29 March 2026</div>
                 </div>
-                <img src="EOTC_Icon.png" alt="Cross" class="cert-cross">
+                <img src="CROSS.png" alt="Ethiopian Cross" class="cert-cross">
             </div>
         </div>
     </div>
@@ -344,9 +296,7 @@
     <script src="https://cdn.jsdelivr.net/npm/dom-to-image-more@3.4.5/dist/dom-to-image-more.min.js"></script>
     <script>
         async function downloadCert() {
-            // Remove focus from editable fields
             document.activeElement.blur();
-
             const cert = document.getElementById('certCard');
             const btn = document.querySelector('.download-btn');
             const w = cert.offsetWidth;
@@ -357,9 +307,7 @@
             btn.disabled = true;
 
             try {
-                if (document.fonts && document.fonts.ready) {
-                    await document.fonts.ready;
-                }
+                if (document.fonts && document.fonts.ready) await document.fonts.ready;
 
                 const dataUrl = await domtoimage.toPng(cert, {
                     width: w * scale,
