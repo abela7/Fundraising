@@ -6,6 +6,7 @@
     <title>Certificate of Appreciation — LMKAT EOTC</title>
     <style>
         @font-face { font-family: 'Algerian'; src: local('Algerian'); }
+        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Cormorant+Garamond:wght@400;600;700&family=Cinzel:wght@400;600;700&family=EB+Garamond:wght@400;600;700&family=Libre+Baskerville:wght@400;700&family=Crimson+Text:wght@400;600;700&family=Old+Standard+TT:wght@400;700&family=Lora:wght@400;600;700&family=Merriweather:wght@400;700&family=Spectral:wght@400;600;700&display=swap');
         * { margin: 0; padding: 0; box-sizing: border-box; }
 
         body {
@@ -391,6 +392,11 @@
             </div>
             <div class="ctrl-row"><input type="checkbox" id="toggleFade" checked onchange="toggleFade(this.checked)"><span class="ctrl-label">Center Fade</span></div>
             <div class="ctrl-row"><input type="checkbox" id="togglePattern" onchange="togglePattern(this.checked)"><span class="ctrl-label">Ethiopian Pattern</span></div>
+            <div class="ctrl-row" id="patternOpacityRow" style="display:none;">
+                <span class="ctrl-label">Opacity</span>
+                <input type="range" min="1" max="30" value="5" oninput="updatePatternOpacity(this.value)">
+                <span class="ctrl-val" id="patternOpacityValue">5%</span>
+            </div>
             <div class="ctrl-row"><input type="checkbox" id="toggleGradient" onchange="toggleGradient(this.checked)"><span class="ctrl-label">Flag Colours</span></div>
             <div class="ctrl-row" id="opacityRow" style="display:none;">
                 <span class="ctrl-label">Opacity</span>
@@ -415,6 +421,99 @@
                 <span class="ctrl-label">Size</span>
                 <input type="range" min="10" max="25" value="20" oninput="updateBorder(this.value)">
                 <span class="ctrl-val" id="borderValue">20px</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Font Family -->
+    <div class="panel-section">
+        <div class="panel-header" onclick="togglePanel(this)">Font Family <span class="arrow">▼</span></div>
+        <div class="panel-body">
+            <div class="ctrl-row">
+                <span class="ctrl-label">Title</span>
+                <select onchange="changeFontFamily('.cert-title', this.value)" style="font-size:11px;">
+                    <option value="'Algerian', fantasy">Algerian</option>
+                    <option value="'Cinzel', serif">Cinzel</option>
+                    <option value="'Playfair Display', serif">Playfair Display</option>
+                    <option value="'Cormorant Garamond', serif">Cormorant Garamond</option>
+                    <option value="'EB Garamond', serif">EB Garamond</option>
+                    <option value="'Old Standard TT', serif">Old Standard TT</option>
+                    <option value="'Libre Baskerville', serif">Libre Baskerville</option>
+                    <option value="'Crimson Text', serif">Crimson Text</option>
+                    <option value="'Lora', serif">Lora</option>
+                    <option value="'Merriweather', serif">Merriweather</option>
+                    <option value="'Spectral', serif">Spectral</option>
+                    <option value="'Georgia', serif">Georgia</option>
+                </select>
+            </div>
+            <div class="ctrl-row">
+                <span class="ctrl-label">Body</span>
+                <select onchange="changeFontFamily('.cert-body', this.value)" style="font-size:11px;">
+                    <option value="'Algerian', fantasy">Algerian</option>
+                    <option value="'Cinzel', serif">Cinzel</option>
+                    <option value="'Playfair Display', serif">Playfair Display</option>
+                    <option value="'Cormorant Garamond', serif">Cormorant Garamond</option>
+                    <option value="'EB Garamond', serif">EB Garamond</option>
+                    <option value="'Old Standard TT', serif">Old Standard TT</option>
+                    <option value="'Libre Baskerville', serif">Libre Baskerville</option>
+                    <option value="'Crimson Text', serif">Crimson Text</option>
+                    <option value="'Lora', serif">Lora</option>
+                    <option value="'Merriweather', serif">Merriweather</option>
+                    <option value="'Spectral', serif">Spectral</option>
+                    <option value="'Georgia', serif">Georgia</option>
+                </select>
+            </div>
+            <div class="ctrl-row">
+                <span class="ctrl-label">Dear</span>
+                <select onchange="changeFontFamily('.cert-dear', this.value)" style="font-size:11px;">
+                    <option value="'Algerian', fantasy">Algerian</option>
+                    <option value="'Cinzel', serif">Cinzel</option>
+                    <option value="'Playfair Display', serif">Playfair Display</option>
+                    <option value="'Cormorant Garamond', serif">Cormorant Garamond</option>
+                    <option value="'EB Garamond', serif">EB Garamond</option>
+                    <option value="'Old Standard TT', serif">Old Standard TT</option>
+                    <option value="'Libre Baskerville', serif">Libre Baskerville</option>
+                    <option value="'Crimson Text', serif">Crimson Text</option>
+                    <option value="'Lora', serif">Lora</option>
+                    <option value="'Merriweather', serif">Merriweather</option>
+                    <option value="'Spectral', serif">Spectral</option>
+                    <option value="'Georgia', serif">Georgia</option>
+                </select>
+            </div>
+            <div class="ctrl-row">
+                <span class="ctrl-label">Footer</span>
+                <select onchange="changeFontFamily('.cert-office,.cert-date', this.value)" style="font-size:11px;">
+                    <option value="'Algerian', fantasy">Algerian</option>
+                    <option value="'Cinzel', serif">Cinzel</option>
+                    <option value="'Playfair Display', serif">Playfair Display</option>
+                    <option value="'Cormorant Garamond', serif">Cormorant Garamond</option>
+                    <option value="'EB Garamond', serif">EB Garamond</option>
+                    <option value="'Old Standard TT', serif">Old Standard TT</option>
+                    <option value="'Libre Baskerville', serif">Libre Baskerville</option>
+                    <option value="'Crimson Text', serif">Crimson Text</option>
+                    <option value="'Lora', serif">Lora</option>
+                    <option value="'Merriweather', serif">Merriweather</option>
+                    <option value="'Spectral', serif">Spectral</option>
+                    <option value="'Georgia', serif">Georgia</option>
+                </select>
+            </div>
+            <div class="ctrl-row">
+                <span class="ctrl-label">All</span>
+                <select onchange="changeAllFonts(this.value)" style="font-size:11px;">
+                    <option value="">— Apply to all —</option>
+                    <option value="'Algerian', fantasy">Algerian</option>
+                    <option value="'Cinzel', serif">Cinzel</option>
+                    <option value="'Playfair Display', serif">Playfair Display</option>
+                    <option value="'Cormorant Garamond', serif">Cormorant Garamond</option>
+                    <option value="'EB Garamond', serif">EB Garamond</option>
+                    <option value="'Old Standard TT', serif">Old Standard TT</option>
+                    <option value="'Libre Baskerville', serif">Libre Baskerville</option>
+                    <option value="'Crimson Text', serif">Crimson Text</option>
+                    <option value="'Lora', serif">Lora</option>
+                    <option value="'Merriweather', serif">Merriweather</option>
+                    <option value="'Spectral', serif">Spectral</option>
+                    <option value="'Georgia', serif">Georgia</option>
+                </select>
             </div>
         </div>
     </div>
@@ -546,7 +645,14 @@
         document.getElementById('bgFade').style.display = on ? '' : 'none';
     }
 
-    function togglePattern(on) { document.getElementById('bgPattern').classList.toggle('active', on); }
+    function togglePattern(on) {
+        document.getElementById('bgPattern').classList.toggle('active', on);
+        document.getElementById('patternOpacityRow').style.display = on ? 'flex' : 'none';
+    }
+    function updatePatternOpacity(val) {
+        document.getElementById('bgPattern').style.opacity = val / 100;
+        document.getElementById('patternOpacityValue').textContent = val + '%';
+    }
     function toggleGradient(on) {
         document.getElementById('bgGradient').classList.toggle('active', on);
         document.getElementById('opacityRow').style.display = on ? 'flex' : 'none';
@@ -567,6 +673,25 @@
         const v = style === 'ethiopian' ? 'Ethiopian_Design - Vertical.png' : 'Pattern_Two! - Vertical.jpeg';
         document.querySelectorAll('.tibeb-top, .tibeb-bottom').forEach(el => el.style.backgroundImage = "url('" + h + "')");
         document.querySelectorAll('.tibeb-left, .tibeb-right').forEach(el => el.style.backgroundImage = "url('" + v + "')");
+    }
+
+    // Font family
+    function changeFontFamily(sel, val) {
+        document.querySelectorAll(sel).forEach(el => el.style.fontFamily = val);
+    }
+    function changeAllFonts(val) {
+        if (!val) return;
+        ['.cert-title', '.cert-dear', '.cert-body', '.cert-office', '.cert-date'].forEach(sel => {
+            document.querySelectorAll(sel).forEach(el => el.style.fontFamily = val);
+        });
+        // Sync all individual dropdowns
+        document.querySelectorAll('.panel-body select').forEach(s => {
+            if (s.onchange && s.options.length === 12) {
+                for (let i = 0; i < s.options.length; i++) {
+                    if (s.options[i].value === val) { s.selectedIndex = i; break; }
+                }
+            }
+        });
     }
 
     // Font sizes
