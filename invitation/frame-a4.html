@@ -40,7 +40,7 @@
             position: absolute;
             left: 0;
             right: 0;
-            height: 18px;
+            height: 28px;
             background: url('Pattern_Two!.jpeg') repeat-x center;
             background-size: auto 100%;
             z-index: 10;
@@ -52,7 +52,7 @@
             position: absolute;
             top: 0;
             bottom: 0;
-            width: 18px;
+            width: 28px;
             background: url('Pattern_Two! - Vertical.jpeg') repeat-y center;
             background-size: 100% auto;
             z-index: 10;
@@ -290,6 +290,11 @@
             <input type="range" id="gradientOpacity" min="5" max="80" value="15" oninput="updateOpacity(this.value)">
             <span class="slider-value" id="opacityValue">15%</span>
         </div>
+        <div class="slider-item">
+            <span>Border:</span>
+            <input type="range" id="borderSize" min="10" max="60" value="28" oninput="updateBorder(this.value)">
+            <span class="slider-value" id="borderValue">28px</span>
+        </div>
     </div>
 
     <div class="frame portrait" id="frameCard">
@@ -325,6 +330,12 @@
             const opacity = val / 100;
             document.getElementById('frameCard').style.setProperty('--grad-opacity', opacity);
             document.getElementById('opacityValue').textContent = val + '%';
+        }
+
+        function updateBorder(val) {
+            document.querySelectorAll('.tibeb-top, .tibeb-bottom').forEach(el => el.style.height = val + 'px');
+            document.querySelectorAll('.tibeb-left, .tibeb-right').forEach(el => el.style.width = val + 'px');
+            document.getElementById('borderValue').textContent = val + 'px';
         }
 
         function setOrientation(orient) {
