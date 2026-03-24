@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Certificate of Appreciation — LMKAT EOTC</title>
+    <style>
+        @font-face {
+            font-family: 'Algerian';
+            src: local('Algerian');
+        }
+
+        @font-face {
+            font-family: 'Outfit';
+            font-style: normal;
+            font-weight: 400;
+            font-display: swap;
+            src: url('https://fonts.gstatic.com/s/outfit/v15/QGYyz_MVcBeNP4NjuGObqx1XmO1I4TC1C4E.ttf') format('truetype');
+        }
+
+        @font-face {
+            font-family: 'Outfit';
+            font-style: normal;
+            font-weight: 600;
+            font-display: swap;
+            src: url('https://fonts.gstatic.com/s/outfit/v15/QGYyz_MVcBeNP4NjuGObqx1XmO1I4e6yC4E.ttf') format('truetype');
+        }
+
+        @font-face {
+            font-family: 'Outfit';
+            font-style: normal;
+            font-weight: 700;
+            font-display: swap;
+            src: url('https://fonts.gstatic.com/s/outfit/v15/QGYyz_MVcBeNP4NjuGObqx1XmO1I4deyC4E.ttf') format('truetype');
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            background: #d0d0d0;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 2rem;
+        }
+
+        .cert {
+            width: 297mm;
+            height: 210mm;
+            position: relative;
+            overflow: hidden;
+            background: #faf8f2;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        /* Sunburst rays */
+        .cert::after {
+            content: '';
+            position: absolute;
+            top: -40%;
+            left: 50%;
+            width: 200%;
+            height: 200%;
+            transform: translateX(-50%);
+            background: repeating-conic-gradient(
+                rgba(10, 98, 134, 0.03) 0deg 5deg,
+                transparent 5deg 10deg
+            );
+            z-index: 1;
+            pointer-events: none;
+        }
+
+        /* Soft radial overlay */
+        .cert::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: radial-gradient(ellipse at center, transparent 30%, rgba(250, 248, 242, 0.7) 70%, rgba(250, 248, 242, 0.95) 100%);
+            z-index: 2;
+            pointer-events: none;
+        }
+
+        /* Tibeb borders */
+        .tibeb-top, .tibeb-bottom {
+            position: absolute;
+            left: 0;
+            right: 0;
+            height: 22px;
+            background: url('Pattern_Two!.jpeg') repeat-x center;
+            background-size: auto 100%;
+            z-index: 10;
+        }
+        .tibeb-top { top: 0; }
+        .tibeb-bottom { bottom: 0; }
+
+        .tibeb-left, .tibeb-right {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 22px;
+            background: url('Pattern_Two! - Vertical.jpeg') repeat-y center;
+            background-size: 100% auto;
+            z-index: 10;
+        }
+        .tibeb-left { left: 0; }
+        .tibeb-right { right: 0; }
+
+        /* Content */
+        .cert-content {
+            position: relative;
+            z-index: 5;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+            height: 100%;
+            padding: 30px 60px 25px;
+        }
+
+        .cert-icon {
+            width: 80px;
+            height: auto;
+            margin-bottom: 8px;
+        }
+
+        .cert-title {
+            font-family: 'Algerian', 'Copperplate Gothic Bold', fantasy;
+            font-size: 2.6rem;
+            color: #0a6286;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 6px;
+            text-align: center;
+            line-height: 1.1;
+        }
+
+        .cert-dear {
+            font-family: 'Algerian', 'Copperplate Gothic Bold', fantasy;
+            font-size: 1.5rem;
+            color: #1a1a1a;
+            margin-bottom: 16px;
+            text-align: center;
+        }
+
+        .cert-name {
+            text-decoration: underline;
+            text-decoration-thickness: 2px;
+            text-underline-offset: 4px;
+        }
+
+        .cert-divider {
+            width: 80%;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, #0a6286, transparent);
+            margin-bottom: 18px;
+        }
+
+        .cert-body {
+            font-family: 'Algerian', 'Copperplate Gothic Bold', fantasy;
+            font-size: 0.92rem;
+            color: #2a2a2a;
+            line-height: 1.9;
+            text-align: justify;
+            max-width: 88%;
+            margin-bottom: auto;
+        }
+
+        .cert-footer {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 40px;
+            width: 100%;
+            margin-top: auto;
+            padding-top: 10px;
+        }
+
+        .cert-cross {
+            width: 65px;
+            height: auto;
+            opacity: 0.85;
+        }
+
+        .cert-footer-text {
+            text-align: center;
+        }
+
+        .cert-office {
+            font-family: 'Algerian', 'Copperplate Gothic Bold', fantasy;
+            font-size: 1.1rem;
+            color: #1a1a1a;
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+
+        .cert-date {
+            font-family: 'Algerian', 'Copperplate Gothic Bold', fantasy;
+            font-size: 1rem;
+            color: #0a6286;
+        }
+
+        /* Editable fields */
+        [contenteditable="true"] {
+            outline: none;
+            border-radius: 4px;
+            transition: background 0.2s;
+        }
+
+        [contenteditable="true"]:hover {
+            background: rgba(10, 98, 134, 0.06);
+        }
+
+        [contenteditable="true"]:focus {
+            background: rgba(10, 98, 134, 0.1);
+        }
+
+        /* Controls */
+        .controls {
+            display: flex;
+            gap: 12px;
+            margin: 20px auto 0;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .download-btn {
+            display: inline-block;
+            padding: 14px 36px;
+            background: linear-gradient(135deg, #0a6286, #0d7da8);
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            font-family: 'Segoe UI', sans-serif;
+            font-size: 16px;
+            font-weight: 600;
+            letter-spacing: 1px;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .download-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(10, 98, 134, 0.4);
+        }
+
+        .edit-hint {
+            font-family: 'Segoe UI', sans-serif;
+            font-size: 12px;
+            color: #888;
+            text-align: center;
+            margin-top: 10px;
+        }
+
+        .card-nav {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin: 0 auto 20px;
+            flex-wrap: wrap;
+        }
+
+        .card-nav a {
+            font-family: 'Segoe UI', sans-serif;
+            font-size: 13px;
+            font-weight: 500;
+            text-decoration: none;
+            padding: 8px 18px;
+            border-radius: 6px;
+            color: #064a66;
+            background: #fff;
+            border: 1px solid #ddd;
+            transition: all 0.2s;
+        }
+
+        .card-nav a:hover {
+            background: #064a66;
+            color: #fff;
+            border-color: #064a66;
+        }
+
+        .card-nav a.active {
+            background: #064a66;
+            color: #fff;
+            border-color: #064a66;
+        }
+
+        @media print {
+            .download-btn, .card-nav, .controls, .edit-hint { display: none; }
+            body { background: none; display: block; min-height: auto; padding: 0; }
+            .cert { box-shadow: none; margin: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            @page { size: A4 landscape; margin: 0; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="card-nav">
+        <a href="card-front-v2.html">Front Light</a>
+        <a href="card-back.html">Back Light</a>
+        <a href="card-back-v2.html">Back V2</a>
+        <a href="frame-a4.html">A4 Frame</a>
+        <a href="certificate-appreciation.html" class="active">Certificate</a>
+    </div>
+
+    <div class="cert" id="certCard">
+        <div class="tibeb-top"></div>
+        <div class="tibeb-bottom"></div>
+        <div class="tibeb-left"></div>
+        <div class="tibeb-right"></div>
+
+        <div class="cert-content">
+            <img src="EOTC_Icon.png" alt="EOTC" class="cert-icon">
+
+            <div class="cert-title" contenteditable="true">Certificate of Appreciation</div>
+
+            <div class="cert-dear">Dear <span class="cert-name" contenteditable="true">Norman Bilsborough</span></div>
+
+            <div class="cert-divider"></div>
+
+            <div class="cert-body" contenteditable="true">The Congregation of Liverpool Mekane Kidusan Abune Teklehymanot Ethiopian Orthodox Tewahedo Church (LMKAT EOTC), Diocese of Great Britain & Northern Ireland, would like to express the utmost gratitude, for your kind and much appreciated support in making the process of signing an agreement, to use St. Gebriel's Church at 16 Yates Street, L8 6RD for worshiping, such a successful historical event. May the blessing of the Father, the Son, and the Holy Spirit be upon you. Amen.</div>
+
+            <div class="cert-footer">
+                <img src="EOTC_Icon.png" alt="Cross" class="cert-cross">
+                <div class="cert-footer-text">
+                    <div class="cert-office" contenteditable="true">LMKAT EOTC Trustees Office</div>
+                    <div class="cert-date" contenteditable="true">Date 29 March 2026</div>
+                </div>
+                <img src="EOTC_Icon.png" alt="Cross" class="cert-cross">
+            </div>
+        </div>
+    </div>
+
+    <div class="edit-hint">Click on any text to edit directly on the certificate</div>
+
+    <div class="controls">
+        <button class="download-btn" onclick="downloadCert()">Download High Quality PNG</button>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/dom-to-image-more@3.4.5/dist/dom-to-image-more.min.js"></script>
+    <script>
+        async function downloadCert() {
+            // Remove focus from editable fields
+            document.activeElement.blur();
+
+            const cert = document.getElementById('certCard');
+            const btn = document.querySelector('.download-btn');
+            const w = cert.offsetWidth;
+            const h = cert.offsetHeight;
+            const scale = 4;
+
+            btn.textContent = 'Generating...';
+            btn.disabled = true;
+
+            try {
+                if (document.fonts && document.fonts.ready) {
+                    await document.fonts.ready;
+                }
+
+                const dataUrl = await domtoimage.toPng(cert, {
+                    width: w * scale,
+                    height: h * scale,
+                    quality: 1,
+                    cacheBust: true,
+                    bgcolor: '#faf8f2',
+                    style: {
+                        transform: `scale(${scale})`,
+                        transformOrigin: 'top left',
+                        width: `${w}px`,
+                        height: `${h}px`
+                    }
+                });
+
+                const link = document.createElement('a');
+                link.download = 'LMKAT-EOTC-Certificate-of-Appreciation.png';
+                link.href = dataUrl;
+                link.click();
+            } catch (err) {
+                console.error('Download failed:', err);
+            } finally {
+                btn.textContent = 'Download High Quality PNG';
+                btn.disabled = false;
+            }
+        }
+    </script>
+</body>
+</html>
