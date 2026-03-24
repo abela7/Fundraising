@@ -314,10 +314,16 @@
 
         .cert-dear {
             font-family: 'Algerian', fantasy; font-size: 1.55rem; color: #1a1a1a;
-            text-align: center; margin-bottom: 12px;
+            text-align: left; margin-bottom: 12px; width: 85%;
+            display: flex; align-items: baseline; gap: 8px;
         }
 
-        .cert-name { text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 5px; }
+        .cert-dear-label { white-space: nowrap; }
+
+        .cert-name {
+            flex: 1; border-bottom: 2.5px solid #1a1a1a; min-width: 100px;
+            padding-bottom: 2px; text-align: left; min-height: 1.2em;
+        }
 
         .cert-divider {
             width: 85%; height: 1.5px;
@@ -535,7 +541,7 @@
         <div class="cert-content">
             <img src="EOTC_Icon.png" alt="EOTC" class="cert-icon clickable-el" data-panel="icon">
             <div class="cert-title clickable-el" data-panel="title" contenteditable="true">Certificate of Appreciation</div>
-            <div class="cert-dear clickable-el" data-panel="dear">Dear <span class="cert-name" contenteditable="true">Norman Bilsborough</span></div>
+            <div class="cert-dear clickable-el" data-panel="dear"><span class="cert-dear-label">Dear</span><span class="cert-name" contenteditable="true">Norman Bilsborough</span></div>
             <div class="cert-divider"></div>
             <div class="cert-body clickable-el" data-panel="body" contenteditable="true">The Congregation of Liverpool Mekane Kidusan Abune Teklehymanot Ethiopian Orthodox Tewahedo Church (LMKAT EOTC), Diocese of Great Britain & Northern Ireland, would like to express the utmost gratitude, for your kind and much appreciated support in making the process of signing an agreement, to use St. Gebriel's Church at 16 Yates Street, L8 6RD for worshiping, such a successful historical event. May the blessing of the Father, the Son, and the Holy Spirit be upon you. Amen.</div>
             <div class="cert-footer">
@@ -741,7 +747,7 @@
             // Remove selection highlight for export
             document.querySelectorAll('.clickable-el.selected').forEach(s => s.classList.remove('selected'));
 
-            const noWrapEls = cert.querySelectorAll('.cert-title, .cert-office, .cert-date, .cert-dear');
+            const noWrapEls = cert.querySelectorAll('.cert-title, .cert-office, .cert-date, .cert-dear-label');
             noWrapEls.forEach(el => el.style.whiteSpace = 'nowrap');
 
             await domtoimage.toPng(cert, { width: w, height: h, cacheBust: true });
