@@ -62,8 +62,7 @@
         .bg-gradient.active { display: block; }
 
         /* Sunburst rays */
-        .cert::after {
-            content: '';
+        .bg-sunburst {
             position: absolute;
             top: -40%;
             left: 50%;
@@ -79,8 +78,7 @@
         }
 
         /* Soft radial fade */
-        .cert::before {
-            content: '';
+        .bg-fade {
             position: absolute;
             inset: 0;
             background: radial-gradient(ellipse at center, transparent 20%, rgba(250, 248, 242, 0.6) 60%, rgba(250, 248, 242, 0.95) 100%);
@@ -371,7 +369,7 @@
         }
 
         @media print {
-            .download-btn, .card-nav, .controls, .edit-hint, .font-controls, .toggle-controls, .slider-item { display: none; }
+            .download-btn, .card-nav, .controls, .edit-hint, .font-controls, .toggle-controls, .element-panel { display: none; }
             body { background: none; display: block; min-height: auto; padding: 0; }
             .cert { box-shadow: none; margin: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
             @page { size: A4 landscape; margin: 0; }
@@ -380,15 +378,9 @@
 </head>
 <body>
 
-    <div class="card-nav">
-        <a href="card-front-v2.html">Front Light</a>
-        <a href="card-back.html">Back Light</a>
-        <a href="card-back-v2.html">Back V2</a>
-        <a href="frame-a4.html">A4 Frame</a>
-        <a href="certificate-appreciation.html" class="active">Certificate</a>
-    </div>
-
     <div class="cert" id="certCard">
+        <div class="bg-sunburst"></div>
+        <div class="bg-fade"></div>
         <div class="bg-pattern" id="bgPattern"></div>
         <div class="bg-gradient" id="bgGradient"></div>
         <div class="tibeb-top"></div>
@@ -447,26 +439,53 @@
     </div>
 
     <div class="toggle-controls">
-        <div class="slider-item"><span>Icon Size:</span><input type="range" min="40" max="160" value="90" oninput="updateEl('.cert-icon', 'size', this.value, this)"><span class="slider-value">90px</span></div>
-        <div class="slider-item"><span>Icon X:</span><input type="range" min="-100" max="100" value="0" oninput="updateEl('.cert-icon', 'x', this.value, this)"><span class="slider-value">0px</span></div>
-        <div class="slider-item"><span>Icon Y:</span><input type="range" min="-50" max="50" value="0" oninput="updateEl('.cert-icon', 'y', this.value, this)"><span class="slider-value">0px</span></div>
     </div>
+
     <div class="toggle-controls">
-        <div class="slider-item"><span>Title X:</span><input type="range" min="-100" max="100" value="0" oninput="updateEl('.cert-title', 'x', this.value, this)"><span class="slider-value">0px</span></div>
-        <div class="slider-item"><span>Title Y:</span><input type="range" min="-50" max="50" value="0" oninput="updateEl('.cert-title', 'y', this.value, this)"><span class="slider-value">0px</span></div>
-        <div class="slider-item"><span>Dear X:</span><input type="range" min="-100" max="100" value="0" oninput="updateEl('.cert-dear', 'x', this.value, this)"><span class="slider-value">0px</span></div>
-        <div class="slider-item"><span>Dear Y:</span><input type="range" min="-50" max="50" value="0" oninput="updateEl('.cert-dear', 'y', this.value, this)"><span class="slider-value">0px</span></div>
+        <div class="slider-item">
+            <span>Adjust Element:</span>
+            <select id="elementPicker" onchange="showElementControls(this.value)" style="padding:4px 8px;border-radius:4px;border:1px solid #ccc;font-size:13px;">
+                <option value="">— Select —</option>
+                <option value="icon">EOTC Icon</option>
+                <option value="title">Title</option>
+                <option value="dear">Dear / Name</option>
+                <option value="body">Body Text</option>
+                <option value="cross">Crosses</option>
+                <option value="footer">Footer Text</option>
+            </select>
+        </div>
     </div>
-    <div class="toggle-controls">
-        <div class="slider-item"><span>Body X:</span><input type="range" min="-100" max="100" value="0" oninput="updateEl('.cert-body', 'x', this.value, this)"><span class="slider-value">0px</span></div>
-        <div class="slider-item"><span>Body Y:</span><input type="range" min="-50" max="50" value="0" oninput="updateEl('.cert-body', 'y', this.value, this)"><span class="slider-value">0px</span></div>
-        <div class="slider-item"><span>Cross Size:</span><input type="range" min="30" max="140" value="70" oninput="updateEl('.cert-cross', 'size', this.value, this)"><span class="slider-value">70px</span></div>
-        <div class="slider-item"><span>Cross X:</span><input type="range" min="-50" max="50" value="0" oninput="updateEl('.cert-cross', 'x', this.value, this)"><span class="slider-value">0px</span></div>
-        <div class="slider-item"><span>Cross Y:</span><input type="range" min="-30" max="30" value="0" oninput="updateEl('.cert-cross', 'y', this.value, this)"><span class="slider-value">0px</span></div>
+
+    <div class="toggle-controls element-panel" id="panel-icon" style="display:none;">
+        <div class="slider-item"><span>Size:</span><input type="range" min="40" max="160" value="90" oninput="updateEl('.cert-icon', 'size', this.value, this)"><span class="slider-value">90px</span></div>
+        <div class="slider-item"><span>X:</span><input type="range" min="-100" max="100" value="0" oninput="updateEl('.cert-icon', 'x', this.value, this)"><span class="slider-value">0px</span></div>
+        <div class="slider-item"><span>Y:</span><input type="range" min="-50" max="50" value="0" oninput="updateEl('.cert-icon', 'y', this.value, this)"><span class="slider-value">0px</span></div>
     </div>
-    <div class="toggle-controls">
-        <div class="slider-item"><span>Footer X:</span><input type="range" min="-100" max="100" value="0" oninput="updateEl('.cert-footer-text', 'x', this.value, this)"><span class="slider-value">0px</span></div>
-        <div class="slider-item"><span>Footer Y:</span><input type="range" min="-30" max="30" value="0" oninput="updateEl('.cert-footer-text', 'y', this.value, this)"><span class="slider-value">0px</span></div>
+
+    <div class="toggle-controls element-panel" id="panel-title" style="display:none;">
+        <div class="slider-item"><span>X:</span><input type="range" min="-100" max="100" value="0" oninput="updateEl('.cert-title', 'x', this.value, this)"><span class="slider-value">0px</span></div>
+        <div class="slider-item"><span>Y:</span><input type="range" min="-50" max="50" value="0" oninput="updateEl('.cert-title', 'y', this.value, this)"><span class="slider-value">0px</span></div>
+    </div>
+
+    <div class="toggle-controls element-panel" id="panel-dear" style="display:none;">
+        <div class="slider-item"><span>X:</span><input type="range" min="-100" max="100" value="0" oninput="updateEl('.cert-dear', 'x', this.value, this)"><span class="slider-value">0px</span></div>
+        <div class="slider-item"><span>Y:</span><input type="range" min="-50" max="50" value="0" oninput="updateEl('.cert-dear', 'y', this.value, this)"><span class="slider-value">0px</span></div>
+    </div>
+
+    <div class="toggle-controls element-panel" id="panel-body" style="display:none;">
+        <div class="slider-item"><span>X:</span><input type="range" min="-100" max="100" value="0" oninput="updateEl('.cert-body', 'x', this.value, this)"><span class="slider-value">0px</span></div>
+        <div class="slider-item"><span>Y:</span><input type="range" min="-50" max="50" value="0" oninput="updateEl('.cert-body', 'y', this.value, this)"><span class="slider-value">0px</span></div>
+    </div>
+
+    <div class="toggle-controls element-panel" id="panel-cross" style="display:none;">
+        <div class="slider-item"><span>Size:</span><input type="range" min="30" max="140" value="70" oninput="updateEl('.cert-cross', 'size', this.value, this)"><span class="slider-value">70px</span></div>
+        <div class="slider-item"><span>X:</span><input type="range" min="-50" max="50" value="0" oninput="updateEl('.cert-cross', 'x', this.value, this)"><span class="slider-value">0px</span></div>
+        <div class="slider-item"><span>Y:</span><input type="range" min="-30" max="30" value="0" oninput="updateEl('.cert-cross', 'y', this.value, this)"><span class="slider-value">0px</span></div>
+    </div>
+
+    <div class="toggle-controls element-panel" id="panel-footer" style="display:none;">
+        <div class="slider-item"><span>X:</span><input type="range" min="-100" max="100" value="0" oninput="updateEl('.cert-footer-text', 'x', this.value, this)"><span class="slider-value">0px</span></div>
+        <div class="slider-item"><span>Y:</span><input type="range" min="-30" max="30" value="0" oninput="updateEl('.cert-footer-text', 'y', this.value, this)"><span class="slider-value">0px</span></div>
     </div>
 
     <div class="edit-hint">Click on any text to edit directly on the certificate</div>
@@ -525,6 +544,11 @@
             const vImg = style === 'ethiopian' ? 'Ethiopian_Design - Vertical.png' : 'Pattern_Two! - Vertical.jpeg';
             document.querySelectorAll('.tibeb-top, .tibeb-bottom').forEach(el => el.style.backgroundImage = "url('" + hImg + "')");
             document.querySelectorAll('.tibeb-left, .tibeb-right').forEach(el => el.style.backgroundImage = "url('" + vImg + "')");
+        }
+
+        function showElementControls(val) {
+            document.querySelectorAll('.element-panel').forEach(p => p.style.display = 'none');
+            if (val) document.getElementById('panel-' + val).style.display = 'flex';
         }
 
         function updateEl(selector, prop, val, input) {
