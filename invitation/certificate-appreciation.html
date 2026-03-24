@@ -196,11 +196,89 @@
         }
         .bg-gradient.active { display: block; }
 
-        .bg-sunburst {
-            position: absolute; top: -40%; left: 50%; width: 200%; height: 200%;
+        .bg-design {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 1; pointer-events: none;
+        }
+
+        /* 1 — Sunburst Rays */
+        .bg-design.sunburst {
+            top: -40%; left: 50%; width: 200%; height: 200%;
             transform: translateX(-50%);
             background: repeating-conic-gradient(rgba(10, 98, 134, 0.035) 0deg 5deg, transparent 5deg 10deg);
-            z-index: 1; pointer-events: none;
+        }
+
+        /* 2 — Elegant Dots Grid */
+        .bg-design.dots {
+            background: radial-gradient(circle, rgba(10, 98, 134, 0.08) 1px, transparent 1px);
+            background-size: 18px 18px;
+        }
+
+        /* 3 — Diamond Lattice */
+        .bg-design.diamonds {
+            background:
+                linear-gradient(45deg, rgba(10, 98, 134, 0.04) 25%, transparent 25%, transparent 75%, rgba(10, 98, 134, 0.04) 75%),
+                linear-gradient(-45deg, rgba(10, 98, 134, 0.04) 25%, transparent 25%, transparent 75%, rgba(10, 98, 134, 0.04) 75%);
+            background-size: 40px 40px;
+        }
+
+        /* 4 — Concentric Circles */
+        .bg-design.circles {
+            background: repeating-radial-gradient(circle at center, transparent 0px, transparent 30px, rgba(10, 98, 134, 0.03) 30px, rgba(10, 98, 134, 0.03) 32px);
+        }
+
+        /* 5 — Cross Hatch */
+        .bg-design.crosshatch {
+            background:
+                repeating-linear-gradient(0deg, rgba(10, 98, 134, 0.025) 0px, rgba(10, 98, 134, 0.025) 1px, transparent 1px, transparent 24px),
+                repeating-linear-gradient(90deg, rgba(10, 98, 134, 0.025) 0px, rgba(10, 98, 134, 0.025) 1px, transparent 1px, transparent 24px);
+        }
+
+        /* 6 — Starburst */
+        .bg-design.starburst {
+            top: -30%; left: 50%; width: 180%; height: 180%;
+            transform: translateX(-50%);
+            background: repeating-conic-gradient(rgba(10, 98, 134, 0.025) 0deg 2deg, transparent 2deg 8deg);
+        }
+
+        /* 7 — Diagonal Lines */
+        .bg-design.diagonals {
+            background: repeating-linear-gradient(
+                45deg, transparent, transparent 14px, rgba(10, 98, 134, 0.03) 14px, rgba(10, 98, 134, 0.03) 15px
+            );
+        }
+
+        /* 8 — Hexagon Mesh */
+        .bg-design.hexagons {
+            background:
+                radial-gradient(circle farthest-side at 0% 50%, rgba(10, 98, 134, 0.04) 23.5%, transparent 0) 21px 30px,
+                radial-gradient(circle farthest-side at 0% 50%, rgba(10, 98, 134, 0.03) 24%, transparent 0) 19px 30px,
+                linear-gradient(rgba(10, 98, 134, 0.04) 14%, transparent 0, transparent 85%, rgba(10, 98, 134, 0.04) 0) 0 0,
+                linear-gradient(150deg, rgba(10, 98, 134, 0.04) 24%, transparent 0) 0 0,
+                linear-gradient(30deg, rgba(10, 98, 134, 0.04) 24%, transparent 0) 0 0,
+                linear-gradient(150deg, rgba(10, 98, 134, 0.04) 24%, transparent 0) 21px 30px,
+                linear-gradient(30deg, rgba(10, 98, 134, 0.04) 24%, transparent 0) 21px 30px;
+            background-size: 42px 60px;
+        }
+
+        /* 9 — Ornamental Rings */
+        .bg-design.rings {
+            background:
+                radial-gradient(circle at 50% 50%, transparent 18px, rgba(10, 98, 134, 0.025) 18px, rgba(10, 98, 134, 0.025) 20px, transparent 20px),
+                radial-gradient(circle at 0% 0%, transparent 18px, rgba(10, 98, 134, 0.02) 18px, rgba(10, 98, 134, 0.02) 20px, transparent 20px),
+                radial-gradient(circle at 100% 0%, transparent 18px, rgba(10, 98, 134, 0.02) 18px, rgba(10, 98, 134, 0.02) 20px, transparent 20px),
+                radial-gradient(circle at 0% 100%, transparent 18px, rgba(10, 98, 134, 0.02) 18px, rgba(10, 98, 134, 0.02) 20px, transparent 20px),
+                radial-gradient(circle at 100% 100%, transparent 18px, rgba(10, 98, 134, 0.02) 18px, rgba(10, 98, 134, 0.02) 20px, transparent 20px);
+            background-size: 50px 50px;
+        }
+
+        /* 10 — Wavy Lines */
+        .bg-design.waves {
+            background:
+                repeating-linear-gradient(0deg, transparent 0px, transparent 28px, rgba(10, 98, 134, 0.02) 28px, rgba(10, 98, 134, 0.02) 30px),
+                radial-gradient(ellipse 60px 16px at 30px 15px, rgba(10, 98, 134, 0.02) 50%, transparent 50%),
+                radial-gradient(ellipse 60px 16px at 0px 45px, rgba(250, 248, 242, 1) 50%, transparent 50%);
+            background-size: 60px 60px;
         }
 
         .bg-fade {
@@ -290,6 +368,28 @@
     <div class="panel-section">
         <div class="panel-header open" onclick="togglePanel(this)">Background <span class="arrow">▼</span></div>
         <div class="panel-body open">
+            <div class="ctrl-row">
+                <span class="ctrl-label">Design</span>
+                <select id="designPicker" onchange="changeDesign(this.value)">
+                    <option value="sunburst">Sunburst Rays</option>
+                    <option value="starburst">Starburst</option>
+                    <option value="dots">Elegant Dots</option>
+                    <option value="diamonds">Diamond Lattice</option>
+                    <option value="circles">Concentric Circles</option>
+                    <option value="crosshatch">Cross Hatch</option>
+                    <option value="diagonals">Diagonal Lines</option>
+                    <option value="hexagons">Hexagon Mesh</option>
+                    <option value="rings">Ornamental Rings</option>
+                    <option value="waves">Wavy Lines</option>
+                    <option value="none">None</option>
+                </select>
+            </div>
+            <div class="ctrl-row" id="designIntensityRow">
+                <span class="ctrl-label">Intensity</span>
+                <input type="range" min="20" max="300" value="100" oninput="updateDesignIntensity(this.value)">
+                <span class="ctrl-val" id="intensityValue">100%</span>
+            </div>
+            <div class="ctrl-row"><input type="checkbox" id="toggleFade" checked onchange="toggleFade(this.checked)"><span class="ctrl-label">Center Fade</span></div>
             <div class="ctrl-row"><input type="checkbox" id="togglePattern" onchange="togglePattern(this.checked)"><span class="ctrl-label">Ethiopian Pattern</span></div>
             <div class="ctrl-row"><input type="checkbox" id="toggleGradient" onchange="toggleGradient(this.checked)"><span class="ctrl-label">Flag Colours</span></div>
             <div class="ctrl-row" id="opacityRow" style="display:none;">
@@ -390,8 +490,8 @@
 <!-- CANVAS -->
 <div class="canvas-area">
     <div class="cert" id="certCard">
-        <div class="bg-sunburst"></div>
-        <div class="bg-fade"></div>
+        <div class="bg-design sunburst" id="bgDesign"></div>
+        <div class="bg-fade" id="bgFade"></div>
         <div class="bg-pattern" id="bgPattern"></div>
         <div class="bg-gradient" id="bgGradient"></div>
         <div class="tibeb-top"></div>
@@ -425,7 +525,27 @@
         header.nextElementSibling.classList.toggle('open');
     }
 
-    // Background
+    // Background designs
+    const allDesigns = ['sunburst','starburst','dots','diamonds','circles','crosshatch','diagonals','hexagons','rings','waves'];
+
+    function changeDesign(val) {
+        const el = document.getElementById('bgDesign');
+        allDesigns.forEach(d => el.classList.remove(d));
+        if (val !== 'none') el.classList.add(val);
+        el.style.display = val === 'none' ? 'none' : '';
+        document.getElementById('designIntensityRow').style.display = val === 'none' ? 'none' : 'flex';
+    }
+
+    function updateDesignIntensity(val) {
+        const el = document.getElementById('bgDesign');
+        el.style.opacity = val / 100;
+        document.getElementById('intensityValue').textContent = val + '%';
+    }
+
+    function toggleFade(on) {
+        document.getElementById('bgFade').style.display = on ? '' : 'none';
+    }
+
     function togglePattern(on) { document.getElementById('bgPattern').classList.toggle('active', on); }
     function toggleGradient(on) {
         document.getElementById('bgGradient').classList.toggle('active', on);
