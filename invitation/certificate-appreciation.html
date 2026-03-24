@@ -596,6 +596,10 @@
             try {
                 if (document.fonts && document.fonts.ready) await document.fonts.ready;
 
+                // Force no-wrap on title and footer to prevent line breaks at scale
+                const noWrapEls = cert.querySelectorAll('.cert-title, .cert-office, .cert-date, .cert-dear');
+                noWrapEls.forEach(el => el.style.whiteSpace = 'nowrap');
+
                 // Run twice — first call warms up image cache, second gets clean render
                 await domtoimage.toPng(cert, { width: w, height: h, cacheBust: true });
 
@@ -612,6 +616,9 @@
                         height: h + 'px'
                     }
                 });
+
+                // Restore wrap
+                noWrapEls.forEach(el => el.style.whiteSpace = '');
 
                 const link = document.createElement('a');
                 const name = document.getElementById('fileName').value.trim() || 'LMKAT-EOTC-Certificate';
