@@ -241,8 +241,49 @@
         .card-nav a:hover { background: #064a66; color: #fff; border-color: #064a66; }
         .card-nav a.active { background: #064a66; color: #fff; border-color: #064a66; }
 
+        .font-controls {
+            display: flex;
+            gap: 14px;
+            margin: 16px auto 0;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .font-control-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-family: 'Segoe UI', sans-serif;
+            font-size: 13px;
+            font-weight: 500;
+            color: #334155;
+            background: #fff;
+            padding: 8px 16px;
+            border-radius: 8px;
+            border: 1px solid #ddd;
+        }
+
+        .font-control-item label {
+            font-weight: 600;
+            color: #0a6286;
+            min-width: 70px;
+        }
+
+        .font-control-item input[type="range"] {
+            width: 100px;
+            accent-color: #064a66;
+            cursor: pointer;
+        }
+
+        .fc-val {
+            font-weight: 700;
+            color: #064a66;
+            min-width: 38px;
+            text-align: center;
+        }
+
         @media print {
-            .download-btn, .card-nav, .controls, .edit-hint { display: none; }
+            .download-btn, .card-nav, .controls, .edit-hint, .font-controls { display: none; }
             body { background: none; display: block; min-height: auto; padding: 0; }
             .cert { box-shadow: none; margin: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
             @page { size: A4 landscape; margin: 0; }
@@ -289,12 +330,46 @@
 
     <div class="edit-hint">Click on any text to edit directly on the certificate</div>
 
+    <div class="font-controls">
+        <div class="font-control-item">
+            <label>Title</label>
+            <input type="range" min="16" max="60" value="34" oninput="changeFontSize('.cert-title', this.value, this)">
+            <span class="fc-val">34pt</span>
+        </div>
+        <div class="font-control-item">
+            <label>Dear / Name</label>
+            <input type="range" min="12" max="40" value="19" oninput="changeFontSize('.cert-dear', this.value, this)">
+            <span class="fc-val">19pt</span>
+        </div>
+        <div class="font-control-item">
+            <label>Body</label>
+            <input type="range" min="10" max="30" value="18" oninput="changeFontSize('.cert-body', this.value, this)">
+            <span class="fc-val">18pt</span>
+        </div>
+        <div class="font-control-item">
+            <label>Footer</label>
+            <input type="range" min="10" max="30" value="14" oninput="changeFooterSize(this.value, this)">
+            <span class="fc-val">14pt</span>
+        </div>
+    </div>
+
     <div class="controls">
         <button class="download-btn" onclick="downloadCert()">Download High Quality PNG</button>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/dom-to-image-more@3.4.5/dist/dom-to-image-more.min.js"></script>
     <script>
+        function changeFontSize(selector, val, input) {
+            document.querySelector(selector).style.fontSize = val + 'pt';
+            input.nextElementSibling.textContent = val + 'pt';
+        }
+
+        function changeFooterSize(val, input) {
+            document.querySelector('.cert-office').style.fontSize = val + 'pt';
+            document.querySelector('.cert-date').style.fontSize = val + 'pt';
+            input.nextElementSibling.textContent = val + 'pt';
+        }
+
         async function downloadCert() {
             document.activeElement.blur();
             const cert = document.getElementById('certCard');
