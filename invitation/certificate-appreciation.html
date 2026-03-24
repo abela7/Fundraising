@@ -431,89 +431,23 @@
         <div class="panel-body">
             <div class="ctrl-row">
                 <span class="ctrl-label">Title</span>
-                <select onchange="changeFontFamily('.cert-title', this.value)" style="font-size:11px;">
-                    <option value="'Algerian', fantasy">Algerian</option>
-                    <option value="'Cinzel', serif">Cinzel</option>
-                    <option value="'Playfair Display', serif">Playfair Display</option>
-                    <option value="'Cormorant Garamond', serif">Cormorant Garamond</option>
-                    <option value="'EB Garamond', serif">EB Garamond</option>
-                    <option value="'Old Standard TT', serif">Old Standard TT</option>
-                    <option value="'Libre Baskerville', serif">Libre Baskerville</option>
-                    <option value="'Crimson Text', serif">Crimson Text</option>
-                    <option value="'Lora', serif">Lora</option>
-                    <option value="'Merriweather', serif">Merriweather</option>
-                    <option value="'Spectral', serif">Spectral</option>
-                    <option value="'Georgia', serif">Georgia</option>
-                </select>
+                <select class="font-select" data-target="title" style="font-size:11px;"></select>
             </div>
             <div class="ctrl-row">
                 <span class="ctrl-label">Body</span>
-                <select onchange="changeFontFamily('.cert-body', this.value)" style="font-size:11px;">
-                    <option value="'Algerian', fantasy">Algerian</option>
-                    <option value="'Cinzel', serif">Cinzel</option>
-                    <option value="'Playfair Display', serif">Playfair Display</option>
-                    <option value="'Cormorant Garamond', serif">Cormorant Garamond</option>
-                    <option value="'EB Garamond', serif">EB Garamond</option>
-                    <option value="'Old Standard TT', serif">Old Standard TT</option>
-                    <option value="'Libre Baskerville', serif">Libre Baskerville</option>
-                    <option value="'Crimson Text', serif">Crimson Text</option>
-                    <option value="'Lora', serif">Lora</option>
-                    <option value="'Merriweather', serif">Merriweather</option>
-                    <option value="'Spectral', serif">Spectral</option>
-                    <option value="'Georgia', serif">Georgia</option>
-                </select>
+                <select class="font-select" data-target="body" style="font-size:11px;"></select>
             </div>
             <div class="ctrl-row">
                 <span class="ctrl-label">Dear</span>
-                <select onchange="changeFontFamily('.cert-dear', this.value)" style="font-size:11px;">
-                    <option value="'Algerian', fantasy">Algerian</option>
-                    <option value="'Cinzel', serif">Cinzel</option>
-                    <option value="'Playfair Display', serif">Playfair Display</option>
-                    <option value="'Cormorant Garamond', serif">Cormorant Garamond</option>
-                    <option value="'EB Garamond', serif">EB Garamond</option>
-                    <option value="'Old Standard TT', serif">Old Standard TT</option>
-                    <option value="'Libre Baskerville', serif">Libre Baskerville</option>
-                    <option value="'Crimson Text', serif">Crimson Text</option>
-                    <option value="'Lora', serif">Lora</option>
-                    <option value="'Merriweather', serif">Merriweather</option>
-                    <option value="'Spectral', serif">Spectral</option>
-                    <option value="'Georgia', serif">Georgia</option>
-                </select>
+                <select class="font-select" data-target="dear" style="font-size:11px;"></select>
             </div>
             <div class="ctrl-row">
                 <span class="ctrl-label">Footer</span>
-                <select onchange="changeFontFamily('.cert-office,.cert-date', this.value)" style="font-size:11px;">
-                    <option value="'Algerian', fantasy">Algerian</option>
-                    <option value="'Cinzel', serif">Cinzel</option>
-                    <option value="'Playfair Display', serif">Playfair Display</option>
-                    <option value="'Cormorant Garamond', serif">Cormorant Garamond</option>
-                    <option value="'EB Garamond', serif">EB Garamond</option>
-                    <option value="'Old Standard TT', serif">Old Standard TT</option>
-                    <option value="'Libre Baskerville', serif">Libre Baskerville</option>
-                    <option value="'Crimson Text', serif">Crimson Text</option>
-                    <option value="'Lora', serif">Lora</option>
-                    <option value="'Merriweather', serif">Merriweather</option>
-                    <option value="'Spectral', serif">Spectral</option>
-                    <option value="'Georgia', serif">Georgia</option>
-                </select>
+                <select class="font-select" data-target="footer" style="font-size:11px;"></select>
             </div>
             <div class="ctrl-row">
                 <span class="ctrl-label">All</span>
-                <select onchange="changeAllFonts(this.value)" style="font-size:11px;">
-                    <option value="">— Apply to all —</option>
-                    <option value="'Algerian', fantasy">Algerian</option>
-                    <option value="'Cinzel', serif">Cinzel</option>
-                    <option value="'Playfair Display', serif">Playfair Display</option>
-                    <option value="'Cormorant Garamond', serif">Cormorant Garamond</option>
-                    <option value="'EB Garamond', serif">EB Garamond</option>
-                    <option value="'Old Standard TT', serif">Old Standard TT</option>
-                    <option value="'Libre Baskerville', serif">Libre Baskerville</option>
-                    <option value="'Crimson Text', serif">Crimson Text</option>
-                    <option value="'Lora', serif">Lora</option>
-                    <option value="'Merriweather', serif">Merriweather</option>
-                    <option value="'Spectral', serif">Spectral</option>
-                    <option value="'Georgia', serif">Georgia</option>
-                </select>
+                <select class="font-select" data-target="all" style="font-size:11px;"></select>
             </div>
         </div>
     </div>
@@ -675,24 +609,59 @@
         document.querySelectorAll('.tibeb-left, .tibeb-right').forEach(el => el.style.backgroundImage = "url('" + v + "')");
     }
 
-    // Font family
-    function changeFontFamily(sel, val) {
-        document.querySelectorAll(sel).forEach(el => el.style.fontFamily = val);
-    }
-    function changeAllFonts(val) {
-        if (!val) return;
-        ['.cert-title', '.cert-dear', '.cert-body', '.cert-office', '.cert-date'].forEach(sel => {
-            document.querySelectorAll(sel).forEach(el => el.style.fontFamily = val);
+    // Font family system
+    const fontList = [
+        { name: 'Algerian', value: 'Algerian, fantasy' },
+        { name: 'Cinzel', value: 'Cinzel, serif' },
+        { name: 'Playfair Display', value: 'Playfair Display, serif' },
+        { name: 'Cormorant Garamond', value: 'Cormorant Garamond, serif' },
+        { name: 'EB Garamond', value: 'EB Garamond, serif' },
+        { name: 'Old Standard TT', value: 'Old Standard TT, serif' },
+        { name: 'Libre Baskerville', value: 'Libre Baskerville, serif' },
+        { name: 'Crimson Text', value: 'Crimson Text, serif' },
+        { name: 'Lora', value: 'Lora, serif' },
+        { name: 'Merriweather', value: 'Merriweather, serif' },
+        { name: 'Spectral', value: 'Spectral, serif' },
+        { name: 'Georgia', value: 'Georgia, serif' }
+    ];
+
+    const fontTargetMap = {
+        title: ['.cert-title'],
+        body: ['.cert-body'],
+        dear: ['.cert-dear'],
+        footer: ['.cert-office', '.cert-date'],
+        all: ['.cert-title', '.cert-body', '.cert-dear', '.cert-office', '.cert-date']
+    };
+
+    // Populate all font dropdowns and attach listeners
+    document.querySelectorAll('.font-select').forEach(select => {
+        const target = select.dataset.target;
+        if (target === 'all') {
+            select.innerHTML = '<option value="">— Apply to all —</option>';
+        }
+        fontList.forEach(f => {
+            const opt = document.createElement('option');
+            opt.value = f.value;
+            opt.textContent = f.name;
+            opt.style.fontFamily = f.value;
+            select.appendChild(opt);
         });
-        // Sync all individual dropdowns
-        document.querySelectorAll('.panel-body select').forEach(s => {
-            if (s.onchange && s.options.length === 12) {
-                for (let i = 0; i < s.options.length; i++) {
-                    if (s.options[i].value === val) { s.selectedIndex = i; break; }
-                }
+
+        select.addEventListener('change', function() {
+            const val = this.value;
+            if (!val) return;
+            const selectors = fontTargetMap[target];
+            selectors.forEach(sel => {
+                document.querySelectorAll(sel).forEach(el => { el.style.fontFamily = val; });
+            });
+            // If "All" is changed, sync all individual dropdowns
+            if (target === 'all') {
+                document.querySelectorAll('.font-select').forEach(s => {
+                    if (s.dataset.target !== 'all') s.value = val;
+                });
             }
         });
-    }
+    });
 
     // Font sizes
     function changeFontSize(sel, val, input) {
