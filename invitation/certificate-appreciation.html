@@ -405,9 +405,9 @@
             <div class="cert-dear clickable-el" data-panel="dear">Dear <span class="cert-name" contenteditable="true">Norman Bilsborough</span></div>
             <div class="cert-divider"></div>
             <div class="cert-body clickable-el" data-panel="body" contenteditable="true">The Congregation of Liverpool Mekane Kidusan Abune Teklehymanot Ethiopian Orthodox Tewahedo Church (LMKAT EOTC), Diocese of Great Britain & Northern Ireland, would like to express the utmost gratitude, for your kind and much appreciated support in making the process of signing an agreement, to use St. Gebriel's Church at 16 Yates Street, L8 6RD for worshiping, such a successful historical event. May the blessing of the Father, the Son, and the Holy Spirit be upon you. Amen.</div>
-            <div class="cert-footer clickable-el" data-panel="footer">
+            <div class="cert-footer">
                 <img src="CROSS.png" alt="Ethiopian Cross" class="cert-cross clickable-el" data-panel="cross">
-                <div class="cert-footer-text">
+                <div class="cert-footer-text clickable-el" data-panel="footer">
                     <div class="cert-office" contenteditable="true">LMKAT EOTC Trustees Office</div>
                     <div class="cert-date" contenteditable="true">Date 29 March 2026</div>
                 </div>
@@ -477,6 +477,7 @@
     // Click-to-select on certificate elements
     document.querySelectorAll('.clickable-el[data-panel]').forEach(el => {
         el.addEventListener('click', function(e) {
+            e.stopPropagation();
             // Don't interfere with text editing inside contenteditable
             if (e.target.getAttribute('contenteditable') === 'true' && e.target !== this) return;
 
