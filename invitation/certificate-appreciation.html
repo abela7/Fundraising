@@ -31,6 +31,36 @@
             box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
         }
 
+        /* Background pattern */
+        .bg-pattern {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+            background: url('Ethiopian_Design.png') repeat;
+            background-size: 80px;
+            opacity: 0.05;
+            display: none;
+            pointer-events: none;
+        }
+        .bg-pattern.active { display: block; }
+
+        /* Flag colour gradient */
+        .bg-gradient {
+            position: absolute;
+            inset: 0;
+            z-index: 2;
+            pointer-events: none;
+            display: none;
+            background:
+                radial-gradient(ellipse 60% 40% at 5% 5%, rgba(0, 128, 55, var(--grad-opacity, 0.15)), transparent),
+                radial-gradient(ellipse 50% 30% at 50% 50%, rgba(252, 209, 22, var(--grad-opacity, 0.1)), transparent),
+                radial-gradient(ellipse 60% 40% at 95% 95%, rgba(186, 34, 34, var(--grad-opacity, 0.15)), transparent);
+        }
+        .bg-gradient.active { display: block; }
+
         /* Sunburst rays */
         .cert::after {
             content: '';
@@ -241,6 +271,64 @@
         .card-nav a:hover { background: #064a66; color: #fff; border-color: #064a66; }
         .card-nav a.active { background: #064a66; color: #fff; border-color: #064a66; }
 
+        .toggle-controls {
+            display: flex;
+            gap: 14px;
+            margin: 16px auto 0;
+            flex-wrap: wrap;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .toggle-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-family: 'Segoe UI', sans-serif;
+            font-size: 13px;
+            font-weight: 500;
+            color: #334155;
+            background: #fff;
+            padding: 8px 16px;
+            border-radius: 8px;
+            border: 1px solid #ddd;
+            cursor: pointer;
+        }
+
+        .toggle-item input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            accent-color: #064a66;
+            cursor: pointer;
+        }
+
+        .slider-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-family: 'Segoe UI', sans-serif;
+            font-size: 13px;
+            font-weight: 500;
+            color: #334155;
+            background: #fff;
+            padding: 8px 16px;
+            border-radius: 8px;
+            border: 1px solid #ddd;
+        }
+
+        .slider-item input[type="range"] {
+            width: 120px;
+            accent-color: #064a66;
+            cursor: pointer;
+        }
+
+        .slider-value {
+            font-weight: 700;
+            color: #064a66;
+            min-width: 35px;
+            text-align: center;
+        }
+
         .font-controls {
             display: flex;
             gap: 14px;
@@ -283,7 +371,7 @@
         }
 
         @media print {
-            .download-btn, .card-nav, .controls, .edit-hint, .font-controls { display: none; }
+            .download-btn, .card-nav, .controls, .edit-hint, .font-controls, .toggle-controls { display: none; }
             body { background: none; display: block; min-height: auto; padding: 0; }
             .cert { box-shadow: none; margin: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
             @page { size: A4 landscape; margin: 0; }
@@ -301,6 +389,8 @@
     </div>
 
     <div class="cert" id="certCard">
+        <div class="bg-pattern" id="bgPattern"></div>
+        <div class="bg-gradient" id="bgGradient"></div>
         <div class="tibeb-top"></div>
         <div class="tibeb-bottom"></div>
         <div class="tibeb-left"></div>
@@ -325,6 +415,27 @@
                 </div>
                 <img src="CROSS.png" alt="Ethiopian Cross" class="cert-cross">
             </div>
+        </div>
+    </div>
+
+    <div class="toggle-controls">
+        <label class="toggle-item">
+            <input type="checkbox" id="togglePattern" onchange="togglePattern(this.checked)">
+            Ethiopian Pattern
+        </label>
+        <label class="toggle-item">
+            <input type="checkbox" id="toggleGradient" onchange="toggleGradient(this.checked)">
+            Flag Colours
+        </label>
+        <div class="slider-item" id="opacitySlider" style="display:none;">
+            <span>Opacity:</span>
+            <input type="range" id="gradientOpacity" min="5" max="80" value="15" oninput="updateOpacity(this.value)">
+            <span class="slider-value" id="opacityValue">15%</span>
+        </div>
+        <div class="slider-item">
+            <span>Border:</span>
+            <input type="range" id="borderSize" min="10" max="60" value="20" oninput="updateBorder(this.value)">
+            <span class="slider-value" id="borderValue">20px</span>
         </div>
     </div>
 
@@ -359,6 +470,26 @@
 
     <script src="https://cdn.jsdelivr.net/npm/dom-to-image-more@3.4.5/dist/dom-to-image-more.min.js"></script>
     <script>
+        function togglePattern(on) {
+            document.getElementById('bgPattern').classList.toggle('active', on);
+        }
+
+        function toggleGradient(on) {
+            document.getElementById('bgGradient').classList.toggle('active', on);
+            document.getElementById('opacitySlider').style.display = on ? 'flex' : 'none';
+        }
+
+        function updateOpacity(val) {
+            document.getElementById('certCard').style.setProperty('--grad-opacity', val / 100);
+            document.getElementById('opacityValue').textContent = val + '%';
+        }
+
+        function updateBorder(val) {
+            document.querySelectorAll('.tibeb-top, .tibeb-bottom').forEach(el => el.style.height = val + 'px');
+            document.querySelectorAll('.tibeb-left, .tibeb-right').forEach(el => el.style.width = val + 'px');
+            document.getElementById('borderValue').textContent = val + 'px';
+        }
+
         function changeFontSize(selector, val, input) {
             document.querySelector(selector).style.fontSize = val + 'pt';
             input.nextElementSibling.textContent = val + 'pt';
