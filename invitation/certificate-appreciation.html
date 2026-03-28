@@ -131,11 +131,10 @@
             font-size: 12px;
         }
 
-        .download-btn {
+        .download-btn, .save-btn, .load-btn {
             display: block;
             width: 100%;
             padding: 12px;
-            background: linear-gradient(135deg, #0a6286, #0d7da8);
             color: #fff;
             border: none;
             border-radius: 8px;
@@ -146,7 +145,18 @@
             margin-top: 6px;
         }
 
+        .download-btn { background: linear-gradient(135deg, #0a6286, #0d7da8); }
         .download-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 14px rgba(10, 98, 134, 0.4); }
+
+        .save-btn { background: linear-gradient(135deg, #16a34a, #22c55e); }
+        .save-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 14px rgba(22, 163, 74, 0.4); }
+
+        .load-btn { background: linear-gradient(135deg, #d97706, #f59e0b); position: relative; overflow: hidden; }
+        .load-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 14px rgba(217, 119, 6, 0.4); }
+        .load-btn input[type="file"] { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+
+        .btn-row { display: flex; gap: 8px; margin-top: 6px; }
+        .btn-row .save-btn, .btn-row .load-btn { flex: 1; }
 
         .sidebar-footer {
             padding: 14px 16px;
@@ -526,6 +536,10 @@
             <input type="text" id="fileName" value="LMKAT-EOTC-Certificate">
         </div>
         <button class="download-btn" onclick="downloadCert()">Download High Quality PNG</button>
+        <div class="btn-row">
+            <button class="save-btn" onclick="saveDesign()">Save Design</button>
+            <label class="load-btn">Load Design<input type="file" accept=".json" onchange="loadDesign(event)"></label>
+        </div>
     </div>
 </div>
 
@@ -731,6 +745,199 @@
             document.querySelectorAll('.clickable-el.selected').forEach(s => s.classList.remove('selected'));
         }
     });
+
+    // ===== SAVE / LOAD DESIGN =====
+    function collectState() {
+        return {
+            version: 1,
+            // Text content
+            text: {
+                title: document.querySelector('.cert-title').textContent,
+                name: document.querySelector('.cert-name').textContent,
+                body: document.querySelector('.cert-body').textContent,
+                office: document.querySelector('.cert-office').textContent,
+                date: document.querySelector('.cert-date').textContent
+            },
+            // Background
+            design: document.getElementById('designPicker').value,
+            designIntensity: document.querySelector('#designIntensityRow input[type="range"]').value,
+            fadeOn: document.getElementById('toggleFade').checked,
+            patternOn: document.getElementById('togglePattern').checked,
+            patternOpacity: document.querySelector('#patternOpacityRow input[type="range"]').value,
+            gradientOn: document.getElementById('toggleGradient').checked,
+            gradientOpacity: document.querySelector('#opacityRow input[type="range"]').value,
+            // Border
+            borderStyle: document.querySelector('.panel-section:nth-child(2) select').value,
+            borderSize: document.querySelector('#borderValue').textContent.replace('px', ''),
+            // Font families
+            fonts: {
+                title: document.querySelector('.font-select[data-target="title"]').value,
+                body: document.querySelector('.font-select[data-target="body"]').value,
+                dear: document.querySelector('.font-select[data-target="dear"]').value,
+                footer: document.querySelector('.font-select[data-target="footer"]').value
+            },
+            // Font sizes (read from the range inputs)
+            fontSizes: {
+                title: document.querySelectorAll('.panel-section:nth-child(4) input[type="range"]')[0].value,
+                dear: document.querySelectorAll('.panel-section:nth-child(4) input[type="range"]')[1].value,
+                body: document.querySelectorAll('.panel-section:nth-child(4) input[type="range"]')[2].value,
+                footer: document.querySelectorAll('.panel-section:nth-child(4) input[type="range"]')[3].value
+            },
+            // Element positions
+            positions: {},
+            // File name
+            fileName: document.getElementById('fileName').value
+        };
+    }
+
+    function collectPositions(state) {
+        var panels = ['icon', 'title', 'dear', 'body', 'cross', 'footer'];
+        panels.forEach(function(p) {
+            var panel = document.getElementById('panel-' + p);
+            if (!panel) return;
+            var inputs = panel.querySelectorAll('input[type="range"]');
+            var vals = [];
+            inputs.forEach(function(inp) { vals.push(inp.value); });
+            state.positions[p] = vals;
+        });
+    }
+
+    function saveDesign() {
+        var state = collectState();
+        collectPositions(state);
+        var json = JSON.stringify(state, null, 2);
+        var blob = new Blob([json], { type: 'application/json' });
+        var link = document.createElement('a');
+        link.download = (document.getElementById('fileName').value.trim() || 'LMKAT-EOTC-Certificate') + '.design.json';
+        link.href = URL.createObjectURL(blob);
+        link.click();
+        URL.revokeObjectURL(link.href);
+    }
+
+    function loadDesign(event) {
+        var file = event.target.files[0];
+        if (!file) return;
+        var reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                var s = JSON.parse(e.target.result);
+                applyState(s);
+            } catch (err) {
+                alert('Invalid design file');
+            }
+        };
+        reader.readAsText(file);
+        event.target.value = '';
+    }
+
+    function applyState(s) {
+        // Text content
+        if (s.text) {
+            document.querySelector('.cert-title').textContent = s.text.title || '';
+            document.querySelector('.cert-name').textContent = s.text.name || '';
+            document.querySelector('.cert-body').textContent = s.text.body || '';
+            document.querySelector('.cert-office').textContent = s.text.office || '';
+            document.querySelector('.cert-date').textContent = s.text.date || '';
+        }
+
+        // Background design
+        if (s.design) {
+            document.getElementById('designPicker').value = s.design;
+            changeDesign(s.design);
+        }
+        if (s.designIntensity) {
+            var intSlider = document.querySelector('#designIntensityRow input[type="range"]');
+            intSlider.value = s.designIntensity;
+            updateDesignIntensity(s.designIntensity);
+        }
+
+        // Fade
+        var fadeChk = document.getElementById('toggleFade');
+        fadeChk.checked = s.fadeOn !== false;
+        toggleFade(fadeChk.checked);
+
+        // Ethiopian Pattern
+        var patChk = document.getElementById('togglePattern');
+        patChk.checked = !!s.patternOn;
+        togglePattern(patChk.checked);
+        if (s.patternOpacity) {
+            var patSlider = document.querySelector('#patternOpacityRow input[type="range"]');
+            patSlider.value = s.patternOpacity;
+            updatePatternOpacity(s.patternOpacity);
+        }
+
+        // Flag Colours
+        var gradChk = document.getElementById('toggleGradient');
+        gradChk.checked = !!s.gradientOn;
+        toggleGradient(gradChk.checked);
+        if (s.gradientOpacity) {
+            var gradSlider = document.querySelector('#opacityRow input[type="range"]');
+            gradSlider.value = s.gradientOpacity;
+            updateOpacity(s.gradientOpacity);
+        }
+
+        // Border
+        if (s.borderStyle) {
+            var borderSel = document.querySelector('.panel-section:nth-child(2) select');
+            borderSel.value = s.borderStyle;
+            changeBorderStyle(s.borderStyle);
+        }
+        if (s.borderSize) {
+            var borderSlider = document.querySelector('.panel-section:nth-child(2) input[type="range"]');
+            borderSlider.value = s.borderSize;
+            updateBorder(s.borderSize);
+        }
+
+        // Font families
+        if (s.fonts) {
+            ['title', 'body', 'dear', 'footer'].forEach(function(key) {
+                if (s.fonts[key]) {
+                    var sel = document.querySelector('.font-select[data-target="' + key + '"]');
+                    sel.value = s.fonts[key];
+                    var selectors = fontTargetMap[key];
+                    selectors.forEach(function(cs) {
+                        document.querySelectorAll(cs).forEach(function(el) { el.style.fontFamily = s.fonts[key]; });
+                    });
+                }
+            });
+        }
+
+        // Font sizes
+        if (s.fontSizes) {
+            var sizeInputs = document.querySelectorAll('.panel-section:nth-child(4) input[type="range"]');
+            var sizeLabels = document.querySelectorAll('.panel-section:nth-child(4) .ctrl-val');
+            if (s.fontSizes.title) { sizeInputs[0].value = s.fontSizes.title; sizeLabels[0].textContent = s.fontSizes.title + 'pt'; document.querySelector('.cert-title').style.fontSize = s.fontSizes.title + 'pt'; }
+            if (s.fontSizes.dear) { sizeInputs[1].value = s.fontSizes.dear; sizeLabels[1].textContent = s.fontSizes.dear + 'pt'; document.querySelector('.cert-dear').style.fontSize = s.fontSizes.dear + 'pt'; }
+            if (s.fontSizes.body) { sizeInputs[2].value = s.fontSizes.body; sizeLabels[2].textContent = s.fontSizes.body + 'pt'; document.querySelector('.cert-body').style.fontSize = s.fontSizes.body + 'pt'; }
+            if (s.fontSizes.footer) { sizeInputs[3].value = s.fontSizes.footer; sizeLabels[3].textContent = s.fontSizes.footer + 'pt'; document.querySelector('.cert-office').style.fontSize = s.fontSizes.footer + 'pt'; document.querySelector('.cert-date').style.fontSize = s.fontSizes.footer + 'pt'; }
+        }
+
+        // Element positions
+        if (s.positions) {
+            var posMap = {
+                icon: '.cert-icon', title: '.cert-title', dear: '.cert-dear',
+                body: '.cert-body', cross: '.cert-cross', footer: '.cert-footer-text'
+            };
+            var propOrder = { icon: ['size', 'x', 'y'], title: ['x', 'y'], dear: ['x', 'y'], body: ['x', 'y'], cross: ['size', 'x', 'y'], footer: ['x', 'y'] };
+            Object.keys(s.positions).forEach(function(key) {
+                var panel = document.getElementById('panel-' + key);
+                if (!panel) return;
+                var inputs = panel.querySelectorAll('input[type="range"]');
+                var vals = s.positions[key];
+                var props = propOrder[key] || [];
+                vals.forEach(function(v, i) {
+                    if (inputs[i]) {
+                        inputs[i].value = v;
+                        inputs[i].nextElementSibling.textContent = v + 'px';
+                        updateEl(posMap[key], props[i], v, inputs[i]);
+                    }
+                });
+            });
+        }
+
+        // File name
+        if (s.fileName) document.getElementById('fileName').value = s.fileName;
+    }
 
     // Download
     async function downloadCert() {
