@@ -336,6 +336,27 @@ try {
       </a>
     </div>
     
+    <!-- Community Section -->
+    <div class="nav-section">
+      <div class="nav-section-title">
+        <span>Community</span>
+      </div>
+      <a href="<?php echo url_for('admin/community-members/'); ?>"
+         class="nav-link <?php echo ($current_dir === 'community-members' && $current_page === 'index') ? 'active' : ''; ?>">
+        <span class="nav-icon">
+          <i class="fas fa-user-friends"></i>
+        </span>
+        <span class="nav-label">Members</span>
+      </a>
+      <a href="<?php echo url_for('admin/community-members/feedback.php'); ?>"
+         class="nav-link <?php echo ($current_dir === 'community-members' && $current_page === 'feedback') ? 'active' : ''; ?>">
+        <span class="nav-icon">
+          <i class="fas fa-comments"></i>
+        </span>
+        <span class="nav-label">Feedback & Concerns</span>
+      </a>
+    </div>
+
     <!-- System Section -->
     <div class="nav-section">
       <div class="nav-section-title">
