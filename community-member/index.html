@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Our Neighbours — LMKAT EOTC</title>
+    <title>Our Community — LMKAT EOTC</title>
     <link rel="icon" type="image/svg+xml" href="../assets/favicon.svg">
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
@@ -19,7 +19,7 @@
         /* Hero */
         .hero {
             background: linear-gradient(160deg, #042f42 0%, #0a6286 50%, #064a66 100%);
-            padding: 50px 24px 40px;
+            padding: 44px 20px 36px;
             text-align: center;
             color: #fff;
             position: relative;
@@ -38,31 +38,30 @@
         .hero-content { position: relative; z-index: 1; max-width: 500px; margin: 0 auto; }
 
         .hero img {
-            width: 72px; height: auto;
-            margin-bottom: 16px;
+            width: 64px; height: auto;
+            margin-bottom: 14px;
             filter: drop-shadow(0 4px 12px rgba(0,0,0,0.3));
         }
 
         .hero h1 {
-            font-size: 22px; font-weight: 700;
+            font-size: 24px; font-weight: 700;
             line-height: 1.3; margin-bottom: 6px;
         }
 
         .hero .church-name {
-            font-size: 12px; font-weight: 400;
+            font-size: 11px; font-weight: 400;
             opacity: 0.7; letter-spacing: 0.06em;
-            text-transform: uppercase; margin-bottom: 16px;
+            text-transform: uppercase; margin-bottom: 14px;
         }
 
         .hero p {
-            font-size: 15px; font-weight: 300;
+            font-size: 14px; font-weight: 300;
             line-height: 1.6; opacity: 0.9;
-            max-width: 400px; margin: 0 auto;
         }
 
         /* Main content */
         .main {
-            max-width: 500px;
+            max-width: 100%;
             margin: -20px auto 0;
             padding: 0 16px 40px;
             position: relative; z-index: 2;
@@ -72,38 +71,34 @@
         .option-card {
             background: #fff;
             border-radius: 16px;
-            padding: 28px 24px;
-            margin-bottom: 16px;
+            padding: 22px 18px;
+            margin-bottom: 12px;
             box-shadow: 0 4px 24px rgba(0,0,0,0.06);
             cursor: pointer;
-            transition: transform 0.2s, box-shadow 0.2s;
+            transition: transform 0.15s, box-shadow 0.15s;
             display: flex;
             align-items: flex-start;
-            gap: 18px;
+            gap: 14px;
             text-decoration: none;
             color: inherit;
             border: 2px solid transparent;
-        }
-
-        .option-card:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
-            border-color: #0a6286;
+            -webkit-tap-highlight-color: transparent;
         }
 
         .option-card:active {
-            transform: translateY(0);
+            transform: scale(0.98);
+            border-color: #0a6286;
         }
 
         .option-icon {
-            width: 52px; height: 52px;
-            border-radius: 14px;
+            width: 48px; height: 48px;
+            border-radius: 12px;
             display: flex; align-items: center; justify-content: center;
             flex-shrink: 0;
         }
 
         .option-icon svg {
-            width: 26px; height: 26px;
+            width: 24px; height: 24px;
         }
 
         .option-icon.feedback {
@@ -115,12 +110,12 @@
         }
 
         .option-text h3 {
-            font-size: 17px; font-weight: 700;
-            margin-bottom: 6px; color: #1a1a1a;
+            font-size: 16px; font-weight: 700;
+            margin-bottom: 4px; color: #1a1a1a;
         }
 
         .option-text p {
-            font-size: 13.5px; font-weight: 400;
+            font-size: 13px; font-weight: 400;
             color: #666; line-height: 1.5;
         }
 
@@ -129,13 +124,7 @@
             flex-shrink: 0;
             align-self: center;
             color: #ccc;
-            font-size: 20px;
-            transition: transform 0.2s, color 0.2s;
-        }
-
-        .option-card:hover .option-arrow {
-            transform: translateX(4px);
-            color: #0a6286;
+            font-size: 22px;
         }
 
         /* Forms */
@@ -143,7 +132,7 @@
             display: none;
             background: #fff;
             border-radius: 16px;
-            padding: 28px 24px;
+            padding: 24px 20px;
             box-shadow: 0 4px 24px rgba(0,0,0,0.06);
             margin-bottom: 16px;
             animation: slideUp 0.3s ease;
@@ -190,14 +179,15 @@
 
         .form-group input, .form-group textarea, .form-group select {
             width: 100%;
-            padding: 12px 14px;
+            padding: 14px 16px;
             border: 1.5px solid #e0e0e0;
-            border-radius: 10px;
+            border-radius: 12px;
             font-family: 'Outfit', sans-serif;
-            font-size: 15px;
+            font-size: 16px;
             transition: border-color 0.2s;
             outline: none;
             background: #fafafa;
+            -webkit-appearance: none;
         }
 
         .form-group input:focus, .form-group textarea:focus, .form-group select:focus {
@@ -208,7 +198,7 @@
 
         .form-group textarea {
             resize: vertical;
-            min-height: 100px;
+            min-height: 120px;
         }
 
         .pref-row {
@@ -217,14 +207,15 @@
         }
 
         .pref-btn {
-            flex: 1; padding: 10px;
+            flex: 1; padding: 12px;
             border: 1.5px solid #e0e0e0;
-            border-radius: 10px;
+            border-radius: 12px;
             background: #fafafa;
             font-family: 'Outfit', sans-serif;
-            font-size: 13px; font-weight: 500;
+            font-size: 14px; font-weight: 500;
             cursor: pointer; text-align: center;
-            transition: all 0.2s; color: #666;
+            transition: all 0.15s; color: #666;
+            -webkit-tap-highlight-color: transparent;
         }
 
         .pref-btn.active {
@@ -236,19 +227,19 @@
         .pref-btn:hover { border-color: #0a6286; }
 
         .submit-btn {
-            width: 100%; padding: 14px;
+            width: 100%; padding: 16px;
             background: linear-gradient(135deg, #0a6286, #0d7ba8);
             color: #fff; border: none;
-            border-radius: 12px;
+            border-radius: 14px;
             font-family: 'Outfit', sans-serif;
-            font-size: 16px; font-weight: 600;
+            font-size: 17px; font-weight: 600;
             cursor: pointer;
-            transition: transform 0.2s, box-shadow 0.2s;
+            transition: transform 0.15s;
+            -webkit-tap-highlight-color: transparent;
         }
 
-        .submit-btn:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 6px 20px rgba(10, 98, 134, 0.3);
+        .submit-btn:active {
+            transform: scale(0.97);
         }
 
         .submit-btn:disabled {
@@ -257,10 +248,6 @@
 
         .submit-btn.feedback-btn {
             background: linear-gradient(135deg, #f59e0b, #d97706);
-        }
-
-        .submit-btn.feedback-btn:hover {
-            box-shadow: 0 6px 20px rgba(245, 158, 11, 0.3);
         }
 
         .error-msg {
@@ -321,6 +308,12 @@
             max-width: 500px;
             margin: 0 auto;
         }
+        /* Desktop: cap width */
+        @media (min-width: 540px) {
+            .main { max-width: 480px; margin-left: auto; margin-right: auto; }
+            .hero-content { max-width: 480px; }
+            .footer { max-width: 480px; }
+        }
     </style>
 </head>
 <body>
@@ -329,9 +322,9 @@
 <div class="hero">
     <div class="hero-content">
         <img src="../invitation/EOTC_Icon.png" alt="EOTC">
-        <h1>Welcome, Neighbour!</h1>
+        <h1>Welcome to Our Community</h1>
         <div class="church-name">Liverpool Mekane Kidusan Abune Teklehaymanot EOTC</div>
-        <p>We are your neighbours at St. Gabriel's Church on Yates Street. Being part of this neighbourhood matters to us, and we want to make sure our presence is always respectful and considerate.</p>
+        <p>We are based at St. Gabriel's Church on Yates Street. Being part of this community matters to us, and we want to ensure our presence is always respectful and considerate.</p>
     </div>
 </div>
 
@@ -367,7 +360,7 @@
     <div class="form-section" id="feedbackForm">
         <button class="form-back" onclick="showOptions()"><span>&larr;</span> Back</button>
         <div class="form-title">Raise a Concern</div>
-        <div class="form-subtitle">If our church activities have caused any inconvenience — whether it's noise, parking, or anything else — please tell us. We want to address it and ensure we remain considerate neighbours.</div>
+        <div class="form-subtitle">If our church activities have caused any inconvenience — whether it's noise, parking, or anything else — please tell us. We want to address it and ensure we remain a considerate part of the community.</div>
 
         <form onsubmit="return submitFeedback(event)">
             <div class="form-group">
@@ -443,7 +436,7 @@
                 <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
             </div>
             <h2>You're Registered</h2>
-            <p>Thank you. We'll send you a brief notification before any upcoming event so you know what to expect. We appreciate you being part of our neighbourhood.</p>
+            <p>Thank you. We'll send you a brief notification before any upcoming event so you know what to expect. We appreciate you being part of our community.</p>
             <button class="done-btn" onclick="showOptions()">Done</button>
         </div>
     </div>
