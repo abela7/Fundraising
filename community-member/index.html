@@ -364,12 +364,14 @@
 
         <form onsubmit="return submitFeedback(event)">
             <div class="form-group">
-                <label>Your Name <span class="req">*</span></label>
-                <input type="text" id="fbName" placeholder="Enter your name" required>
+                <label>Your Name <small style="color:#aaa; font-weight:400;">(optional)</small></label>
+                <input type="text" id="fbName" placeholder="Enter your name">
             </div>
-            <div class="form-group">
-                <label>Email or Phone <small style="color:#aaa; font-weight:400;">(optional, if you'd like a response)</small></label>
-                <input type="text" id="fbContact" placeholder="Email or phone number">
+            <div class="form-group" style="margin-bottom:8px;">
+                <label style="display:flex; align-items:center; gap:8px; cursor:pointer; margin-bottom:0;">
+                    <input type="checkbox" id="fbAnon" onchange="toggleAnon(this.checked)" style="width:18px; height:18px; accent-color:#f59e0b;">
+                    <span style="font-weight:500; color:#555;">Submit anonymously</span>
+                </label>
             </div>
             <div class="form-group">
                 <label>Type</label>
@@ -384,8 +386,18 @@
                 <label>Your Message <span class="req">*</span></label>
                 <textarea id="fbMessage" placeholder="Please describe the issue or share your thoughts..." required></textarea>
             </div>
+            <div class="form-group" style="margin-bottom:8px;">
+                <label style="display:flex; align-items:center; gap:8px; cursor:pointer; margin-bottom:0;">
+                    <input type="checkbox" id="fbWantResponse" onchange="toggleResponse(this.checked)" style="width:18px; height:18px; accent-color:#0a6286;">
+                    <span style="font-weight:500; color:#555;">I would like a response</span>
+                </label>
+            </div>
+            <div class="form-group" id="fbContactGroup" style="display:none;">
+                <label>Email or Phone</label>
+                <input type="text" id="fbContact" placeholder="Enter your email or phone number">
+            </div>
             <div class="error-msg" id="fbError"></div>
-            <button type="submit" class="submit-btn feedback-btn" id="fbBtn">Submit Feedback</button>
+            <button type="submit" class="submit-btn feedback-btn" id="fbBtn">Submit</button>
         </form>
 
         <div class="thank-you" id="fbThankYou">
@@ -484,19 +496,42 @@
         window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
+    // Feedback toggles
+    function toggleAnon(checked) {
+        var nameInput = document.getElementById('fbName');
+        if (checked) {
+            nameInput.value = '';
+            nameInput.disabled = true;
+            nameInput.placeholder = 'Anonymous';
+            nameInput.style.opacity = '0.5';
+        } else {
+            nameInput.disabled = false;
+            nameInput.placeholder = 'Enter your name';
+            nameInput.style.opacity = '1';
+        }
+    }
+
+    function toggleResponse(checked) {
+        document.getElementById('fbContactGroup').style.display = checked ? 'block' : 'none';
+        if (!checked) document.getElementById('fbContact').value = '';
+    }
+
     // Feedback
     function submitFeedback(e) {
         e.preventDefault();
         var errEl = document.getElementById('fbError');
         errEl.style.display = 'none';
 
-        var name = document.getElementById('fbName').value.trim();
+        var isAnon = document.getElementById('fbAnon').checked;
+        var name = isAnon ? 'Anonymous' : document.getElementById('fbName').value.trim();
+        var wantResponse = document.getElementById('fbWantResponse').checked;
         var contact = document.getElementById('fbContact').value.trim();
         var type = document.getElementById('fbType').value;
         var message = document.getElementById('fbMessage').value.trim();
 
-        if (!name) { showErr(errEl, 'Please enter your name.'); return false; }
+        if (!isAnon && !name) name = 'Anonymous';
         if (!message) { showErr(errEl, 'Please enter your message.'); return false; }
+        if (wantResponse && !contact) { showErr(errEl, 'Please enter your email or phone for a response.'); return false; }
 
         var btn = document.getElementById('fbBtn');
         btn.textContent = 'Submitting...';
@@ -514,12 +549,12 @@
                 document.getElementById('fbThankYou').style.display = 'block';
             } else {
                 showErr(errEl, res.error || 'Something went wrong.');
-                btn.textContent = 'Submit Feedback'; btn.disabled = false;
+                btn.textContent = 'Submit'; btn.disabled = false;
             }
         })
         .catch(function() {
             showErr(errEl, 'Network error. Please try again.');
-            btn.textContent = 'Submit Feedback'; btn.disabled = false;
+            btn.textContent = 'Submit'; btn.disabled = false;
         });
         return false;
     }

@@ -50,9 +50,7 @@ $message = trim($data['message'] ?? '');
 
 // Validate
 if ($name === '') {
-    http_response_code(400);
-    echo json_encode(['success' => false, 'error' => 'Name is required']);
-    exit;
+    $name = 'Anonymous';
 }
 
 if ($message === '') {
