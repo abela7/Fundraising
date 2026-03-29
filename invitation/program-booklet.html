@@ -369,7 +369,10 @@
             line-height: 1.5; max-width: 90%;
         }
         .back-divider { width: 50%; height: 1.5px; background: linear-gradient(90deg, transparent, rgba(10,98,134,0.3), transparent); }
-        .back-contact { font-size: 9.5pt; color: #444; line-height: 1.7; }
+        .back-qr { width: 100px; height: 100px; border: 2px solid #0a6286; border-radius: 8px; padding: 4px; }
+        .back-qr-text { font-size: 8pt; color: #555; line-height: 1.45; text-align: center; max-width: 90%; }
+        .back-qr-url { font-size: 8.5pt; color: #0a6286; font-weight: 700; letter-spacing: 0.02em; }
+        .back-contact { font-size: 9pt; color: #444; line-height: 1.6; }
 
         @media print {
             .sidebar { display: none; }
@@ -489,17 +492,17 @@
         <div class="page-panels">
             <div class="panel" id="panel-1" data-label="1 — Back Cover" onclick="selectPanel(this)">
                 <span class="page-label">1 — Back Cover</span>
-                <div class="back-content" contenteditable="true">
+                <div class="back-content">
                     <img src="EOTC_Icon.png" alt="EOTC">
-                    <div class="back-church">Liverpool Mekane Kidusan<br>Abune Teklehaymanot EOTC</div>
+                    <div class="back-church" contenteditable="true">Liverpool Mekane Kidusan<br>Abune Teklehaymanot EOTC</div>
                     <div class="back-divider"></div>
-                    <div class="back-note">"For where two or three gather in my name,<br>there am I with them."<br>— Matthew 18:20</div>
+                    <img src="https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=https://community.abuneteklehaymanot.org" alt="QR Code" class="back-qr">
+                    <div class="back-qr-text" contenteditable="true">We value being part of your community.<br>Scan to share feedback, raise a concern,<br>or register for event notifications.</div>
+                    <div class="back-qr-url">community.abuneteklehaymanot.org</div>
                     <div class="back-divider"></div>
-                    <div class="back-contact">
+                    <div class="back-contact" contenteditable="true">
                         St. Gabriel's Church<br>
-                        16 Yates Street, L8 6RD, Liverpool<br><br>
-                        Phone: 07951 403936<br>
-                        Email: stakeholder@abuneteklehaymanot.org
+                        16 Yates Street, L8 6RD, Liverpool
                     </div>
                 </div>
             </div>
