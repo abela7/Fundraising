@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Community Member Registration — LMKAT EOTC</title>
+    <title>Community — LMKAT EOTC</title>
     <link rel="icon" type="image/svg+xml" href="../assets/favicon.svg">
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -13,131 +13,235 @@
             font-family: 'Outfit', sans-serif;
             min-height: 100vh;
             background: #faf6eb;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 20px;
+            color: #1a1a1a;
         }
 
-        .card {
-            background: #fff;
-            border-radius: 16px;
-            box-shadow: 0 8px 40px rgba(0,0,0,0.1);
-            max-width: 440px;
-            width: 100%;
+        /* Hero */
+        .hero {
+            background: linear-gradient(160deg, #042f42 0%, #0a6286 50%, #064a66 100%);
+            padding: 50px 24px 40px;
+            text-align: center;
+            color: #fff;
+            position: relative;
             overflow: hidden;
         }
 
-        .card-header {
-            background: linear-gradient(135deg, #0a6286, #064a66);
-            padding: 30px 28px;
-            text-align: center;
-            color: #fff;
+        .hero::before {
+            content: '';
+            position: absolute; inset: 0;
+            background: url('../invitation/Ethiopian_Design.png') repeat;
+            background-size: 60px;
+            opacity: 0.04;
+            pointer-events: none;
         }
 
-        .card-header img {
-            width: 60px;
-            height: auto;
-            margin-bottom: 12px;
+        .hero-content { position: relative; z-index: 1; max-width: 500px; margin: 0 auto; }
+
+        .hero img {
+            width: 72px; height: auto;
+            margin-bottom: 16px;
+            filter: drop-shadow(0 4px 12px rgba(0,0,0,0.3));
         }
 
-        .card-header h1 {
+        .hero h1 {
+            font-size: 22px; font-weight: 700;
+            line-height: 1.3; margin-bottom: 6px;
+        }
+
+        .hero .church-name {
+            font-size: 12px; font-weight: 400;
+            opacity: 0.7; letter-spacing: 0.06em;
+            text-transform: uppercase; margin-bottom: 16px;
+        }
+
+        .hero p {
+            font-size: 15px; font-weight: 300;
+            line-height: 1.6; opacity: 0.9;
+            max-width: 400px; margin: 0 auto;
+        }
+
+        /* Main content */
+        .main {
+            max-width: 500px;
+            margin: -20px auto 0;
+            padding: 0 16px 40px;
+            position: relative; z-index: 2;
+        }
+
+        /* Option cards */
+        .option-card {
+            background: #fff;
+            border-radius: 16px;
+            padding: 28px 24px;
+            margin-bottom: 16px;
+            box-shadow: 0 4px 24px rgba(0,0,0,0.06);
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            display: flex;
+            align-items: flex-start;
+            gap: 18px;
+            text-decoration: none;
+            color: inherit;
+            border: 2px solid transparent;
+        }
+
+        .option-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+            border-color: #0a6286;
+        }
+
+        .option-card:active {
+            transform: translateY(0);
+        }
+
+        .option-icon {
+            width: 52px; height: 52px;
+            border-radius: 14px;
+            display: flex; align-items: center; justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .option-icon svg {
+            width: 26px; height: 26px;
+        }
+
+        .option-icon.feedback {
+            background: linear-gradient(135deg, #f59e0b, #d97706);
+        }
+
+        .option-icon.register {
+            background: linear-gradient(135deg, #0a6286, #0d7ba8);
+        }
+
+        .option-text h3 {
+            font-size: 17px; font-weight: 700;
+            margin-bottom: 6px; color: #1a1a1a;
+        }
+
+        .option-text p {
+            font-size: 13.5px; font-weight: 400;
+            color: #666; line-height: 1.5;
+        }
+
+        .option-arrow {
+            margin-left: auto;
+            flex-shrink: 0;
+            align-self: center;
+            color: #ccc;
             font-size: 20px;
-            font-weight: 700;
-            margin-bottom: 4px;
+            transition: transform 0.2s, color 0.2s;
         }
 
-        .card-header p {
-            font-size: 13px;
-            opacity: 0.85;
-            font-weight: 300;
-            line-height: 1.5;
+        .option-card:hover .option-arrow {
+            transform: translateX(4px);
+            color: #0a6286;
         }
 
-        .card-body {
-            padding: 28px;
+        /* Forms */
+        .form-section {
+            display: none;
+            background: #fff;
+            border-radius: 16px;
+            padding: 28px 24px;
+            box-shadow: 0 4px 24px rgba(0,0,0,0.06);
+            margin-bottom: 16px;
+            animation: slideUp 0.3s ease;
+        }
+
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(16px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .form-section.active { display: block; }
+
+        .form-back {
+            display: inline-flex; align-items: center; gap: 6px;
+            font-size: 13px; font-weight: 500; color: #0a6286;
+            cursor: pointer; margin-bottom: 16px;
+            border: none; background: none;
+            font-family: 'Outfit', sans-serif;
+        }
+
+        .form-back:hover { text-decoration: underline; }
+
+        .form-title {
+            font-size: 19px; font-weight: 700;
+            margin-bottom: 4px; color: #1a1a1a;
+        }
+
+        .form-subtitle {
+            font-size: 13px; color: #888;
+            margin-bottom: 20px; line-height: 1.5;
         }
 
         .form-group {
-            margin-bottom: 18px;
+            margin-bottom: 16px;
         }
 
         .form-group label {
-            display: block;
-            font-size: 13px;
-            font-weight: 600;
-            color: #333;
+            display: block; font-size: 13px;
+            font-weight: 600; color: #333;
             margin-bottom: 6px;
         }
 
-        .form-group label span.required {
-            color: #d32f2f;
-        }
+        .form-group label .req { color: #d32f2f; }
 
-        .form-group input, .form-group select {
+        .form-group input, .form-group textarea, .form-group select {
             width: 100%;
             padding: 12px 14px;
-            border: 1.5px solid #ddd;
+            border: 1.5px solid #e0e0e0;
             border-radius: 10px;
             font-family: 'Outfit', sans-serif;
             font-size: 15px;
             transition: border-color 0.2s;
             outline: none;
+            background: #fafafa;
         }
 
-        .form-group input:focus {
+        .form-group input:focus, .form-group textarea:focus, .form-group select:focus {
             border-color: #0a6286;
-            box-shadow: 0 0 0 3px rgba(10, 98, 134, 0.1);
+            background: #fff;
+            box-shadow: 0 0 0 3px rgba(10, 98, 134, 0.08);
         }
 
-        .form-group .hint {
-            font-size: 11px;
-            color: #888;
-            margin-top: 4px;
+        .form-group textarea {
+            resize: vertical;
+            min-height: 100px;
         }
 
-        .preference-row {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 18px;
+        .pref-row {
+            display: flex; gap: 8px;
+            margin-bottom: 16px;
         }
 
         .pref-btn {
-            flex: 1;
-            padding: 10px;
-            border: 1.5px solid #ddd;
+            flex: 1; padding: 10px;
+            border: 1.5px solid #e0e0e0;
             border-radius: 10px;
-            background: #fff;
+            background: #fafafa;
             font-family: 'Outfit', sans-serif;
-            font-size: 13px;
-            font-weight: 500;
-            cursor: pointer;
-            text-align: center;
-            transition: all 0.2s;
-            color: #555;
+            font-size: 13px; font-weight: 500;
+            cursor: pointer; text-align: center;
+            transition: all 0.2s; color: #666;
         }
 
         .pref-btn.active {
             border-color: #0a6286;
             background: rgba(10, 98, 134, 0.06);
-            color: #0a6286;
-            font-weight: 600;
+            color: #0a6286; font-weight: 600;
         }
 
-        .pref-btn:hover {
-            border-color: #0a6286;
-        }
+        .pref-btn:hover { border-color: #0a6286; }
 
         .submit-btn {
-            width: 100%;
-            padding: 14px;
+            width: 100%; padding: 14px;
             background: linear-gradient(135deg, #0a6286, #0d7ba8);
-            color: #fff;
-            border: none;
+            color: #fff; border: none;
             border-radius: 12px;
             font-family: 'Outfit', sans-serif;
-            font-size: 16px;
-            font-weight: 600;
+            font-size: 16px; font-weight: 600;
             cursor: pointer;
             transition: transform 0.2s, box-shadow 0.2s;
         }
@@ -148,181 +252,336 @@
         }
 
         .submit-btn:disabled {
-            opacity: 0.6;
-            cursor: not-allowed;
-            transform: none;
+            opacity: 0.6; cursor: not-allowed; transform: none;
+        }
+
+        .submit-btn.feedback-btn {
+            background: linear-gradient(135deg, #f59e0b, #d97706);
+        }
+
+        .submit-btn.feedback-btn:hover {
+            box-shadow: 0 6px 20px rgba(245, 158, 11, 0.3);
         }
 
         .error-msg {
-            color: #d32f2f;
-            font-size: 13px;
-            margin-bottom: 12px;
-            display: none;
+            color: #d32f2f; font-size: 13px;
+            margin-bottom: 12px; display: none;
         }
 
-        /* Thank you screen */
+        /* Thank you */
         .thank-you {
             display: none;
             text-align: center;
-            padding: 40px 28px;
+            padding: 30px 20px;
+            animation: slideUp 0.3s ease;
         }
 
-        .thank-you .check-icon {
-            width: 70px;
-            height: 70px;
-            background: linear-gradient(135deg, #16a34a, #22c55e);
+        .thank-you .icon-circle {
+            width: 64px; height: 64px;
             border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin: 0 auto 20px;
+            display: flex; align-items: center; justify-content: center;
+            margin: 0 auto 18px;
         }
 
-        .thank-you .check-icon svg {
-            width: 36px;
-            height: 36px;
-            fill: none;
-            stroke: #fff;
-            stroke-width: 3;
-            stroke-linecap: round;
-            stroke-linejoin: round;
+        .thank-you .icon-circle.green { background: linear-gradient(135deg, #16a34a, #22c55e); }
+        .thank-you .icon-circle.amber { background: linear-gradient(135deg, #f59e0b, #d97706); }
+
+        .thank-you .icon-circle svg {
+            width: 32px; height: 32px;
+            fill: none; stroke: #fff;
+            stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round;
         }
 
-        .thank-you h2 {
-            font-size: 22px;
-            color: #1a1a1a;
-            margin-bottom: 10px;
-        }
+        .thank-you h2 { font-size: 20px; margin-bottom: 8px; }
 
         .thank-you p {
-            font-size: 14px;
-            color: #666;
-            line-height: 1.6;
+            font-size: 14px; color: #666;
+            line-height: 1.6; max-width: 320px;
+            margin: 0 auto;
+        }
+
+        .thank-you .done-btn {
+            display: inline-block; margin-top: 20px;
+            padding: 10px 28px; border-radius: 10px;
+            background: #f0f0f0; color: #333;
+            font-family: 'Outfit', sans-serif;
+            font-size: 14px; font-weight: 600;
+            border: none; cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .thank-you .done-btn:hover { background: #e0e0e0; }
+
+        /* Footer */
+        .footer {
+            text-align: center;
+            padding: 20px 16px 30px;
+            font-size: 11px;
+            color: #aaa;
+            max-width: 500px;
+            margin: 0 auto;
         }
     </style>
 </head>
 <body>
 
-<div class="card">
-    <div class="card-header">
+<!-- Hero -->
+<div class="hero">
+    <div class="hero-content">
         <img src="../invitation/EOTC_Icon.png" alt="EOTC">
-        <h1>Community Member Registration</h1>
-        <p>Stay connected with LMKAT EOTC. Register to receive updates about celebrations, events, and church activities.</p>
-    </div>
-
-    <!-- Form -->
-    <div class="card-body" id="formSection">
-        <form id="regForm" onsubmit="return submitForm(event)">
-            <div class="form-group">
-                <label>Full Name <span class="required">*</span></label>
-                <input type="text" id="fullName" placeholder="Enter your full name" required>
-            </div>
-
-            <label style="font-size:13px; font-weight:600; color:#333; margin-bottom:8px; display:block;">How would you like to be contacted?</label>
-            <div class="preference-row">
-                <button type="button" class="pref-btn active" onclick="setPref('phone', this)">Phone</button>
-                <button type="button" class="pref-btn" onclick="setPref('email', this)">Email</button>
-                <button type="button" class="pref-btn" onclick="setPref('both', this)">Both</button>
-            </div>
-
-            <div class="form-group" id="phoneGroup">
-                <label>Phone Number <span class="required">*</span></label>
-                <input type="tel" id="phone" placeholder="e.g. 07951 403936">
-            </div>
-
-            <div class="form-group" id="emailGroup" style="display:none;">
-                <label>Email Address <span class="required">*</span></label>
-                <input type="email" id="email" placeholder="e.g. name@example.com">
-            </div>
-
-            <div class="error-msg" id="errorMsg"></div>
-
-            <button type="submit" class="submit-btn" id="submitBtn">Register</button>
-        </form>
-    </div>
-
-    <!-- Thank You -->
-    <div class="thank-you" id="thankYou">
-        <div class="check-icon">
-            <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
-        </div>
-        <h2>Thank You!</h2>
-        <p>You have been registered successfully. We will keep you updated about our church events and celebrations.</p>
-        <p style="margin-top:16px; font-size:13px; color:#0a6286; font-weight:600;">God Bless You!</p>
+        <h1>Welcome to Our Community</h1>
+        <div class="church-name">Liverpool Mekane Kidusan Abune Teklehaymanot EOTC</div>
+        <p>We are delighted to have you here. How can we help you today?</p>
     </div>
 </div>
 
+<!-- Main -->
+<div class="main">
+
+    <!-- Option cards -->
+    <div id="optionsView">
+        <a class="option-card" onclick="showForm('feedback')">
+            <div class="option-icon feedback">
+                <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+            </div>
+            <div class="option-text">
+                <h3>Share Your Feedback</h3>
+                <p>We value your voice. Share your thoughts, suggestions, or concerns to help us serve our community better.</p>
+            </div>
+            <span class="option-arrow">&rsaquo;</span>
+        </a>
+
+        <a class="option-card" onclick="showForm('register')">
+            <div class="option-icon register">
+                <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4-4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg>
+            </div>
+            <div class="option-text">
+                <h3>Join Our Community List</h3>
+                <p>Register to receive updates about annual celebrations, special events, and church activities. No more than a few times a year.</p>
+            </div>
+            <span class="option-arrow">&rsaquo;</span>
+        </a>
+    </div>
+
+    <!-- Feedback Form -->
+    <div class="form-section" id="feedbackForm">
+        <button class="form-back" onclick="showOptions()"><span>&larr;</span> Back</button>
+        <div class="form-title">Share Your Feedback</div>
+        <div class="form-subtitle">All submissions are confidential. Your feedback helps us improve.</div>
+
+        <form onsubmit="return submitFeedback(event)">
+            <div class="form-group">
+                <label>Your Name <span class="req">*</span></label>
+                <input type="text" id="fbName" placeholder="Enter your name" required>
+            </div>
+            <div class="form-group">
+                <label>Email or Phone <small style="color:#aaa; font-weight:400;">(optional, if you'd like a response)</small></label>
+                <input type="text" id="fbContact" placeholder="Email or phone number">
+            </div>
+            <div class="form-group">
+                <label>Type</label>
+                <select id="fbType">
+                    <option value="feedback">General Feedback</option>
+                    <option value="suggestion">Suggestion</option>
+                    <option value="complaint">Complaint</option>
+                    <option value="praise">Praise & Appreciation</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Your Message <span class="req">*</span></label>
+                <textarea id="fbMessage" placeholder="Tell us what's on your mind..." required></textarea>
+            </div>
+            <div class="error-msg" id="fbError"></div>
+            <button type="submit" class="submit-btn feedback-btn" id="fbBtn">Submit Feedback</button>
+        </form>
+
+        <div class="thank-you" id="fbThankYou">
+            <div class="icon-circle amber">
+                <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+            </div>
+            <h2>Thank You!</h2>
+            <p>Your feedback has been received. We truly appreciate you taking the time to help us improve.</p>
+            <button class="done-btn" onclick="showOptions()">Done</button>
+        </div>
+    </div>
+
+    <!-- Register Form -->
+    <div class="form-section" id="registerForm">
+        <button class="form-back" onclick="showOptions()"><span>&larr;</span> Back</button>
+        <div class="form-title">Join Our Community List</div>
+        <div class="form-subtitle">Stay informed about annual celebrations, special services, and community events. We respect your privacy and will only reach out a few times a year.</div>
+
+        <form onsubmit="return submitRegister(event)">
+            <div class="form-group">
+                <label>Full Name <span class="req">*</span></label>
+                <input type="text" id="regName" placeholder="Enter your full name" required>
+            </div>
+
+            <label style="font-size:13px; font-weight:600; color:#333; margin-bottom:8px; display:block;">Preferred Contact Method</label>
+            <div class="pref-row">
+                <button type="button" class="pref-btn active" onclick="setRegPref('phone', this)">Phone</button>
+                <button type="button" class="pref-btn" onclick="setRegPref('email', this)">Email</button>
+                <button type="button" class="pref-btn" onclick="setRegPref('both', this)">Both</button>
+            </div>
+
+            <div class="form-group" id="regPhoneGroup">
+                <label>Phone Number <span class="req">*</span></label>
+                <input type="tel" id="regPhone" placeholder="e.g. 07951 403936">
+            </div>
+
+            <div class="form-group" id="regEmailGroup" style="display:none;">
+                <label>Email Address <span class="req">*</span></label>
+                <input type="email" id="regEmail" placeholder="e.g. name@example.com">
+            </div>
+
+            <div class="error-msg" id="regError"></div>
+            <button type="submit" class="submit-btn" id="regBtn">Register</button>
+        </form>
+
+        <div class="thank-you" id="regThankYou">
+            <div class="icon-circle green">
+                <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+            </div>
+            <h2>Welcome!</h2>
+            <p>You have been registered successfully. We will keep you informed about our church events and celebrations. God bless you!</p>
+            <button class="done-btn" onclick="showOptions()">Done</button>
+        </div>
+    </div>
+
+</div>
+
+<div class="footer">
+    Liverpool Mekane Kidusan Abune Teklehaymanot EOTC<br>
+    St. Gabriel's Church, 16 Yates Street, L8 6RD
+</div>
+
 <script>
-    var preference = 'phone';
+    // Navigation
+    function showForm(type) {
+        document.getElementById('optionsView').style.display = 'none';
+        document.getElementById('feedbackForm').classList.remove('active');
+        document.getElementById('registerForm').classList.remove('active');
 
-    function setPref(pref, btn) {
-        preference = pref;
-        document.querySelectorAll('.pref-btn').forEach(function(b) { b.classList.remove('active'); });
-        btn.classList.add('active');
-
-        document.getElementById('phoneGroup').style.display = (pref === 'phone' || pref === 'both') ? 'block' : 'none';
-        document.getElementById('emailGroup').style.display = (pref === 'email' || pref === 'both') ? 'block' : 'none';
+        if (type === 'feedback') {
+            document.getElementById('feedbackForm').classList.add('active');
+        } else {
+            document.getElementById('registerForm').classList.add('active');
+        }
+        window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
-    function submitForm(e) {
+    function showOptions() {
+        document.getElementById('optionsView').style.display = 'block';
+        document.getElementById('feedbackForm').classList.remove('active');
+        document.getElementById('registerForm').classList.remove('active');
+
+        // Reset forms
+        document.querySelectorAll('form').forEach(function(f) { f.reset(); });
+        document.querySelectorAll('.thank-you').forEach(function(t) { t.style.display = 'none'; });
+        document.querySelectorAll('form').forEach(function(f) { f.style.display = 'block'; });
+        document.querySelectorAll('.error-msg').forEach(function(e) { e.style.display = 'none'; });
+
+        // Reset register preference
+        regPref = 'phone';
+        document.querySelectorAll('.pref-btn').forEach(function(b) { b.classList.remove('active'); });
+        document.querySelector('.pref-row .pref-btn').classList.add('active');
+        document.getElementById('regPhoneGroup').style.display = 'block';
+        document.getElementById('regEmailGroup').style.display = 'none';
+
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    // Feedback
+    function submitFeedback(e) {
         e.preventDefault();
-        var errEl = document.getElementById('errorMsg');
+        var errEl = document.getElementById('fbError');
         errEl.style.display = 'none';
 
-        var name = document.getElementById('fullName').value.trim();
-        var phone = document.getElementById('phone').value.trim();
-        var email = document.getElementById('email').value.trim();
+        var name = document.getElementById('fbName').value.trim();
+        var contact = document.getElementById('fbContact').value.trim();
+        var type = document.getElementById('fbType').value;
+        var message = document.getElementById('fbMessage').value.trim();
 
-        if (!name) { showError('Please enter your name.'); return false; }
+        if (!name) { showErr(errEl, 'Please enter your name.'); return false; }
+        if (!message) { showErr(errEl, 'Please enter your message.'); return false; }
 
-        if ((preference === 'phone' || preference === 'both') && !phone) {
-            showError('Please enter your phone number.'); return false;
-        }
-        if ((preference === 'email' || preference === 'both') && !email) {
-            showError('Please enter your email address.'); return false;
-        }
-
-        var btn = document.getElementById('submitBtn');
-        btn.textContent = 'Registering...';
+        var btn = document.getElementById('fbBtn');
+        btn.textContent = 'Submitting...';
         btn.disabled = true;
 
-        var data = {
-            full_name: name,
-            phone: phone || null,
-            email: email || null,
-            preference: preference
-        };
-
-        fetch('../api/community-member.php', {
+        fetch('../api/community-feedback.php', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(data)
+            body: JSON.stringify({ name: name, contact: contact, type: type, message: message })
         })
         .then(function(r) { return r.json(); })
         .then(function(res) {
             if (res.success) {
-                document.getElementById('formSection').style.display = 'none';
-                document.getElementById('thankYou').style.display = 'block';
+                document.querySelector('#feedbackForm form').style.display = 'none';
+                document.getElementById('fbThankYou').style.display = 'block';
             } else {
-                showError(res.error || 'Something went wrong. Please try again.');
-                btn.textContent = 'Register';
-                btn.disabled = false;
+                showErr(errEl, res.error || 'Something went wrong.');
+                btn.textContent = 'Submit Feedback'; btn.disabled = false;
             }
         })
         .catch(function() {
-            showError('Network error. Please try again.');
-            btn.textContent = 'Register';
-            btn.disabled = false;
+            showErr(errEl, 'Network error. Please try again.');
+            btn.textContent = 'Submit Feedback'; btn.disabled = false;
         });
-
         return false;
     }
 
-    function showError(msg) {
-        var el = document.getElementById('errorMsg');
-        el.textContent = msg;
-        el.style.display = 'block';
+    // Register
+    var regPref = 'phone';
+
+    function setRegPref(pref, btn) {
+        regPref = pref;
+        document.querySelectorAll('.pref-btn').forEach(function(b) { b.classList.remove('active'); });
+        btn.classList.add('active');
+        document.getElementById('regPhoneGroup').style.display = (pref === 'phone' || pref === 'both') ? 'block' : 'none';
+        document.getElementById('regEmailGroup').style.display = (pref === 'email' || pref === 'both') ? 'block' : 'none';
     }
+
+    function submitRegister(e) {
+        e.preventDefault();
+        var errEl = document.getElementById('regError');
+        errEl.style.display = 'none';
+
+        var name = document.getElementById('regName').value.trim();
+        var phone = document.getElementById('regPhone').value.trim();
+        var email = document.getElementById('regEmail').value.trim();
+
+        if (!name) { showErr(errEl, 'Please enter your name.'); return false; }
+        if ((regPref === 'phone' || regPref === 'both') && !phone) { showErr(errEl, 'Please enter your phone number.'); return false; }
+        if ((regPref === 'email' || regPref === 'both') && !email) { showErr(errEl, 'Please enter your email.'); return false; }
+
+        var btn = document.getElementById('regBtn');
+        btn.textContent = 'Registering...';
+        btn.disabled = true;
+
+        fetch('../api/community-member.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ full_name: name, phone: phone || null, email: email || null, preference: regPref })
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(res) {
+            if (res.success) {
+                document.querySelector('#registerForm form').style.display = 'none';
+                document.getElementById('regThankYou').style.display = 'block';
+            } else {
+                showErr(errEl, res.error || 'Something went wrong.');
+                btn.textContent = 'Register'; btn.disabled = false;
+            }
+        })
+        .catch(function() {
+            showErr(errEl, 'Network error. Please try again.');
+            btn.textContent = 'Register'; btn.disabled = false;
+        });
+        return false;
+    }
+
+    function showErr(el, msg) { el.textContent = msg; el.style.display = 'block'; }
 </script>
 
 </body>
