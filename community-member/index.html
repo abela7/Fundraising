@@ -331,7 +331,7 @@
         <img src="../invitation/EOTC_Icon.png" alt="EOTC">
         <h1>Welcome, Neighbour!</h1>
         <div class="church-name">Liverpool Mekane Kidusan Abune Teklehaymanot EOTC</div>
-        <p>We are your neighbours at St. Gabriel's Church on Yates Street. Whether you live nearby, work in the area, or are simply passing through — we'd love to connect with you.</p>
+        <p>We are your neighbours at St. Gabriel's Church on Yates Street. Being part of this neighbourhood matters to us, and we want to make sure our presence is always respectful and considerate.</p>
     </div>
 </div>
 
@@ -345,8 +345,8 @@
                 <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
             </div>
             <div class="option-text">
-                <h3>Share Your Thoughts</h3>
-                <p>We care about being good neighbours. If you have any feedback, suggestions, or concerns about our presence in the area, we'd genuinely like to hear from you.</p>
+                <h3>Raise a Concern</h3>
+                <p>If you've experienced any noise, parking issues, disturbance, or anything that has affected you, please let us know. We take all concerns seriously and want to resolve them promptly.</p>
             </div>
             <span class="option-arrow">&rsaquo;</span>
         </a>
@@ -356,8 +356,8 @@
                 <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4-4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg>
             </div>
             <div class="option-text">
-                <h3>Stay Connected</h3>
-                <p>We occasionally host open events, cultural celebrations, and community gatherings that everyone is welcome to attend. Leave your details and we'll let you know — no more than a few times a year.</p>
+                <h3>Get Notified About Events</h3>
+                <p>A few times a year, we hold annual celebrations that may bring more visitors and activity to the area. Register below and we'll give you advance notice before any event takes place, so you're never caught off guard.</p>
             </div>
             <span class="option-arrow">&rsaquo;</span>
         </a>
@@ -366,8 +366,8 @@
     <!-- Feedback Form -->
     <div class="form-section" id="feedbackForm">
         <button class="form-back" onclick="showOptions()"><span>&larr;</span> Back</button>
-        <div class="form-title">Share Your Thoughts</div>
-        <div class="form-subtitle">Your feedback is important to us. As your neighbours, we want to make sure our presence is a positive one in the community.</div>
+        <div class="form-title">Raise a Concern</div>
+        <div class="form-subtitle">If our church activities have caused any inconvenience — whether it's noise, parking, or anything else — please tell us. We want to address it and ensure we remain considerate neighbours.</div>
 
         <form onsubmit="return submitFeedback(event)">
             <div class="form-group">
@@ -381,15 +381,15 @@
             <div class="form-group">
                 <label>Type</label>
                 <select id="fbType">
+                    <option value="complaint">Complaint</option>
                     <option value="feedback">General Feedback</option>
                     <option value="suggestion">Suggestion</option>
-                    <option value="complaint">Complaint</option>
-                    <option value="praise">Praise & Appreciation</option>
+                    <option value="praise">Positive Feedback</option>
                 </select>
             </div>
             <div class="form-group">
                 <label>Your Message <span class="req">*</span></label>
-                <textarea id="fbMessage" placeholder="Tell us what's on your mind..." required></textarea>
+                <textarea id="fbMessage" placeholder="Please describe the issue or share your thoughts..." required></textarea>
             </div>
             <div class="error-msg" id="fbError"></div>
             <button type="submit" class="submit-btn feedback-btn" id="fbBtn">Submit Feedback</button>
@@ -399,8 +399,8 @@
             <div class="icon-circle amber">
                 <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
             </div>
-            <h2>Thank You!</h2>
-            <p>We truly appreciate you taking the time to share your thoughts. Your feedback helps us be better neighbours.</p>
+            <h2>Thank You</h2>
+            <p>We appreciate you letting us know. Your concern has been received and we will look into it as soon as possible.</p>
             <button class="done-btn" onclick="showOptions()">Done</button>
         </div>
     </div>
@@ -408,8 +408,8 @@
     <!-- Register Form -->
     <div class="form-section" id="registerForm">
         <button class="form-back" onclick="showOptions()"><span>&larr;</span> Back</button>
-        <div class="form-title">Stay Connected</div>
-        <div class="form-subtitle">From time to time, we host open cultural celebrations, community gatherings, and special events that everyone in the neighbourhood is welcome to join. Leave your details below and we'll send you a friendly heads-up — no more than 5 or 6 times a year.</div>
+        <div class="form-title">Get Notified About Events</div>
+        <div class="form-subtitle">We hold a small number of annual celebrations throughout the year (no more than 5 or 6). By registering below, we'll notify you in advance whenever an event is coming up — so you'll know ahead of time if there will be extra activity around the church.</div>
 
         <form onsubmit="return submitRegister(event)">
             <div class="form-group">
@@ -442,8 +442,8 @@
             <div class="icon-circle green">
                 <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
             </div>
-            <h2>You're In!</h2>
-            <p>Thank you for connecting with us. We'll let you know when something is happening that you might enjoy. We look forward to seeing you around the neighbourhood!</p>
+            <h2>You're Registered</h2>
+            <p>Thank you. We'll send you a brief notification before any upcoming event so you know what to expect. We appreciate you being part of our neighbourhood.</p>
             <button class="done-btn" onclick="showOptions()">Done</button>
         </div>
     </div>
