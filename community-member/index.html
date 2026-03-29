@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Community Member Registration — LMKAT EOTC</title>
+    <link rel="icon" type="image/svg+xml" href="../assets/favicon.svg">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            min-height: 100vh;
+            background: #faf6eb;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .card {
+            background: #fff;
+            border-radius: 16px;
+            box-shadow: 0 8px 40px rgba(0,0,0,0.1);
+            max-width: 440px;
+            width: 100%;
+            overflow: hidden;
+        }
+
+        .card-header {
+            background: linear-gradient(135deg, #0a6286, #064a66);
+            padding: 30px 28px;
+            text-align: center;
+            color: #fff;
+        }
+
+        .card-header img {
+            width: 60px;
+            height: auto;
+            margin-bottom: 12px;
+        }
+
+        .card-header h1 {
+            font-size: 20px;
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+
+        .card-header p {
+            font-size: 13px;
+            opacity: 0.85;
+            font-weight: 300;
+            line-height: 1.5;
+        }
+
+        .card-body {
+            padding: 28px;
+        }
+
+        .form-group {
+            margin-bottom: 18px;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 6px;
+        }
+
+        .form-group label span.required {
+            color: #d32f2f;
+        }
+
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 12px 14px;
+            border: 1.5px solid #ddd;
+            border-radius: 10px;
+            font-family: 'Outfit', sans-serif;
+            font-size: 15px;
+            transition: border-color 0.2s;
+            outline: none;
+        }
+
+        .form-group input:focus {
+            border-color: #0a6286;
+            box-shadow: 0 0 0 3px rgba(10, 98, 134, 0.1);
+        }
+
+        .form-group .hint {
+            font-size: 11px;
+            color: #888;
+            margin-top: 4px;
+        }
+
+        .preference-row {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 18px;
+        }
+
+        .pref-btn {
+            flex: 1;
+            padding: 10px;
+            border: 1.5px solid #ddd;
+            border-radius: 10px;
+            background: #fff;
+            font-family: 'Outfit', sans-serif;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.2s;
+            color: #555;
+        }
+
+        .pref-btn.active {
+            border-color: #0a6286;
+            background: rgba(10, 98, 134, 0.06);
+            color: #0a6286;
+            font-weight: 600;
+        }
+
+        .pref-btn:hover {
+            border-color: #0a6286;
+        }
+
+        .submit-btn {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #0a6286, #0d7ba8);
+            color: #fff;
+            border: none;
+            border-radius: 12px;
+            font-family: 'Outfit', sans-serif;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .submit-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 20px rgba(10, 98, 134, 0.3);
+        }
+
+        .submit-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .error-msg {
+            color: #d32f2f;
+            font-size: 13px;
+            margin-bottom: 12px;
+            display: none;
+        }
+
+        /* Thank you screen */
+        .thank-you {
+            display: none;
+            text-align: center;
+            padding: 40px 28px;
+        }
+
+        .thank-you .check-icon {
+            width: 70px;
+            height: 70px;
+            background: linear-gradient(135deg, #16a34a, #22c55e);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 20px;
+        }
+
+        .thank-you .check-icon svg {
+            width: 36px;
+            height: 36px;
+            fill: none;
+            stroke: #fff;
+            stroke-width: 3;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+
+        .thank-you h2 {
+            font-size: 22px;
+            color: #1a1a1a;
+            margin-bottom: 10px;
+        }
+
+        .thank-you p {
+            font-size: 14px;
+            color: #666;
+            line-height: 1.6;
+        }
+    </style>
+</head>
+<body>
+
+<div class="card">
+    <div class="card-header">
+        <img src="../invitation/EOTC_Icon.png" alt="EOTC">
+        <h1>Community Member Registration</h1>
+        <p>Stay connected with LMKAT EOTC. Register to receive updates about celebrations, events, and church activities.</p>
+    </div>
+
+    <!-- Form -->
+    <div class="card-body" id="formSection">
+        <form id="regForm" onsubmit="return submitForm(event)">
+            <div class="form-group">
+                <label>Full Name <span class="required">*</span></label>
+                <input type="text" id="fullName" placeholder="Enter your full name" required>
+            </div>
+
+            <label style="font-size:13px; font-weight:600; color:#333; margin-bottom:8px; display:block;">How would you like to be contacted?</label>
+            <div class="preference-row">
+                <button type="button" class="pref-btn active" onclick="setPref('phone', this)">Phone</button>
+                <button type="button" class="pref-btn" onclick="setPref('email', this)">Email</button>
+                <button type="button" class="pref-btn" onclick="setPref('both', this)">Both</button>
+            </div>
+
+            <div class="form-group" id="phoneGroup">
+                <label>Phone Number <span class="required">*</span></label>
+                <input type="tel" id="phone" placeholder="e.g. 07951 403936">
+            </div>
+
+            <div class="form-group" id="emailGroup" style="display:none;">
+                <label>Email Address <span class="required">*</span></label>
+                <input type="email" id="email" placeholder="e.g. name@example.com">
+            </div>
+
+            <div class="error-msg" id="errorMsg"></div>
+
+            <button type="submit" class="submit-btn" id="submitBtn">Register</button>
+        </form>
+    </div>
+
+    <!-- Thank You -->
+    <div class="thank-you" id="thankYou">
+        <div class="check-icon">
+            <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+        </div>
+        <h2>Thank You!</h2>
+        <p>You have been registered successfully. We will keep you updated about our church events and celebrations.</p>
+        <p style="margin-top:16px; font-size:13px; color:#0a6286; font-weight:600;">God Bless You!</p>
+    </div>
+</div>
+
+<script>
+    var preference = 'phone';
+
+    function setPref(pref, btn) {
+        preference = pref;
+        document.querySelectorAll('.pref-btn').forEach(function(b) { b.classList.remove('active'); });
+        btn.classList.add('active');
+
+        document.getElementById('phoneGroup').style.display = (pref === 'phone' || pref === 'both') ? 'block' : 'none';
+        document.getElementById('emailGroup').style.display = (pref === 'email' || pref === 'both') ? 'block' : 'none';
+    }
+
+    function submitForm(e) {
+        e.preventDefault();
+        var errEl = document.getElementById('errorMsg');
+        errEl.style.display = 'none';
+
+        var name = document.getElementById('fullName').value.trim();
+        var phone = document.getElementById('phone').value.trim();
+        var email = document.getElementById('email').value.trim();
+
+        if (!name) { showError('Please enter your name.'); return false; }
+
+        if ((preference === 'phone' || preference === 'both') && !phone) {
+            showError('Please enter your phone number.'); return false;
+        }
+        if ((preference === 'email' || preference === 'both') && !email) {
+            showError('Please enter your email address.'); return false;
+        }
+
+        var btn = document.getElementById('submitBtn');
+        btn.textContent = 'Registering...';
+        btn.disabled = true;
+
+        var data = {
+            full_name: name,
+            phone: phone || null,
+            email: email || null,
+            preference: preference
+        };
+
+        fetch('../api/community-member.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(res) {
+            if (res.success) {
+                document.getElementById('formSection').style.display = 'none';
+                document.getElementById('thankYou').style.display = 'block';
+            } else {
+                showError(res.error || 'Something went wrong. Please try again.');
+                btn.textContent = 'Register';
+                btn.disabled = false;
+            }
+        })
+        .catch(function() {
+            showError('Network error. Please try again.');
+            btn.textContent = 'Register';
+            btn.disabled = false;
+        });
+
+        return false;
+    }
+
+    function showError(msg) {
+        var el = document.getElementById('errorMsg');
+        el.textContent = msg;
+        el.style.display = 'block';
+    }
+</script>
+
+</body>
+</html>

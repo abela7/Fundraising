@@ -10,15 +10,213 @@
         body {
             background: #e8ecef;
             display: flex;
-            justify-content: center;
-            align-items: center;
             min-height: 100vh;
-            padding: 2rem;
+            font-family: 'Segoe UI', sans-serif;
         }
 
+        /* ===== LEFT SIDEBAR ===== */
+        .sidebar {
+            width: 300px;
+            min-width: 300px;
+            background: #1e293b;
+            color: #e2e8f0;
+            overflow-y: auto;
+            height: 100vh;
+            position: sticky;
+            top: 0;
+            padding: 0;
+            font-size: 13px;
+        }
+
+        .sidebar-header {
+            padding: 18px 16px;
+            background: #0f172a;
+            font-size: 15px;
+            font-weight: 700;
+            color: #fff;
+            border-bottom: 1px solid #334155;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .sidebar-header svg { width: 18px; height: 18px; fill: #38bdf8; }
+
+        .panel-section { border-bottom: 1px solid #334155; }
+
+        .panel-header {
+            padding: 12px 16px;
+            font-weight: 600;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: #94a3b8;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            user-select: none;
+            transition: background 0.15s;
+        }
+
+        .panel-header:hover { background: #253347; }
+        .panel-header .arrow { transition: transform 0.2s; font-size: 10px; }
+        .panel-header.open .arrow { transform: rotate(180deg); }
+
+        .panel-body { padding: 0 16px 14px; display: none; }
+        .panel-body.open { display: block; }
+
+        .ctrl-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+
+        .ctrl-label {
+            min-width: 55px;
+            font-size: 12px;
+            color: #94a3b8;
+            font-weight: 500;
+        }
+
+        .ctrl-row input[type="range"] {
+            flex: 1;
+            accent-color: #38bdf8;
+            height: 4px;
+            cursor: pointer;
+        }
+
+        .ctrl-row input[type="checkbox"] {
+            width: 16px;
+            height: 16px;
+            accent-color: #38bdf8;
+            cursor: pointer;
+        }
+
+        .ctrl-val {
+            min-width: 36px;
+            text-align: right;
+            font-size: 11px;
+            font-weight: 600;
+            color: #38bdf8;
+        }
+
+        .ctrl-row select {
+            flex: 1;
+            padding: 4px 8px;
+            border-radius: 4px;
+            border: 1px solid #475569;
+            background: #334155;
+            color: #e2e8f0;
+            font-size: 12px;
+            cursor: pointer;
+        }
+
+        .ctrl-row input[type="text"] {
+            flex: 1;
+            padding: 6px 10px;
+            border-radius: 4px;
+            border: 1px solid #475569;
+            background: #334155;
+            color: #e2e8f0;
+            font-size: 12px;
+        }
+
+        .sidebar-footer {
+            padding: 14px 16px;
+            border-top: 1px solid #334155;
+        }
+
+        .edit-hint {
+            font-size: 11px;
+            color: #64748b;
+            text-align: center;
+            margin-bottom: 10px;
+        }
+
+        .download-btn, .save-btn, .load-btn {
+            display: block;
+            width: 100%;
+            padding: 12px;
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            margin-top: 6px;
+        }
+
+        .download-btn { background: linear-gradient(135deg, #0a6286, #0d7da8); }
+        .download-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 14px rgba(10, 98, 134, 0.4); }
+
+        .save-btn { background: linear-gradient(135deg, #16a34a, #22c55e); }
+        .save-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 14px rgba(22, 163, 74, 0.4); }
+
+        .load-btn { background: linear-gradient(135deg, #d97706, #f59e0b); position: relative; overflow: hidden; }
+        .load-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 14px rgba(217, 119, 6, 0.4); }
+        .load-btn input[type="file"] { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+
+        .btn-row { display: flex; gap: 8px; margin-top: 6px; }
+        .btn-row .save-btn, .btn-row .load-btn { flex: 1; }
+
+        /* Sidebar collapse */
+        .sidebar-toggle {
+            position: fixed;
+            top: 12px;
+            left: 300px;
+            z-index: 100;
+            width: 28px;
+            height: 28px;
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 0 6px 6px 0;
+            color: #94a3b8;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            transition: left 0.3s, background 0.15s;
+        }
+        .sidebar-toggle:hover { background: #334155; color: #fff; }
+
+        .sidebar {
+            transition: margin-left 0.3s;
+        }
+        .sidebar.collapsed {
+            margin-left: -300px;
+        }
+        .sidebar.collapsed ~ .sidebar-toggle {
+            left: 0;
+        }
+
+        /* ===== RIGHT CANVAS ===== */
+        .canvas-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 2rem;
+            gap: 2rem;
+            overflow: auto;
+        }
+
+        .page-title {
+            font-size: 13px;
+            font-weight: 700;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            margin-bottom: -0.5rem;
+        }
+
+        /* ===== A4 PAGE ===== */
         .a4-page {
-            width: 210mm;
-            height: 297mm;
+            width: 297mm;
+            height: 210mm;
             position: relative;
             overflow: hidden;
             background: #faf8f2;
@@ -26,7 +224,7 @@
             flex-shrink: 0;
         }
 
-        /* Border - Pattern One */
+        /* Border */
         .tibeb-top, .tibeb-bottom {
             position: absolute; left: 0; right: 0; height: 18px;
             background: url('Pattern_Two!.jpeg') repeat-x center; background-size: auto 100%; z-index: 10;
@@ -39,41 +237,589 @@
         }
         .tibeb-left { left: 0; } .tibeb-right { right: 0; }
 
+        /* Center fold borders - two side by side */
+        .tibeb-mid-l, .tibeb-mid-r {
+            position: absolute; top: 0; bottom: 0; width: 18px;
+            background: url('Pattern_Two! - Vertical.jpeg') repeat-y center; background-size: 100% auto; z-index: 10;
+        }
+        .tibeb-mid-l { right: 50%; }
+        .tibeb-mid-r { left: 50%; }
+
+        /* Page number labels */
+        .page-label {
+            position: absolute;
+            z-index: 20;
+            background: rgba(30, 41, 59, 0.75);
+            color: #fff;
+            font-size: 10px;
+            font-weight: 600;
+            padding: 3px 10px;
+            border-radius: 4px;
+            pointer-events: none;
+            white-space: nowrap;
+            bottom: 26px;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+
+        @media screen {
+            .page-label { display: block; }
+        }
+
         /* Flag Colours */
         .bg-gradient {
             position: absolute; inset: 0; z-index: 1; pointer-events: none;
             background:
-                radial-gradient(ellipse 60% 40% at 5% 5%, rgba(0, 128, 55, 0.15), transparent),
-                radial-gradient(ellipse 50% 30% at 50% 50%, rgba(252, 209, 22, 0.1), transparent),
-                radial-gradient(ellipse 60% 40% at 95% 95%, rgba(186, 34, 34, 0.15), transparent);
+                radial-gradient(ellipse 60% 40% at 5% 5%, rgba(0, 128, 55, var(--grad-opacity, 0.15)), transparent),
+                radial-gradient(ellipse 50% 30% at 50% 50%, rgba(252, 209, 22, var(--grad-opacity, 0.1)), transparent),
+                radial-gradient(ellipse 60% 40% at 95% 95%, rgba(186, 34, 34, var(--grad-opacity, 0.15)), transparent);
+        }
+        .bg-gradient.active { display: block; }
+
+        /* Content panels - 4 independent sections */
+        .page-panels {
+            position: absolute; inset: 0; z-index: 5;
+            display: flex;
         }
 
-        /* Content area */
-        .page-content {
-            position: relative; z-index: 5;
-            width: 100%; height: 100%;
-            padding: 28px;
+        .panel {
+            width: 50%; height: 100%;
+            padding: 26px 28px 40px;
+            position: relative;
+            overflow: hidden;
         }
+
+        .panel.active-panel {
+            outline: 2px dashed #38bdf8;
+            outline-offset: -2px;
+            z-index: 15;
+        }
+
+        /* ===== COVER ===== */
+        .cover-content {
+            display: flex; flex-direction: column; align-items: center;
+            justify-content: center; height: 100%; text-align: center; gap: 10px;
+        }
+        .cover-content img { width: 80px; height: auto; }
+        .cover-church {
+            font-size: 12pt; font-weight: 700; color: #0a6286;
+            text-transform: uppercase; letter-spacing: 0.06em; line-height: 1.4;
+        }
+        .cover-subtitle { font-size: 9.5pt; color: #555; font-style: italic; }
+        .cover-divider { width: 65%; height: 2px; background: linear-gradient(90deg, transparent, #0a6286, transparent); margin: 6px 0; }
+        .cover-title {
+            font-size: 22pt; font-weight: 800; color: #1a1a1a;
+            text-transform: uppercase; line-height: 1.25; letter-spacing: 0.04em;
+        }
+        .cover-date { font-size: 11pt; color: #0a6286; font-weight: 700; margin-top: 2px; }
+        .cover-location { font-size: 10pt; color: #444; line-height: 1.4; }
+
+        /* ===== PROGRAMME PAGES ===== */
+        .program-title {
+            font-size: 15pt; font-weight: 800; color: #0a6286;
+            text-align: center; text-transform: uppercase; letter-spacing: 0.1em;
+            margin-bottom: 10px; padding-bottom: 5px;
+            border-bottom: 2.5px solid #0a6286;
+        }
+
+        .schedule-item {
+            margin-bottom: 6px;
+            padding-bottom: 5px;
+            border-bottom: 1px dotted rgba(10, 98, 134, 0.12);
+        }
+        .schedule-item:last-child { border-bottom: none; }
+
+        .schedule-header {
+            display: flex; align-items: center; gap: 8px; margin-bottom: 2px;
+        }
+        .schedule-time {
+            font-size: 8pt; font-weight: 700; color: #fff;
+            background: linear-gradient(135deg, #0a6286, #0d8ab5); padding: 2px 8px; border-radius: 10px;
+            white-space: nowrap; flex-shrink: 0;
+        }
+        .schedule-name { font-size: 11pt; font-weight: 700; color: #1a1a1a; }
+        .schedule-body {
+            font-size: 11pt; color: #333; line-height: 1.4;
+            margin-top: 2px; padding-left: 6px;
+            white-space: pre-line;
+        }
+        .schedule-lyrics {
+            font-size: 8.5pt; color: #444; line-height: 1.35;
+            margin-top: 2px; padding-left: 6px;
+            font-style: italic; white-space: pre-line;
+        }
+        .schedule-chorus { font-size: 8.5pt; color: #0a6286; font-weight: 700; font-style: italic; }
+
+        .guest-label {
+            font-size: 10pt; font-weight: 700; color: #0a6286;
+            margin-top: 6px; margin-bottom: 4px; padding-top: 4px;
+            border-top: 2px solid rgba(10, 98, 134, 0.15);
+            text-transform: uppercase; letter-spacing: 0.06em;
+        }
+
+        /* ===== BACK COVER ===== */
+        .back-content {
+            display: flex; flex-direction: column; align-items: center;
+            justify-content: center; height: 100%; text-align: center; gap: 14px;
+        }
+        .back-content img { width: 60px; height: auto; opacity: 0.5; }
+        .back-church { font-size: 11pt; font-weight: 700; color: #0a6286; line-height: 1.4; }
+        .back-note {
+            font-size: 10pt; color: #555; font-style: italic;
+            line-height: 1.5; max-width: 90%;
+        }
+        .back-divider { width: 50%; height: 1.5px; background: linear-gradient(90deg, transparent, rgba(10,98,134,0.3), transparent); }
+        .back-contact { font-size: 9.5pt; color: #444; line-height: 1.7; }
 
         @media print {
-            body { background: none; padding: 0; }
+            .sidebar { display: none; }
+            .canvas-area { padding: 0; }
+            body { background: none; }
             .a4-page { box-shadow: none; margin: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-            @page { size: A4 portrait; margin: 0; }
+            @page { size: A4 landscape; margin: 0; }
         }
     </style>
 </head>
 <body>
 
-<div class="a4-page">
-    <div class="bg-gradient"></div>
-    <div class="tibeb-top"></div>
-    <div class="tibeb-bottom"></div>
-    <div class="tibeb-left"></div>
-    <div class="tibeb-right"></div>
+<!-- SIDEBAR -->
+<div class="sidebar">
+    <div class="sidebar-header">
+        <svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16" stroke="#38bdf8" stroke-width="2" fill="none" stroke-linecap="round"/></svg>
+        Program Designer
+    </div>
 
-    <div class="page-content">
+    <!-- Active Panel -->
+    <div class="panel-section">
+        <div class="panel-header open" onclick="togglePanel(this)">Active Panel <span class="arrow">&#9660;</span></div>
+        <div class="panel-body open">
+            <div class="ctrl-row">
+                <span class="ctrl-label">Panel</span>
+                <select id="panelPicker" onchange="selectPanelById(this.value)">
+                    <option value="panel-1">1 — Back Cover</option>
+                    <option value="panel-2">2 — Front Cover</option>
+                    <option value="panel-3">3 — Inside Left</option>
+                    <option value="panel-4">4 — Inside Right</option>
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <!-- Font Sizes -->
+    <div class="panel-section">
+        <div class="panel-header" onclick="togglePanel(this)">Font Sizes <span class="arrow">&#9660;</span></div>
+        <div class="panel-body">
+            <div class="ctrl-row"><span class="ctrl-label">Title</span><input type="range" min="8" max="30" value="15" oninput="setFontSize('.program-title', this.value, this)"><span class="ctrl-val">15pt</span></div>
+            <div class="ctrl-row"><span class="ctrl-label">Time</span><input type="range" min="6" max="16" value="8" oninput="setFontSize('.schedule-time', this.value, this)"><span class="ctrl-val">8pt</span></div>
+            <div class="ctrl-row"><span class="ctrl-label">Heading</span><input type="range" min="6" max="18" value="11" step="0.5" oninput="setFontSize('.schedule-name', this.value, this)"><span class="ctrl-val">11pt</span></div>
+            <div class="ctrl-row"><span class="ctrl-label">Body</span><input type="range" min="6" max="16" value="11" step="0.5" oninput="setFontSize('.schedule-body', this.value, this)"><span class="ctrl-val">11pt</span></div>
+            <div class="ctrl-row"><span class="ctrl-label">Lyrics</span><input type="range" min="6" max="16" value="8.5" step="0.5" oninput="setFontSize('.schedule-lyrics, .schedule-chorus', this.value, this)"><span class="ctrl-val">8.5pt</span></div>
+            <div class="ctrl-row"><span class="ctrl-label">Cover</span><input type="range" min="12" max="36" value="22" oninput="setFontSize('.cover-title', this.value, this)"><span class="ctrl-val">22pt</span></div>
+        </div>
+    </div>
+
+    <!-- Border -->
+    <div class="panel-section">
+        <div class="panel-header open" onclick="togglePanel(this)">Border <span class="arrow">&#9660;</span></div>
+        <div class="panel-body open">
+            <div class="ctrl-row">
+                <input type="checkbox" id="toggleBorder" checked onchange="toggleBorder(this.checked)">
+                <span class="ctrl-label">Show Border</span>
+            </div>
+            <div class="ctrl-row">
+                <span class="ctrl-label">Style</span>
+                <select id="borderStyle" onchange="changeBorderStyle(this.value)">
+                    <option value="pattern2">Pattern Two</option>
+                    <option value="ethiopian">Ethiopian Design</option>
+                </select>
+            </div>
+            <div class="ctrl-row">
+                <span class="ctrl-label">Size</span>
+                <input type="range" min="8" max="30" value="18" oninput="updateBorder(this.value)">
+                <span class="ctrl-val" id="borderValue">18px</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Flag Colours -->
+    <div class="panel-section">
+        <div class="panel-header open" onclick="togglePanel(this)">Flag Colours <span class="arrow">&#9660;</span></div>
+        <div class="panel-body open">
+            <div class="ctrl-row">
+                <input type="checkbox" id="toggleGradient" checked onchange="toggleGradient(this.checked)">
+                <span class="ctrl-label">Show Flag Colours</span>
+            </div>
+            <div class="ctrl-row" id="opacityRow">
+                <span class="ctrl-label">Opacity</span>
+                <input type="range" min="5" max="80" value="15" oninput="updateOpacity(this.value)">
+                <span class="ctrl-val" id="opacityValue">15%</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Export -->
+    <div class="sidebar-footer">
+        <div class="edit-hint">Click any text on the page to edit</div>
+        <div class="ctrl-row">
+            <span class="ctrl-label">File name</span>
+            <input type="text" id="fileName" value="LMKAT-EOTC-Program">
+        </div>
+        <button class="download-btn" onclick="downloadPage()">Download High Quality PNG</button>
+        <div class="btn-row">
+            <button class="save-btn" onclick="saveDesign()">Save Design</button>
+            <label class="load-btn">Load Design<input type="file" accept=".json" onchange="loadDesign(event)"></label>
+        </div>
     </div>
 </div>
+
+<button class="sidebar-toggle" id="sidebarToggle" onclick="collapseSidebar()">&#9664;</button>
+
+<!-- CANVAS -->
+<div class="canvas-area">
+    <div class="page-title">Front Side (Outside)</div>
+    <div class="a4-page" id="a4Page">
+        <div class="bg-gradient bg-grad-1" id="bgGradient"></div>
+        <div class="tibeb-top"></div>
+        <div class="tibeb-bottom"></div>
+        <div class="tibeb-left"></div>
+        <div class="tibeb-right"></div>
+        <div class="tibeb-mid-l"></div>
+        <div class="tibeb-mid-r"></div>
+
+        <div class="page-panels">
+            <div class="panel" id="panel-1" data-label="1 — Back Cover" onclick="selectPanel(this)">
+                <span class="page-label">1 — Back Cover</span>
+                <div class="back-content" contenteditable="true">
+                    <img src="EOTC_Icon.png" alt="EOTC">
+                    <div class="back-church">Liverpool Mekane Kidusan<br>Abune Teklehaymanot EOTC</div>
+                    <div class="back-divider"></div>
+                    <div class="back-note">"For where two or three gather in my name,<br>there am I with them."<br>— Matthew 18:20</div>
+                    <div class="back-divider"></div>
+                    <div class="back-contact">
+                        St. Gabriel's Church<br>
+                        16 Yates Street, L8 6RD, Liverpool<br><br>
+                        Phone: 07951 403936<br>
+                        Email: stakeholder@abuneteklehaymanot.org
+                    </div>
+                </div>
+            </div>
+            <div class="panel" id="panel-2" data-label="2 — Front Cover" onclick="selectPanel(this)">
+                <span class="page-label">2 — Front Cover</span>
+                <div class="cover-content" contenteditable="true">
+                    <img src="EOTC_Icon.png" alt="EOTC">
+                    <div class="cover-church">Liverpool Mekane Kidusan<br>Abune Teklehaymanot<br>Ethiopian Orthodox Tewahedo Church</div>
+                    <div class="cover-subtitle">Diocese of Great Britain &amp; Northern Ireland</div>
+                    <div class="cover-divider"></div>
+                    <div class="cover-title">Community<br>Engagement<br>Programme</div>
+                    <div class="cover-divider"></div>
+                    <div class="cover-date">Saturday, 29 March 2026<br>2:00 PM — 3:05 PM</div>
+                    <div class="cover-location">St. Gabriel's Church<br>16 Yates Street, L8 6RD, Liverpool</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="page-title">Back Side (Inside when folded)</div>
+    <div class="a4-page" id="a4Page2">
+        <div class="bg-gradient bg-grad-2" id="bgGradient2"></div>
+        <div class="tibeb-top"></div>
+        <div class="tibeb-bottom"></div>
+        <div class="tibeb-left"></div>
+        <div class="tibeb-right"></div>
+        <div class="tibeb-mid-l"></div>
+        <div class="tibeb-mid-r"></div>
+
+        <div class="page-panels">
+            <div class="panel" id="panel-3" data-label="3 — Inside Left" onclick="selectPanel(this)">
+                <span class="page-label">3 — Inside Left</span>
+                <div class="program-title">Programme</div>
+
+                <div class="schedule-item">
+                    <div class="schedule-header"><span class="schedule-time">14:00 – 14:05</span> <span class="schedule-name">Opening Prayer</span></div>
+                    <div class="schedule-body" contenteditable="true">In the name of the Father, and the Son, and the Holy Spirit, one God. Amen.
+Lord God, we thank You for bringing us together today in peace and unity. We thank You for this new church and this new beginning You have given us. As we gather, open our hearts and minds so that we may understand, learn, and grow in faith.
+Bless this time together and guide us in all that we do.
+Through the prayers of Saint Teklehaymanot and all Your saints, be with us now and always. Amen.</div>
+                </div>
+
+                <div class="schedule-item">
+                    <div class="schedule-header"><span class="schedule-time">14:05 – 14:10</span> <span class="schedule-name">Children Gospel Song</span></div>
+                    <div class="schedule-lyrics" contenteditable="true"><span class="schedule-chorus">We will praise the Trinity (2)
+Creations of the world
+Honor God with hymonody</span>
+
+To the father the son and the holy Spirit we will give what is due worship for his merit. The creator of all the things a world that is sublime. We shall praise night and day until the end of time.
+
+Cherumbim Seraphin offer worship to you, angels in the heavens sing to their god it's true. The children of Adam singing to you since birth, calling up Your name in the heavens and earth.
+
+If my hunger my Lord will feed me this I know. My thirst will go away, blessings He will bestow. The Trinity is my protector and my grace, always guiding me through whatever I may face.
+
+<span class="schedule-chorus">Silassien amesginu (2)
+Ye midir fitretat zemiru elil belu</span></div>
+                </div>
+
+                <div class="schedule-item">
+                    <div class="schedule-header"><span class="schedule-time">14:10 – 14:25</span> <span class="schedule-name">Birhani Bartley</span></div>
+                    <div class="schedule-body">Presentation: Ethiopian History</div>
+                </div>
+
+                <div class="schedule-item">
+                    <div class="schedule-header"><span class="schedule-time">14:25 – 14:30</span> <span class="schedule-name">Gospel Song — Adult Choir</span></div>
+                    <div class="schedule-lyrics" contenteditable="true"><span class="schedule-chorus">We shall never abandon the Church,
+Which God bestowed upon us, founding it with His blood.
+Which the Lord gave to us, by dying on the Cross,
+We shall never forsake the House of our God!</span>
+
+By the Lord who fills all in all,
+Called His House, she became His Bride.
+Filled with glory, majesty, and grace,
+She abides in splendor, shining light to the world! (x2)</div>
+                </div>
+            </div>
+            <div class="panel" id="panel-4" data-label="4 — Inside Right" onclick="selectPanel(this)">
+                <span class="page-label">4 — Inside Right</span>
+                <div class="program-title">Programme (cont.)</div>
+
+                <div class="schedule-item">
+                    <div class="schedule-header"><span class="schedule-time"></span> <span class="schedule-name" style="color:#0a6286; font-style:italic;">Adult Choir (cont.)</span></div>
+                    <div class="schedule-lyrics" contenteditable="true">Even if the devil exhausts all his fiery darts,
+And lays down snares throughout all our journey,
+We shall cross over, invoking the name of God,
+Taking refuge in Him, nothing shall ever harm us! (x2)
+
+Gathering in His name, laboring in His name,
+Living for His sake, and dying for His name,
+Though this may never please the enemy, the devil,
+This is true Christianity, and this is true Life! (x2)
+
+That which we hand down from generation to generation,
+Which we joyfully bequeath to our children's children,
+Is neither silver nor gold, nor any worldly wealth,
+It is our Faith, our true and eternal inheritance! (x2)</div>
+                </div>
+
+                <div class="schedule-item">
+                    <div class="schedule-header"><span class="schedule-time">14:30 – 14:45</span> <span class="schedule-name">Arch Deacon Yohannes</span></div>
+                    <div class="schedule-body">Presentation: Church History</div>
+                </div>
+
+                <div class="guest-label">Guest Speakers</div>
+                <div class="schedule-item">
+                    <div class="schedule-header"><span class="schedule-time">14:45 – 14:50</span> <span class="schedule-name">F/R Crostopher</span></div>
+                </div>
+                <div class="schedule-item">
+                    <div class="schedule-header"><span class="schedule-time">14:50 – 14:55</span> <span class="schedule-name">F/R Terry</span></div>
+                </div>
+                <div class="schedule-item">
+                    <div class="schedule-header"><span class="schedule-time">14:55 – 15:00</span> <span class="schedule-name">Dr Matthew</span></div>
+                </div>
+                <div class="schedule-item">
+                    <div class="schedule-header"><span class="schedule-time">15:00 – 15:05</span> <span class="schedule-name">Dr (Prof.) Steve Munby</span></div>
+                </div>
+
+                <div class="schedule-item">
+                    <div class="schedule-header"><span class="schedule-time">15:05 – 15:10</span> <span class="schedule-name">Closing Prayer</span></div>
+                    <div class="schedule-body" contenteditable="true">In the name of the Father, and the Son, and the Holy Spirit, one God. Amen.
+Lord, we thank You for this time we have shared together. We thank You for the opportunity to learn more about Your Church and grow as a community.
+Bless this church, bless all who are here, and guide us as we continue in faith and unity. Amen</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/dom-to-image-more@3.4.5/dist/dom-to-image-more.min.js"></script>
+<script>
+    // Panel accordion
+    function togglePanel(header) {
+        header.classList.toggle('open');
+        header.nextElementSibling.classList.toggle('open');
+    }
+
+    // Sidebar collapse
+    function collapseSidebar() {
+        var sb = document.querySelector('.sidebar');
+        var btn = document.getElementById('sidebarToggle');
+        sb.classList.toggle('collapsed');
+        if (sb.classList.contains('collapsed')) {
+            btn.innerHTML = '&#9654;';
+            btn.style.left = '0';
+        } else {
+            btn.innerHTML = '&#9664;';
+            btn.style.left = '300px';
+        }
+    }
+
+    // Panel selection
+    var activePanel = null;
+
+    function selectPanel(el) {
+        document.querySelectorAll('.panel').forEach(function(p) { p.classList.remove('active-panel'); });
+        el.classList.add('active-panel');
+        activePanel = el;
+        document.getElementById('panelPicker').value = el.id;
+    }
+
+    function selectPanelById(id) {
+        var el = document.getElementById(id);
+        if (el) {
+            document.querySelectorAll('.panel').forEach(function(p) { p.classList.remove('active-panel'); });
+            el.classList.add('active-panel');
+            activePanel = el;
+            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+    }
+
+    // Font sizes
+    function setFontSize(sel, val, input) {
+        document.querySelectorAll(sel).forEach(function(el) { el.style.fontSize = val + 'pt'; });
+        input.nextElementSibling.textContent = val + 'pt';
+    }
+
+    // Border
+    var allH = '.tibeb-top, .tibeb-bottom';
+    var allV = '.tibeb-left, .tibeb-right, .tibeb-mid-l, .tibeb-mid-r';
+    var allBorders = allH + ', ' + allV;
+
+    function toggleBorder(on) {
+        var display = on ? '' : 'none';
+        document.querySelectorAll(allBorders).forEach(function(el) { el.style.display = display; });
+    }
+
+    function changeBorderStyle(style) {
+        var h = style === 'ethiopian' ? 'Ethiopian_Design.png' : 'Pattern_Two!.jpeg';
+        var v = style === 'ethiopian' ? 'Ethiopian_Design - Vertical.png' : 'Pattern_Two! - Vertical.jpeg';
+        document.querySelectorAll(allH).forEach(function(el) { el.style.backgroundImage = "url('" + h + "')"; });
+        document.querySelectorAll(allV).forEach(function(el) { el.style.backgroundImage = "url('" + v + "')"; });
+    }
+
+    function updateBorder(val) {
+        var v = parseInt(val);
+        document.querySelectorAll(allH).forEach(function(el) { el.style.height = v + 'px'; });
+        document.querySelectorAll(allV).forEach(function(el) { el.style.width = v + 'px'; });
+        document.querySelectorAll('.tibeb-mid-l').forEach(function(el) { el.style.right = '50%'; });
+        document.querySelectorAll('.tibeb-mid-r').forEach(function(el) { el.style.left = '50%'; });
+        document.getElementById('borderValue').textContent = v + 'px';
+    }
+
+    // Flag Colours
+    function toggleGradient(on) {
+        document.querySelectorAll('.bg-gradient').forEach(function(el) { el.style.display = on ? '' : 'none'; });
+        document.getElementById('opacityRow').style.display = on ? 'flex' : 'none';
+    }
+
+    function updateOpacity(val) {
+        document.querySelectorAll('.a4-page').forEach(function(el) { el.style.setProperty('--grad-opacity', val / 100); });
+        document.getElementById('opacityValue').textContent = val + '%';
+    }
+
+    // Download High Quality PNG
+    async function downloadPage() {
+        var page = document.getElementById('a4Page');
+        var btn = document.querySelector('.download-btn');
+        var w = page.offsetWidth;
+        var h = page.offsetHeight;
+        var scale = 4;
+
+        btn.textContent = 'Generating...';
+        btn.disabled = true;
+
+        try {
+            if (document.fonts && document.fonts.ready) await document.fonts.ready;
+
+            // Warm cache
+            await domtoimage.toPng(page, { width: w, height: h, cacheBust: true });
+
+            var dataUrl = await domtoimage.toPng(page, {
+                width: w * scale, height: h * scale, quality: 1, cacheBust: true, bgcolor: '#faf8f2',
+                style: { transform: 'scale(' + scale + ')', transformOrigin: 'top left', width: w + 'px', height: h + 'px' }
+            });
+
+            var link = document.createElement('a');
+            link.download = (document.getElementById('fileName').value.trim() || 'LMKAT-EOTC-Program') + '.png';
+            link.href = dataUrl;
+            link.click();
+        } catch (err) {
+            console.error('Download failed:', err);
+        } finally {
+            btn.textContent = 'Download High Quality PNG';
+            btn.disabled = false;
+        }
+    }
+
+    // Save Design
+    function saveDesign() {
+        var state = {
+            version: 1,
+            borderOn: document.getElementById('toggleBorder').checked,
+            borderStyle: document.getElementById('borderStyle').value,
+            borderSize: document.getElementById('borderValue').textContent.replace('px', ''),
+            gradientOn: document.getElementById('toggleGradient').checked,
+            gradientOpacity: document.querySelector('#opacityRow input[type="range"]').value,
+            fileName: document.getElementById('fileName').value,
+            contentHTML: document.querySelector('.page-content').innerHTML
+        };
+
+        var json = JSON.stringify(state, null, 2);
+        var blob = new Blob([json], { type: 'application/json' });
+        var link = document.createElement('a');
+        link.download = (document.getElementById('fileName').value.trim() || 'LMKAT-EOTC-Program') + '.design.json';
+        link.href = URL.createObjectURL(blob);
+        link.click();
+        URL.revokeObjectURL(link.href);
+    }
+
+    // Load Design
+    function loadDesign(event) {
+        var file = event.target.files[0];
+        if (!file) return;
+        var reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                var s = JSON.parse(e.target.result);
+                applyState(s);
+            } catch (err) {
+                alert('Invalid design file');
+            }
+        };
+        reader.readAsText(file);
+        event.target.value = '';
+    }
+
+    function applyState(s) {
+        // Border
+        var borderChk = document.getElementById('toggleBorder');
+        borderChk.checked = s.borderOn !== false;
+        toggleBorder(borderChk.checked);
+
+        if (s.borderStyle) {
+            document.getElementById('borderStyle').value = s.borderStyle;
+            changeBorderStyle(s.borderStyle);
+        }
+        if (s.borderSize) {
+            var borderSlider = document.querySelector('.panel-section:nth-child(1) input[type="range"]');
+            borderSlider.value = s.borderSize;
+            updateBorder(s.borderSize);
+        }
+
+        // Flag Colours
+        var gradChk = document.getElementById('toggleGradient');
+        gradChk.checked = s.gradientOn !== false;
+        toggleGradient(gradChk.checked);
+
+        if (s.gradientOpacity) {
+            var gradSlider = document.querySelector('#opacityRow input[type="range"]');
+            gradSlider.value = s.gradientOpacity;
+            updateOpacity(s.gradientOpacity);
+        }
+
+        // File name
+        if (s.fileName) document.getElementById('fileName').value = s.fileName;
+
+        // Content
+        if (s.contentHTML) document.querySelector('.page-content').innerHTML = s.contentHTML;
+    }
+</script>
 
 </body>
 </html>
