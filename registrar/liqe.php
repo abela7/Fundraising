@@ -441,7 +441,7 @@ if (isset($_SESSION['success_message'])) {
                             </div>
                             
                             <div class="mb-3">
-                                <label for="notes" class="form-label">የዕጣ ቁጥር<span class="text-danger">*</span></label>
+                                <label for="notes" class="form-label">መከታተያ ቁጥር<span class="text-danger">*</span></label>
                                 <input type="number" class="form-control" id="notes" name="notes" required
                                        min="0" max="9999" step="1" inputmode="numeric"
                                        oninput="this.value=this.value.replace(/[^0-9]/g,'').slice(0,4)"
