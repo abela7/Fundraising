@@ -44,6 +44,26 @@
 
         .sidebar-header svg { width: 18px; height: 18px; fill: #38bdf8; }
 
+        .file-protocol-banner {
+            padding: 12px 14px;
+            background: #422006;
+            border-bottom: 1px solid #78350f;
+            color: #fef3c7;
+            font-size: 12px;
+            line-height: 1.45;
+        }
+        .file-protocol-banner strong { color: #fff; }
+        .file-protocol-banner code {
+            display: block;
+            margin-top: 8px;
+            padding: 8px 10px;
+            background: rgba(0, 0, 0, 0.25);
+            border-radius: 6px;
+            font-size: 11px;
+            word-break: break-all;
+            color: #fde68a;
+        }
+
         .panel-section {
             border-bottom: 1px solid #334155;
         }
@@ -147,6 +167,13 @@
 
         .download-btn { background: linear-gradient(135deg, #0a6286, #0d7da8); }
         .download-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 14px rgba(10, 98, 134, 0.4); }
+        .download-btn:disabled {
+            opacity: 0.45;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        .download-btn:disabled:hover { transform: none; box-shadow: none; }
 
         .save-btn { background: linear-gradient(135deg, #16a34a, #22c55e); }
         .save-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 14px rgba(22, 163, 74, 0.4); }
@@ -384,6 +411,14 @@
         Certificate Designer
     </div>
 
+    <div id="fileProtocolBanner" class="file-protocol-banner" hidden>
+        <strong>PNG export needs HTTP.</strong>
+        This page was opened as a file (<code>file:///…</code>). Browsers block the capture library from reloading images (CORS).
+        Start Apache in XAMPP and open:
+        <code>http://localhost/Fundraising/invitation/certificate-appreciation.html</code>
+        You can still edit the certificate and use Save Design / Load Design below.
+    </div>
+
     <!-- Background -->
     <div class="panel-section">
         <div class="panel-header open" onclick="togglePanel(this)">Background <span class="arrow">▼</span></div>
@@ -457,7 +492,7 @@
                 <select class="font-select" data-target="body" style="font-size:11px;"></select>
             </div>
             <div class="ctrl-row">
-                <span class="ctrl-label">Dear</span>
+                <span class="ctrl-label">To</span>
                 <select class="font-select" data-target="dear" style="font-size:11px;"></select>
             </div>
             <div class="ctrl-row">
@@ -476,7 +511,7 @@
         <div class="panel-header" onclick="togglePanel(this)">Font Sizes <span class="arrow">▼</span></div>
         <div class="panel-body">
             <div class="ctrl-row"><span class="ctrl-label">Title</span><input type="range" min="16" max="60" value="34" oninput="changeFontSize('.cert-title', this.value, this)"><span class="ctrl-val">34pt</span></div>
-            <div class="ctrl-row"><span class="ctrl-label">Dear</span><input type="range" min="12" max="40" value="19" oninput="changeFontSize('.cert-dear', this.value, this)"><span class="ctrl-val">19pt</span></div>
+            <div class="ctrl-row"><span class="ctrl-label">To</span><input type="range" min="12" max="40" value="19" oninput="changeFontSize('.cert-dear', this.value, this)"><span class="ctrl-val">19pt</span></div>
             <div class="ctrl-row"><span class="ctrl-label">Body</span><input type="range" min="10" max="30" value="18" oninput="changeFontSize('.cert-body', this.value, this)"><span class="ctrl-val">18pt</span></div>
             <div class="ctrl-row"><span class="ctrl-label">Footer</span><input type="range" min="10" max="30" value="14" oninput="changeFooterSize(this.value, this)"><span class="ctrl-val">14pt</span></div>
         </div>
@@ -492,7 +527,7 @@
                     <option value="">— Select —</option>
                     <option value="icon">EOTC Icon</option>
                     <option value="title">Title</option>
-                    <option value="dear">Dear / Name</option>
+                    <option value="dear">To / Name</option>
                     <option value="body">Body Text</option>
                     <option value="cross">Crosses</option>
                     <option value="footer">Footer Text</option>
@@ -558,7 +593,7 @@
         <div class="cert-content">
             <img src="EOTC_Icon.png" alt="EOTC" class="cert-icon clickable-el" data-panel="icon">
             <div class="cert-title clickable-el" data-panel="title" contenteditable="true">Certificate of Appreciation</div>
-            <div class="cert-dear clickable-el" data-panel="dear"><span class="cert-dear-label">Dear</span><span class="cert-name" contenteditable="true">Norman Bilsborough</span></div>
+            <div class="cert-dear clickable-el" data-panel="dear"><span class="cert-dear-label">To</span><span class="cert-name" contenteditable="true">Norman Bilsborough</span></div>
             <div class="cert-divider"></div>
             <div class="cert-body clickable-el" data-panel="body" contenteditable="true">The Congregation of Liverpool Mekane Kidusan Abune Teklehymanot Ethiopian Orthodox Tewahedo Church (LMKAT EOTC), Diocese of Great Britain & Northern Ireland, would like to express the utmost gratitude, for your kind and much appreciated support in making the process of signing an agreement, to use St. Gebriel's Church at 16 Yates Street, L8 6RD for worshiping, such a successful historical event. May the blessing of the Father, the Son, and the Holy Spirit be upon you. Amen.</div>
             <div class="cert-footer">
@@ -767,7 +802,7 @@
             gradientOn: document.getElementById('toggleGradient').checked,
             gradientOpacity: document.querySelector('#opacityRow input[type="range"]').value,
             // Border
-            borderStyle: document.querySelector('.panel-section:nth-child(2) select').value,
+            borderStyle: document.querySelector('.panel-section:nth-child(3) select').value,
             borderSize: document.querySelector('#borderValue').textContent.replace('px', ''),
             // Font families
             fonts: {
@@ -778,10 +813,10 @@
             },
             // Font sizes (read from the range inputs)
             fontSizes: {
-                title: document.querySelectorAll('.panel-section:nth-child(4) input[type="range"]')[0].value,
-                dear: document.querySelectorAll('.panel-section:nth-child(4) input[type="range"]')[1].value,
-                body: document.querySelectorAll('.panel-section:nth-child(4) input[type="range"]')[2].value,
-                footer: document.querySelectorAll('.panel-section:nth-child(4) input[type="range"]')[3].value
+                title: document.querySelectorAll('.panel-section:nth-child(5) input[type="range"]')[0].value,
+                dear: document.querySelectorAll('.panel-section:nth-child(5) input[type="range"]')[1].value,
+                body: document.querySelectorAll('.panel-section:nth-child(5) input[type="range"]')[2].value,
+                footer: document.querySelectorAll('.panel-section:nth-child(5) input[type="range"]')[3].value
             },
             // Element positions
             positions: {},
@@ -878,12 +913,12 @@
 
         // Border
         if (s.borderStyle) {
-            var borderSel = document.querySelector('.panel-section:nth-child(2) select');
+            var borderSel = document.querySelector('.panel-section:nth-child(3) select');
             borderSel.value = s.borderStyle;
             changeBorderStyle(s.borderStyle);
         }
         if (s.borderSize) {
-            var borderSlider = document.querySelector('.panel-section:nth-child(2) input[type="range"]');
+            var borderSlider = document.querySelector('.panel-section:nth-child(3) input[type="range"]');
             borderSlider.value = s.borderSize;
             updateBorder(s.borderSize);
         }
@@ -904,8 +939,8 @@
 
         // Font sizes
         if (s.fontSizes) {
-            var sizeInputs = document.querySelectorAll('.panel-section:nth-child(4) input[type="range"]');
-            var sizeLabels = document.querySelectorAll('.panel-section:nth-child(4) .ctrl-val');
+            var sizeInputs = document.querySelectorAll('.panel-section:nth-child(5) input[type="range"]');
+            var sizeLabels = document.querySelectorAll('.panel-section:nth-child(5) .ctrl-val');
             if (s.fontSizes.title) { sizeInputs[0].value = s.fontSizes.title; sizeLabels[0].textContent = s.fontSizes.title + 'pt'; document.querySelector('.cert-title').style.fontSize = s.fontSizes.title + 'pt'; }
             if (s.fontSizes.dear) { sizeInputs[1].value = s.fontSizes.dear; sizeLabels[1].textContent = s.fontSizes.dear + 'pt'; document.querySelector('.cert-dear').style.fontSize = s.fontSizes.dear + 'pt'; }
             if (s.fontSizes.body) { sizeInputs[2].value = s.fontSizes.body; sizeLabels[2].textContent = s.fontSizes.body + 'pt'; document.querySelector('.cert-body').style.fontSize = s.fontSizes.body + 'pt'; }
@@ -941,12 +976,23 @@
 
     // Download
     async function downloadCert() {
+        if (location.protocol === 'file:') {
+            alert(
+                'PNG export does not work when this page is opened as a file (file:///…).\n\n' +
+                    'dom-to-image reloads images via XHR; browsers block that from file:// pages.\n\n' +
+                    'Start Apache in XAMPP and open:\n' +
+                    'http://localhost/Fundraising/invitation/certificate-appreciation.html'
+            );
+            return;
+        }
+
         document.activeElement.blur();
         const cert = document.getElementById('certCard');
         const btn = document.querySelector('.download-btn');
         const w = cert.offsetWidth;
         const h = cert.offsetHeight;
         const scale = 4;
+        const cacheBust = true;
 
         btn.textContent = 'Generating...';
         btn.disabled = true;
@@ -960,10 +1006,10 @@
             const noWrapEls = cert.querySelectorAll('.cert-title, .cert-office, .cert-date, .cert-dear-label');
             noWrapEls.forEach(el => el.style.whiteSpace = 'nowrap');
 
-            await domtoimage.toPng(cert, { width: w, height: h, cacheBust: true });
+            await domtoimage.toPng(cert, { width: w, height: h, cacheBust });
 
             const dataUrl = await domtoimage.toPng(cert, {
-                width: w * scale, height: h * scale, quality: 1, cacheBust: true, bgcolor: '#faf8f2',
+                width: w * scale, height: h * scale, quality: 1, cacheBust, bgcolor: '#faf8f2',
                 style: { transform: 'scale(' + scale + ')', transformOrigin: 'top left', width: w + 'px', height: h + 'px' }
             });
 
@@ -980,6 +1026,18 @@
             btn.disabled = false;
         }
     }
+
+    (function initFileProtocolUi() {
+        if (location.protocol !== 'file:') return;
+        var banner = document.getElementById('fileProtocolBanner');
+        var dl = document.querySelector('.download-btn');
+        if (banner) banner.hidden = false;
+        if (dl) {
+            dl.disabled = true;
+            dl.title =
+                'Open via http://localhost/Fundraising/invitation/certificate-appreciation.html (XAMPP) to enable PNG export.';
+        }
+    })();
 </script>
 </body>
 </html>

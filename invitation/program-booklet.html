@@ -246,25 +246,7 @@
         .tibeb-mid-r { left: 50%; }
 
         /* Page number labels */
-        .page-label {
-            position: absolute;
-            z-index: 20;
-            background: rgba(30, 41, 59, 0.75);
-            color: #fff;
-            font-size: 10px;
-            font-weight: 600;
-            padding: 3px 10px;
-            border-radius: 4px;
-            pointer-events: none;
-            white-space: nowrap;
-            bottom: 26px;
-            left: 50%;
-            transform: translateX(-50%);
-        }
-
-        @media screen {
-            .page-label { display: block; }
-        }
+        .page-label { display: none; }
 
         /* Flag Colours */
         .bg-gradient {
@@ -323,21 +305,22 @@
         }
 
         .schedule-item {
-            margin-bottom: 6px;
-            padding-bottom: 5px;
-            border-bottom: 1px dotted rgba(10, 98, 134, 0.12);
+            margin-bottom: 7px;
         }
-        .schedule-item:last-child { border-bottom: none; }
 
         .schedule-header {
-            display: flex; align-items: center; gap: 8px; margin-bottom: 2px;
+            display: flex; align-items: center; gap: 0; margin-bottom: 4px;
+            background: linear-gradient(135deg, #0a6286, #0d8ab5);
+            border-radius: 6px;
+            overflow: hidden;
         }
         .schedule-time {
             font-size: 8pt; font-weight: 700; color: #fff;
-            background: linear-gradient(135deg, #0a6286, #0d8ab5); padding: 2px 8px; border-radius: 10px;
+            padding: 5px 10px;
             white-space: nowrap; flex-shrink: 0;
+            background: rgba(0,0,0,0.15);
         }
-        .schedule-name { font-size: 11pt; font-weight: 700; color: #1a1a1a; }
+        .schedule-name { font-size: 10pt; font-weight: 700; color: #fff; padding: 5px 12px; }
         .schedule-body {
             font-size: 11pt; color: #333; line-height: 1.4;
             margin-top: 2px; padding-left: 6px;
@@ -369,10 +352,10 @@
             line-height: 1.5; max-width: 90%;
         }
         .back-divider { width: 50%; height: 1.5px; background: linear-gradient(90deg, transparent, rgba(10,98,134,0.3), transparent); }
-        .back-qr { width: 100px; height: 100px; border: 2px solid #0a6286; border-radius: 8px; padding: 4px; }
-        .back-qr-text { font-size: 8pt; color: #555; line-height: 1.45; text-align: center; max-width: 90%; }
-        .back-qr-url { font-size: 8.5pt; color: #0a6286; font-weight: 700; letter-spacing: 0.02em; }
-        .back-contact { font-size: 9pt; color: #444; line-height: 1.6; }
+        .back-qr { width: 160px; height: 160px; border: 3px solid #0a6286; border-radius: 10px; padding: 6px; background: #fff; box-shadow: 0 2px 10px rgba(10,98,134,0.15); position: relative; z-index: 25; }
+        .back-qr-text { font-size: 10pt; color: #555; line-height: 1.5; text-align: center; max-width: 90%; }
+        .back-qr-url { font-size: 11pt; color: #0a6286; font-weight: 700; letter-spacing: 0.02em; }
+        .back-contact { font-size: 10pt; color: #444; line-height: 1.6; }
 
         @media print {
             .sidebar { display: none; }
@@ -467,7 +450,11 @@
             <span class="ctrl-label">File name</span>
             <input type="text" id="fileName" value="LMKAT-EOTC-Program">
         </div>
-        <button class="download-btn" onclick="downloadPage()">Download High Quality PNG</button>
+        <button class="download-btn" onclick="downloadBoth()">Download Both Pages</button>
+        <div class="btn-row" style="margin-top:6px;">
+            <button class="download-btn" style="font-size:12px; padding:10px; background:linear-gradient(135deg,#334155,#475569);" onclick="downloadPage('a4Page', '-Front')">Front Only</button>
+            <button class="download-btn" style="font-size:12px; padding:10px; background:linear-gradient(135deg,#334155,#475569);" onclick="downloadPage('a4Page2', '-Back')">Back Only</button>
+        </div>
         <div class="btn-row">
             <button class="save-btn" onclick="saveDesign()">Save Design</button>
             <label class="load-btn">Load Design<input type="file" accept=".json" onchange="loadDesign(event)"></label>
@@ -493,10 +480,9 @@
             <div class="panel" id="panel-1" data-label="1 — Back Cover" onclick="selectPanel(this)">
                 <span class="page-label">1 — Back Cover</span>
                 <div class="back-content">
-                    <img src="EOTC_Icon.png" alt="EOTC">
                     <div class="back-church" contenteditable="true">Liverpool Mekane Kidusan<br>Abune Teklehaymanot EOTC</div>
                     <div class="back-divider"></div>
-                    <img src="https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=https://community.abuneteklehaymanot.org" alt="QR Code" class="back-qr">
+                    <img src="https://api.qrserver.com/v1/create-qr-code/?size=400x400&qzone=1&color=000000&data=https://community.abuneteklehaymanot.org" alt="QR Code" class="back-qr">
                     <div class="back-qr-text" contenteditable="true">We value being part of your community.<br>Scan to share feedback, raise a concern,<br>or register for event notifications.</div>
                     <div class="back-qr-url">community.abuneteklehaymanot.org</div>
                     <div class="back-divider"></div>
@@ -546,7 +532,7 @@ Through the prayers of Saint Teklehaymanot and all Your saints, be with us now a
                 </div>
 
                 <div class="schedule-item">
-                    <div class="schedule-header"><span class="schedule-time">14:05 – 14:10</span> <span class="schedule-name">Children Gospel Song</span></div>
+                    <div class="schedule-header"><span class="schedule-time">14:05 – 14:10</span> <span class="schedule-name">Children's Hymn</span></div>
                     <div class="schedule-lyrics" contenteditable="true"><span class="schedule-chorus">We will praise the Trinity (2)
 Creations of the world
 Honor God with hymonody</span>
@@ -562,12 +548,12 @@ Ye midir fitretat zemiru elil belu</span></div>
                 </div>
 
                 <div class="schedule-item">
-                    <div class="schedule-header"><span class="schedule-time">14:10 – 14:25</span> <span class="schedule-name">Birhani Bartley</span></div>
-                    <div class="schedule-body">Presentation: Ethiopian History</div>
+                    <div class="schedule-header"><span class="schedule-time">14:10 – 14:25</span> <span class="schedule-name">Presentation: Ethiopian History</span></div>
+                    <div class="schedule-body">By — Birhani Bartley</div>
                 </div>
 
                 <div class="schedule-item">
-                    <div class="schedule-header"><span class="schedule-time">14:25 – 14:30</span> <span class="schedule-name">Gospel Song — Adult Choir</span></div>
+                    <div class="schedule-header"><span class="schedule-time">14:25 – 14:30</span> <span class="schedule-name">Hymn — Adult Choir</span></div>
                     <div class="schedule-lyrics" contenteditable="true"><span class="schedule-chorus">We shall never abandon the Church,
 Which God bestowed upon us, founding it with His blood.
 Which the Lord gave to us, by dying on the Cross,
@@ -584,7 +570,7 @@ She abides in splendor, shining light to the world! (x2)</div>
                 <div class="program-title">Programme (cont.)</div>
 
                 <div class="schedule-item">
-                    <div class="schedule-header"><span class="schedule-time"></span> <span class="schedule-name" style="color:#0a6286; font-style:italic;">Adult Choir (cont.)</span></div>
+                    <div class="schedule-header"><span class="schedule-name" style="width:100%; text-align:center; font-style:italic;">Hymn — Adult Choir (cont.)</span></div>
                     <div class="schedule-lyrics" contenteditable="true">Even if the devil exhausts all his fiery darts,
 And lays down snares throughout all our journey,
 We shall cross over, invoking the name of God,
@@ -602,16 +588,16 @@ It is our Faith, our true and eternal inheritance! (x2)</div>
                 </div>
 
                 <div class="schedule-item">
-                    <div class="schedule-header"><span class="schedule-time">14:30 – 14:45</span> <span class="schedule-name">Arch Deacon Yohannes</span></div>
-                    <div class="schedule-body">Presentation: Church History</div>
+                    <div class="schedule-header"><span class="schedule-time">14:30 – 14:45</span> <span class="schedule-name">Presentation: Church History</span></div>
+                    <div class="schedule-body">By — Arch Deacon Yohannes</div>
                 </div>
 
                 <div class="guest-label">Guest Speakers</div>
                 <div class="schedule-item">
-                    <div class="schedule-header"><span class="schedule-time">14:45 – 14:50</span> <span class="schedule-name">F/R Crostopher</span></div>
+                    <div class="schedule-header"><span class="schedule-time">14:45 – 14:50</span> <span class="schedule-name">Father Crostopher</span></div>
                 </div>
                 <div class="schedule-item">
-                    <div class="schedule-header"><span class="schedule-time">14:50 – 14:55</span> <span class="schedule-name">F/R Terry</span></div>
+                    <div class="schedule-header"><span class="schedule-time">14:50 – 14:55</span> <span class="schedule-name">Father Terry</span></div>
                 </div>
                 <div class="schedule-item">
                     <div class="schedule-header"><span class="schedule-time">14:55 – 15:00</span> <span class="schedule-name">Dr Matthew</span></div>
@@ -717,35 +703,69 @@ Bless this church, bless all who are here, and guide us as we continue in faith 
     }
 
     // Download High Quality PNG
-    async function downloadPage() {
-        var page = document.getElementById('a4Page');
-        var btn = document.querySelector('.download-btn');
+    async function renderPage(pageId) {
+        var page = document.getElementById(pageId);
         var w = page.offsetWidth;
         var h = page.offsetHeight;
         var scale = 4;
 
-        btn.textContent = 'Generating...';
-        btn.disabled = true;
+        if (document.fonts && document.fonts.ready) await document.fonts.ready;
+
+        // Force nowrap on elements that break during export
+        var noWrapEls = page.querySelectorAll('.schedule-name, .schedule-time, .cover-church, .cover-title, .cover-date, .cover-subtitle, .cover-location, .back-church, .back-qr-text, .back-qr-url, .back-contact, .program-title, .guest-label');
+        noWrapEls.forEach(function(el) { el.style.whiteSpace = 'nowrap'; });
+
+        // Warm cache
+        await domtoimage.toPng(page, { width: w, height: h, cacheBust: true });
+        // Full render
+        var dataUrl = await domtoimage.toPng(page, {
+            width: w * scale, height: h * scale, quality: 1, cacheBust: true, bgcolor: '#faf8f2',
+            style: { transform: 'scale(' + scale + ')', transformOrigin: 'top left', width: w + 'px', height: h + 'px' }
+        });
+
+        // Restore
+        noWrapEls.forEach(function(el) { el.style.whiteSpace = ''; });
+
+        return dataUrl;
+    }
+
+    function triggerDownload(dataUrl, suffix) {
+        var link = document.createElement('a');
+        link.download = (document.getElementById('fileName').value.trim() || 'LMKAT-EOTC-Program') + suffix + '.png';
+        link.href = dataUrl;
+        link.click();
+    }
+
+    async function downloadPage(pageId, suffix) {
+        var btns = document.querySelectorAll('.download-btn');
+        btns.forEach(function(b) { b.disabled = true; });
 
         try {
-            if (document.fonts && document.fonts.ready) await document.fonts.ready;
-
-            // Warm cache
-            await domtoimage.toPng(page, { width: w, height: h, cacheBust: true });
-
-            var dataUrl = await domtoimage.toPng(page, {
-                width: w * scale, height: h * scale, quality: 1, cacheBust: true, bgcolor: '#faf8f2',
-                style: { transform: 'scale(' + scale + ')', transformOrigin: 'top left', width: w + 'px', height: h + 'px' }
-            });
-
-            var link = document.createElement('a');
-            link.download = (document.getElementById('fileName').value.trim() || 'LMKAT-EOTC-Program') + '.png';
-            link.href = dataUrl;
-            link.click();
+            var dataUrl = await renderPage(pageId);
+            triggerDownload(dataUrl, suffix);
         } catch (err) {
             console.error('Download failed:', err);
         } finally {
-            btn.textContent = 'Download High Quality PNG';
+            btns.forEach(function(b) { b.disabled = false; });
+        }
+    }
+
+    async function downloadBoth() {
+        var btns = document.querySelectorAll('.download-btn');
+        btns.forEach(function(b) { b.disabled = true; });
+        btns[0].textContent = 'Generating Front...';
+
+        try {
+            var front = await renderPage('a4Page');
+            btns[0].textContent = 'Generating Back...';
+            var back = await renderPage('a4Page2');
+
+            triggerDownload(front, '-Front');
+            setTimeout(function() { triggerDownload(back, '-Back'); }, 500);
+        } catch (err) {
+            console.error('Download failed:', err);
+        } finally {
+            btns[0].textContent = 'Download Both Pages';
             btn.disabled = false;
         }
     }
