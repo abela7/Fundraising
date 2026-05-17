@@ -376,7 +376,7 @@ if (isset($_SESSION['success_message'])) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>New Registration - Registrar Panel</title>
+    <title>አዲስ ምዝገባ - Registrar Panel</title>
     <link rel="icon" type="image/svg+xml" href="../assets/favicon.svg">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -425,27 +425,27 @@ if (isset($_SESSION['success_message'])) {
                         <div class="form-section">
                             <h3 class="form-section-title">
                                 <i class="fas fa-user"></i>
-                                Donor Information
+                                የለጋሽ መረጃ
                             </h3>
                             
                             <div class="mb-3">
-                                <label for="name" class="form-label">Full Name</label>
+                                <label for="name" class="form-label">ሙሉ ስም</label>
                                 <input type="text" class="form-control" id="name" name="name" required
-                                       placeholder="Enter full name" value="<?php echo htmlspecialchars($_POST['name'] ?? ''); ?>">
+                                       placeholder="ሙሉ ስም ያስገቡ" value="<?php echo htmlspecialchars($_POST['name'] ?? ''); ?>">
                             </div>
                             
                             <div class="mb-3">
-                                <label for="phone" class="form-label">Phone Number</label>
+                                <label for="phone" class="form-label">ስልክ ቁጥር</label>
                                 <input type="tel" class="form-control" id="phone" name="phone" required
-                                       placeholder="Enter phone number" value="<?php echo htmlspecialchars($_POST['phone'] ?? ''); ?>">
+                                       placeholder="ስልክ ቁጥር ያስገቡ" value="<?php echo htmlspecialchars($_POST['phone'] ?? ''); ?>">
                             </div>
                             
                             <div class="mb-3">
-                                <label for="notes" class="form-label">Tombola Number<span class="text-danger">*</span></label>
+                                <label for="notes" class="form-label">የዕጣ ቁጥር<span class="text-danger">*</span></label>
                                 <input type="number" class="form-control" id="notes" name="notes" required
                                        min="0" max="9999" step="1" inputmode="numeric"
                                        oninput="this.value=this.value.replace(/[^0-9]/g,'').slice(0,4)"
-                                       placeholder="Enter 4-digit tombola number"
+                                       placeholder="ባለ 4 አሃዝ ቁጥር ያስገቡ"
                                        value="<?php echo htmlspecialchars($_POST['notes'] ?? $nextCode); ?>" readonly>
                             </div>
                             
@@ -454,7 +454,7 @@ if (isset($_SESSION['success_message'])) {
                                        <?php echo isset($_POST['anonymous']) ? 'checked' : ''; ?>>
                                 <label class="form-check-label" for="anonymous">
                                     <i class="fas fa-user-secret me-1"></i>
-                                    Make this donation anonymous
+                                    ስም እንዳይገለጽ አድርግ
                                 </label>
                             </div>
                             
@@ -463,7 +463,7 @@ if (isset($_SESSION['success_message'])) {
                                        value="1">
                                 <label class="form-check-label" for="additional_donation">
                                     <i class="fas fa-plus-circle me-1"></i>
-                                    This donor wants to make another donation
+                                    ይህ ለጋሽ ተጨማሪ ልገሳ ማድረግ ይፈልጋል
                                 </label>
                             </div>
                         </div>
@@ -472,41 +472,41 @@ if (isset($_SESSION['success_message'])) {
                         <div class="form-section">
                             <h3 class="form-section-title">
                                 <i class="fas fa-pound-sign"></i>
-                                Select Amount
+                                መጠን ይምረጡ
                             </h3>
                             
                             <div class="quick-amounts">
                                 <label class="quick-amount-btn" data-pack="1">
                                     <input type="radio" name="pack" value="1" class="d-none">
                                     <span class="quick-amount-value"><?php echo $currency; ?> <?php echo isset($pkgOne) ? number_format((float)$pkgOne['price'], 0) : 'N/A'; ?></span>
-                                    <span class="quick-amount-label">1 Square Meter</span>
+                                    <span class="quick-amount-label">1 ካሬ ሜትር</span>
                                     <i class="fas fa-check-circle checkmark"></i>
                                 </label>
                                 
                                 <label class="quick-amount-btn" data-pack="0.5">
                                     <input type="radio" name="pack" value="0.5" class="d-none">
                                     <span class="quick-amount-value"><?php echo $currency; ?> <?php echo isset($pkgHalf) ? number_format((float)$pkgHalf['price'], 0) : 'N/A'; ?></span>
-                                    <span class="quick-amount-label">½ Square Meter</span>
+                                    <span class="quick-amount-label">½ ካሬ ሜትር</span>
                                     <i class="fas fa-check-circle checkmark"></i>
                                 </label>
                                 
                                 <label class="quick-amount-btn" data-pack="0.25">
                                     <input type="radio" name="pack" value="0.25" class="d-none">
                                     <span class="quick-amount-value"><?php echo $currency; ?> <?php echo isset($pkgQuarter) ? number_format((float)$pkgQuarter['price'], 0) : 'N/A'; ?></span>
-                                    <span class="quick-amount-label">¼ Square Meter</span>
+                                    <span class="quick-amount-label">¼ ካሬ ሜትር</span>
                                     <i class="fas fa-check-circle checkmark"></i>
                                 </label>
                                 
                                 <label class="quick-amount-btn" data-pack="custom">
                                     <input type="radio" name="pack" value="custom" class="d-none">
-                                    <span class="quick-amount-value">Custom</span>
-                                    <span class="quick-amount-label">Enter Amount</span>
+                                    <span class="quick-amount-value">በራስዎ</span>
+                                    <span class="quick-amount-label">መጠን ያስገቡ</span>
                                     <i class="fas fa-check-circle checkmark"></i>
                                 </label>
                             </div>
                             
                             <div class="mb-3 d-none" id="customAmountDiv">
-                                <label for="custom_amount" class="form-label">Custom Amount</label>
+                                <label for="custom_amount" class="form-label">የራስዎ መጠን</label>
                                 <div class="input-group">
                                     <span class="input-group-text"><?php echo $currency; ?></span>
                                     <input type="number" class="form-control" id="custom_amount" name="custom_amount" 
@@ -519,20 +519,20 @@ if (isset($_SESSION['success_message'])) {
                         <div class="form-section half">
                             <h3 class="form-section-title">
                                 <i class="fas fa-credit-card"></i>
-                                Payment Type
+                                የክፍያ ዓይነት
                             </h3>
                             <div class="segmented-control">
                                 <input class="form-check-input" type="radio" name="type" id="typePledge" 
                                        value="pledge" checked>
                                 <label class="form-check-label" for="typePledge">
                                     <i class="fas fa-handshake me-1"></i>
-                                    Promise to Pay Later
+                                    በኋላ እከፍላለሁ (ቃል ኪዳን)
                                 </label>
                                 
                                 <input class="form-check-input" type="radio" name="type" id="typePaid" value="paid">
                                 <label class="form-check-label" for="typePaid">
                                     <i class="fas fa-check-circle me-1"></i>
-                                    Paid Now
+                                    አሁን ተከፍሏል
                                 </label>
                             </div>
                         </div>
@@ -541,22 +541,22 @@ if (isset($_SESSION['success_message'])) {
                         <div class="form-section half d-none" id="paymentMethodDiv">
                             <h3 class="form-section-title">
                                 <i class="fas fa-wallet"></i>
-                                Payment Method
+                                የክፍያ ዘዴ
                             </h3>
                             
                             <select class="form-select" name="payment_method" id="payment_method">
-                                <option value="">Select method...</option>
-                                <option value="cash">Cash</option>
-                                <option value="card">Card</option>
-                                <option value="bank">Bank Transfer</option>
-                                <option value="other">Other</option>
+                                <option value="">ዘዴ ይምረጡ...</option>
+                                <option value="cash">ጥሬ ገንዘብ</option>
+                                <option value="card">ካርድ</option>
+                                <option value="bank">ባንክ ዝውውር</option>
+                                <option value="other">ሌላ</option>
                             </select>
                         </div>
                         
                         <!-- Submit Button -->
                         <button type="submit" class="btn btn-submit">
                             <i class="fas fa-save"></i>
-                            Register Donation
+                            ልገሳውን መዝግብ
                         </button>
                     </form>
                 </div>
@@ -572,25 +572,25 @@ if (isset($_SESSION['success_message'])) {
             <div class="modal-content">
                 <div class="modal-header bg-warning bg-opacity-10 border-bottom-warning">
                     <h5 class="modal-title" id="repeatDonorModalLabel">
-                        <i class="fas fa-user-circle me-2 text-warning"></i>Returning Donor Detected
+                        <i class="fas fa-user-circle me-2 text-warning"></i>የነበረ ለጋሽ ተገኝቷል
                     </h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
                     <div id="donorInfo" class="mb-3">
-                        <p class="mb-2"><strong>Donor Name:</strong> <span id="modalDonorName">-</span></p>
-                        <p class="mb-3"><strong>Phone:</strong> <span id="modalDonorPhone">-</span></p>
+                        <p class="mb-2"><strong>የለጋሽ ስም:</strong> <span id="modalDonorName">-</span></p>
+                        <p class="mb-3"><strong>ስልክ:</strong> <span id="modalDonorPhone">-</span></p>
                     </div>
                     
-                    <h6 class="mb-3 border-bottom pb-2">Previous Donations</h6>
+                    <h6 class="mb-3 border-bottom pb-2">ያለፉት ልገሳዎች</h6>
                     <div id="previousDonationsContainer" class="mb-3" style="max-height: 250px; overflow-y: auto;">
                         <table class="table table-sm table-hover">
                             <thead class="table-light">
                                 <tr>
-                                    <th>Type</th>
-                                    <th>Amount</th>
-                                    <th>Status</th>
-                                    <th>Date</th>
+                                    <th>ዓይነት</th>
+                                    <th>መጠን</th>
+                                    <th>ሁኔታ</th>
+                                    <th>ቀን</th>
                                 </tr>
                             </thead>
                             <tbody id="donationsTableBody">
@@ -601,13 +601,13 @@ if (isset($_SESSION['success_message'])) {
                     
                     <div class="alert alert-info" role="alert">
                         <i class="fas fa-info-circle me-2"></i>
-                        <strong>To continue:</strong> Check the "This donor wants to make another donation" checkbox below the anonymous option to proceed.
+                        <strong>ለመቀጠል:</strong> ከስም-አልባ አማራጭ ስር ያለውን "ይህ ለጋሽ ተጨማሪ ልገሳ ማድረግ ይፈልጋል" የሚለውን ሳጥን ምልክት ያድርጉ::
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">ዝጋ</button>
                     <button type="button" class="btn btn-warning" data-bs-dismiss="modal">
-                        <i class="fas fa-check me-1"></i>Got it
+                        <i class="fas fa-check me-1"></i>ገባኝ
                     </button>
                 </div>
             </div>
@@ -655,8 +655,8 @@ if (isset($_SESSION['success_message'])) {
         const isAnon = anonEl.checked;
         nameField.required = !isAnon;
         phoneField.required = !isAnon;
-        nameField.placeholder = isAnon ? 'Anonymous' : 'Enter full name';
-        phoneField.placeholder = isAnon ? 'Anonymous' : 'Enter phone number';
+        nameField.placeholder = isAnon ? 'ስም አልባ' : 'ሙሉ ስም ያስገቡ';
+        phoneField.placeholder = isAnon ? 'ስም አልባ' : 'ስልክ ቁጥር ያስገቡ';
         if (isAnon) {
             nameField.classList.remove('is-valid', 'is-invalid');
             phoneField.classList.remove('is-valid', 'is-invalid');
