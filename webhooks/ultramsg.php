@@ -419,13 +419,26 @@ function handleIncomingMessage($db, array $messageData, string $rawPayload): voi
     // Update conversation
     $preview = $body ?: ($caption ?: getTypePreview(mapMessageType($type)));
     updateConversationLastMessage($db, $conversationId, $preview);
+
+    // WhatsApp PAY command flow (authorized admin/registrar only)
+    $commandHandled = false;
+    if (is_string($body) && trim($body) !== '') {
+        try {
+            require_once __DIR__ . '/../shared/WhatsAppPaymentCommandHandler.php';
+            $payHandler = new WhatsAppPaymentCommandHandler($db);
+            $commandHandled = $payHandler->handleIncoming($normalizedPhone, (string)$body, $conversationId);
+        } catch (Throwable $cmdError) {
+            error_log('WhatsApp PAY command handler error: ' . $cmdError->getMessage());
+        }
+    }
     
     echo json_encode([
         'status' => 'ok',
-        'message' => 'Message received',
+        'message' => $commandHandled ? 'PAY command handled' : 'Message received',
         'conversation_id' => $conversationId,
         'message_id' => $messageDbId,
-        'donor_id' => $donor['id'] ?? null
+        'donor_id' => $donor['id'] ?? null,
+        'pay_command' => $commandHandled
     ]);
 }
 
