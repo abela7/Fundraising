@@ -46,88 +46,195 @@ if ($search || $selected_donor_id) {
         }
     } elseif ($search) {
         try {
-            // Search by donor details OR pledge notes (reference number) OR payment references
-            $term = "%$search%";
-            
-            // Get donor IDs from pledges with matching notes
-            $pledge_donors_sql = "
-                SELECT DISTINCT donor_id FROM pledges WHERE notes LIKE ?
-                UNION
-                SELECT DISTINCT donor_id FROM pledge_payments WHERE reference_number LIKE ?
-            ";
-            $stmt = $db->prepare($pledge_donors_sql);
-            $stmt->bind_param('ss', $term, $term);
-            $stmt->execute();
+            $searchTrimmed = trim($search);
+            $digitsOnly = preg_replace('/\D+/', '', $searchTrimmed);
+            // Exactly 4 digits => reference only (avoid phone partial matches like 0786)
+            $isReferenceSearch = (bool)preg_match('/^\d{4}$/', $searchTrimmed);
+            // More than 4 digits => phone-focused search
+            $isPhoneSearch = !$isReferenceSearch && strlen($digitsOnly) > 4;
+
+            $term = '%' . $searchTrimmed . '%';
+            $phoneTerm = '%' . $digitsOnly . '%';
             $pledge_donor_ids = [];
-            $res = $stmt->get_result();
-            while ($row = $res->fetch_assoc()) {
-                if ($row['donor_id']) {
-                    $pledge_donor_ids[] = (int)$row['donor_id'];
-                }
-            }
-            
-            // Get donor IDs from immediate payments (payments table)
-            $payment_donors_sql = "
-                SELECT DISTINCT donor_id FROM payments 
-                WHERE (reference LIKE ? OR donor_name LIKE ? OR donor_phone LIKE ?)
-                AND donor_id IS NOT NULL
-            ";
-            $stmt = $db->prepare($payment_donors_sql);
-            $stmt->bind_param('sss', $term, $term, $term);
-            $stmt->execute();
             $payment_donor_ids = [];
-            $res = $stmt->get_result();
-            while ($row = $res->fetch_assoc()) {
-                if ($row['donor_id']) {
-                    $payment_donor_ids[] = (int)$row['donor_id'];
+
+            if ($isReferenceSearch) {
+                // Reference only: exact 4-digit match on pledge notes / payment references
+                $ref = $searchTrimmed;
+                $pledge_donors_sql = "
+                    SELECT DISTINCT donor_id FROM pledges WHERE notes = ?
+                    UNION
+                    SELECT DISTINCT donor_id FROM pledge_payments WHERE reference_number = ?
+                ";
+                $stmt = $db->prepare($pledge_donors_sql);
+                $stmt->bind_param('ss', $ref, $ref);
+                $stmt->execute();
+                $res = $stmt->get_result();
+                while ($row = $res->fetch_assoc()) {
+                    if ($row['donor_id']) {
+                        $pledge_donor_ids[] = (int)$row['donor_id'];
+                    }
                 }
-            }
-            
-            // Combine all donor IDs
-            $all_donor_ids = array_unique(array_merge($pledge_donor_ids, $payment_donor_ids));
-            
-            // Build donor query
-            $donor_sql = "SELECT DISTINCT d.id, d.name, d.phone, d.email, d.balance, d.total_paid, d.total_pledged FROM donors d WHERE ";
-            
-            if (!empty($all_donor_ids)) {
-                // Search by name/phone/email OR pledge/payment reference
-                $placeholders = implode(',', array_fill(0, count($all_donor_ids), '?'));
-                $donor_sql .= "(d.name LIKE ? OR d.phone LIKE ? OR d.email LIKE ? OR d.id IN ($placeholders))";
-                
-                $types = 'sss' . str_repeat('i', count($all_donor_ids));
-                $params = array_merge([$term, $term, $term], $all_donor_ids);
+
+                $payment_donors_sql = "
+                    SELECT DISTINCT donor_id FROM payments
+                    WHERE reference = ? AND donor_id IS NOT NULL
+                ";
+                $stmt = $db->prepare($payment_donors_sql);
+                $stmt->bind_param('s', $ref);
+                $stmt->execute();
+                $res = $stmt->get_result();
+                while ($row = $res->fetch_assoc()) {
+                    if ($row['donor_id']) {
+                        $payment_donor_ids[] = (int)$row['donor_id'];
+                    }
+                }
+
+                $all_donor_ids = array_unique(array_merge($pledge_donor_ids, $payment_donor_ids));
+                if (!empty($all_donor_ids)) {
+                    $placeholders = implode(',', array_fill(0, count($all_donor_ids), '?'));
+                    $donor_sql = "SELECT DISTINCT d.id, d.name, d.phone, d.email, d.balance, d.total_paid, d.total_pledged
+                                  FROM donors d WHERE d.id IN ($placeholders) LIMIT 20";
+                    $stmt = $db->prepare($donor_sql);
+                    $types = str_repeat('i', count($all_donor_ids));
+                    $params = $all_donor_ids;
+                } else {
+                    $stmt = null;
+                    $params = [];
+                    $types = '';
+                }
+            } elseif ($isPhoneSearch) {
+                // Phone search: match donors by phone; also find via payment/pledge phone fields
+                $pledge_donors_sql = "
+                    SELECT DISTINCT donor_id FROM pledges WHERE donor_phone LIKE ?
+                    UNION
+                    SELECT DISTINCT donor_id FROM pledge_payments pp
+                    INNER JOIN donors d ON d.id = pp.donor_id
+                    WHERE d.phone LIKE ?
+                ";
+                $stmt = $db->prepare($pledge_donors_sql);
+                $stmt->bind_param('ss', $phoneTerm, $phoneTerm);
+                $stmt->execute();
+                $res = $stmt->get_result();
+                while ($row = $res->fetch_assoc()) {
+                    if ($row['donor_id']) {
+                        $pledge_donor_ids[] = (int)$row['donor_id'];
+                    }
+                }
+
+                $payment_donors_sql = "
+                    SELECT DISTINCT donor_id FROM payments
+                    WHERE donor_phone LIKE ? AND donor_id IS NOT NULL
+                ";
+                $stmt = $db->prepare($payment_donors_sql);
+                $stmt->bind_param('s', $phoneTerm);
+                $stmt->execute();
+                $res = $stmt->get_result();
+                while ($row = $res->fetch_assoc()) {
+                    if ($row['donor_id']) {
+                        $payment_donor_ids[] = (int)$row['donor_id'];
+                    }
+                }
+
+                $all_donor_ids = array_unique(array_merge($pledge_donor_ids, $payment_donor_ids));
+                $donor_sql = "SELECT DISTINCT d.id, d.name, d.phone, d.email, d.balance, d.total_paid, d.total_pledged
+                              FROM donors d WHERE d.phone LIKE ?";
+                $types = 's';
+                $params = [$phoneTerm];
+
+                if (!empty($all_donor_ids)) {
+                    $placeholders = implode(',', array_fill(0, count($all_donor_ids), '?'));
+                    $donor_sql .= " OR d.id IN ($placeholders)";
+                    $types .= str_repeat('i', count($all_donor_ids));
+                    $params = array_merge($params, $all_donor_ids);
+                }
+                $donor_sql .= " LIMIT 20";
+                $stmt = $db->prepare($donor_sql);
             } else {
-                // Only search by name/phone/email
-                $donor_sql .= "(d.name LIKE ? OR d.phone LIKE ? OR d.email LIKE ?)";
-                $types = 'sss';
-                $params = [$term, $term, $term];
+                // General search: name / phone / email / reference
+                $pledge_donors_sql = "
+                    SELECT DISTINCT donor_id FROM pledges WHERE notes LIKE ?
+                    UNION
+                    SELECT DISTINCT donor_id FROM pledge_payments WHERE reference_number LIKE ?
+                ";
+                $stmt = $db->prepare($pledge_donors_sql);
+                $stmt->bind_param('ss', $term, $term);
+                $stmt->execute();
+                $res = $stmt->get_result();
+                while ($row = $res->fetch_assoc()) {
+                    if ($row['donor_id']) {
+                        $pledge_donor_ids[] = (int)$row['donor_id'];
+                    }
+                }
+
+                $payment_donors_sql = "
+                    SELECT DISTINCT donor_id FROM payments
+                    WHERE (reference LIKE ? OR donor_name LIKE ? OR donor_phone LIKE ?)
+                    AND donor_id IS NOT NULL
+                ";
+                $stmt = $db->prepare($payment_donors_sql);
+                $stmt->bind_param('sss', $term, $term, $term);
+                $stmt->execute();
+                $res = $stmt->get_result();
+                while ($row = $res->fetch_assoc()) {
+                    if ($row['donor_id']) {
+                        $payment_donor_ids[] = (int)$row['donor_id'];
+                    }
+                }
+
+                $all_donor_ids = array_unique(array_merge($pledge_donor_ids, $payment_donor_ids));
+                $donor_sql = "SELECT DISTINCT d.id, d.name, d.phone, d.email, d.balance, d.total_paid, d.total_pledged FROM donors d WHERE ";
+
+                if (!empty($all_donor_ids)) {
+                    $placeholders = implode(',', array_fill(0, count($all_donor_ids), '?'));
+                    $donor_sql .= "(d.name LIKE ? OR d.phone LIKE ? OR d.email LIKE ? OR d.id IN ($placeholders))";
+                    $types = 'sss' . str_repeat('i', count($all_donor_ids));
+                    $params = array_merge([$term, $term, $term], $all_donor_ids);
+                } else {
+                    $donor_sql .= "(d.name LIKE ? OR d.phone LIKE ? OR d.email LIKE ?)";
+                    $types = 'sss';
+                    $params = [$term, $term, $term];
+                }
+                $donor_sql .= " LIMIT 20";
+                $stmt = $db->prepare($donor_sql);
             }
-            
-            $donor_sql .= " LIMIT 20";
-            $stmt = $db->prepare($donor_sql);
-            
-            // PHP 8.0 compatible binding
-            $bind_params = [$types];
-            $refs = [];
-            foreach ($params as $key => $value) {
-                $refs[$key] = $value;
-                $bind_params[] = &$refs[$key];
-            }
-            call_user_func_array([$stmt, 'bind_param'], $bind_params);
-            
-            $stmt->execute();
-            $res = $stmt->get_result();
-            while ($row = $res->fetch_assoc()) {
-                // Check if donor has pledges or only immediate payments
-                $donor_id = (int)$row['id'];
-                $has_pledges = in_array($donor_id, $pledge_donor_ids);
-                $has_payments = in_array($donor_id, $payment_donor_ids);
-                
-                // Add payment status flag
-                $row['has_pledges'] = $has_pledges;
-                $row['has_immediate_payments'] = $has_payments && !$has_pledges;
-                
-                $donors[] = $row;
+
+            if ($stmt !== null && $types !== '') {
+                // PHP 8.0 compatible binding
+                $bind_params = [$types];
+                $refs = [];
+                foreach ($params as $key => $value) {
+                    $refs[$key] = $value;
+                    $bind_params[] = &$refs[$key];
+                }
+                call_user_func_array([$stmt, 'bind_param'], $bind_params);
+
+                $stmt->execute();
+                $res = $stmt->get_result();
+                while ($row = $res->fetch_assoc()) {
+                    $donor_id = (int)$row['id'];
+                    $has_pledges = in_array($donor_id, $pledge_donor_ids, true);
+                    $has_payments = in_array($donor_id, $payment_donor_ids, true);
+
+                    // For reference-only search, donor matched via reference IDs
+                    if ($isReferenceSearch) {
+                        $has_pledges = in_array($donor_id, $pledge_donor_ids, true);
+                        $has_payments = in_array($donor_id, $payment_donor_ids, true);
+                    } elseif ($isPhoneSearch && !$has_pledges) {
+                        // Confirm pledges exist for phone-matched donors
+                        $check_pledges = $db->prepare("SELECT COUNT(*) as count FROM pledges WHERE donor_id = ?");
+                        $check_pledges->bind_param('i', $donor_id);
+                        $check_pledges->execute();
+                        $pledge_result = $check_pledges->get_result()->fetch_assoc();
+                        $has_pledges = ((int)($pledge_result['count'] ?? 0)) > 0;
+                        $check_pledges->close();
+                    }
+
+                    $row['has_pledges'] = $has_pledges;
+                    $row['has_immediate_payments'] = $has_payments && !$has_pledges;
+
+                    $donors[] = $row;
+                }
             }
         } catch (Exception $e) {
             // Silently fail or log error, but don't crash page
@@ -540,14 +647,14 @@ if ($search || $selected_donor_id) {
                                 <form method="GET" class="mb-3">
                                     <div class="input-group">
                                         <input type="text" name="search" class="form-control" 
-                                               placeholder="Search name, phone, or reference..." 
+                                               placeholder="4-digit reference, phone, or name..." 
                                                value="<?php echo htmlspecialchars($search); ?>">
                                         <button class="btn btn-primary" type="submit">
                                             <i class="fas fa-search"></i>
                                         </button>
                                     </div>
                                     <small class="text-muted d-block mt-2">
-                                        <i class="fas fa-info-circle me-1"></i>Search by donor info or pledge reference
+                                        <i class="fas fa-info-circle me-1"></i>4 digits = reference only; longer digits = phone search
                                     </small>
                                 </form>
                                 
