@@ -186,7 +186,7 @@ if ($ores) {
 }
 
 $templates = [];
-$tres = $db->query("SELECT * FROM whatsapp_pay_message_templates ORDER BY label ASC");
+$tres = $db->query("SELECT * FROM whatsapp_pay_message_templates WHERE template_key NOT LIKE '\\_%' ORDER BY label ASC");
 if ($tres) {
     while ($row = $tres->fetch_assoc()) {
         $templates[] = $row;

@@ -63,7 +63,9 @@ class WhatsAppPaymentCommandHandler
             $this->cancelSession((int)$pending['id']);
             $this->reply(
                 $fromPhone,
-                $this->renderTemplate('cancelled', []),
+                $this->renderTemplate('cancelled', [
+                    'hint' => 'እባክዎ መከታተያ ቁጥሩን እንደገና ይላኩ። ምሳሌ: PAY 0335 50',
+                ]),
                 $conversationId,
                 (int)$operator['id']
             );
@@ -212,6 +214,11 @@ class WhatsAppPaymentCommandHandler
 
         $this->cancelOpenSessions($this->normalizePhoneDigits($fromPhone));
 
+        $totalPledged = (float)($donor['total_pledged'] ?? 0);
+        $totalPaid = (float)($donor['total_paid'] ?? 0);
+        $remaining = (float)($donor['balance'] ?? max(0, $totalPledged - $totalPaid));
+        $paymentHistory = $this->buildPaymentHistoryText((int)$donor['id']);
+
         $payload = [
             'donor_id' => (int)$donor['id'],
             'donor_name' => (string)$donor['name'],
@@ -221,9 +228,10 @@ class WhatsAppPaymentCommandHandler
             'amount' => $parsed['amount'],
             'method' => $parsed['method'],
             'payment_date' => $parsed['payment_date'],
-            'balance' => (float)($donor['balance'] ?? 0),
-            'total_paid' => (float)($donor['total_paid'] ?? 0),
-            'total_pledged' => (float)($donor['total_pledged'] ?? 0),
+            'balance' => $remaining,
+            'total_paid' => $totalPaid,
+            'total_pledged' => $totalPledged,
+            'payment_history' => $paymentHistory,
         ];
 
         $expiresAt = date('Y-m-d H:i:s', time() + (self::SESSION_TTL_MINUTES * 60));
@@ -249,12 +257,74 @@ class WhatsAppPaymentCommandHandler
             'amount' => number_format((float)$payload['amount'], 2),
             'method' => $payload['method'],
             'payment_date' => $payload['payment_date'],
-            'balance' => number_format((float)$payload['balance'], 2),
+            'balance' => number_format($remaining, 2),
+            'remaining' => number_format($remaining, 2),
+            'total_pledged' => number_format($totalPledged, 2),
+            'total_paid' => number_format($totalPaid, 2),
+            'payment_history' => $paymentHistory,
             'expires_minutes' => (string)self::SESSION_TTL_MINUTES,
         ]);
 
         $this->reply($fromPhone, $msg, $conversationId, $operatorId);
         return true;
+    }
+
+    /**
+     * Build Amharic payment history lines for a donor.
+     */
+    private function buildPaymentHistoryText(int $donorId): string
+    {
+        $lines = [];
+
+        $stmt = $this->db->prepare("
+            SELECT payment_date, amount, status
+            FROM pledge_payments
+            WHERE donor_id = ? AND status = 'confirmed'
+            ORDER BY payment_date DESC, id DESC
+            LIMIT 12
+        ");
+        if ($stmt) {
+            $stmt->bind_param('i', $donorId);
+            $stmt->execute();
+            $res = $stmt->get_result();
+            while ($row = $res->fetch_assoc()) {
+                $dateRaw = (string)($row['payment_date'] ?? '');
+                $dateLabel = $dateRaw !== '' ? date('d/m/Y', strtotime($dateRaw)) : '—';
+                $amount = number_format((float)($row['amount'] ?? 0), 2);
+                $lines[] = "በቀን {$dateLabel} - £{$amount}";
+            }
+            $stmt->close();
+        }
+
+        // Also include approved immediate payments if any
+        $stmt2 = $this->db->prepare("
+            SELECT COALESCE(DATE(received_at), DATE(created_at)) AS payment_date, amount
+            FROM payments
+            WHERE donor_id = ? AND status = 'approved'
+            ORDER BY COALESCE(received_at, created_at) DESC, id DESC
+            LIMIT 8
+        ");
+        if ($stmt2) {
+            $stmt2->bind_param('i', $donorId);
+            $stmt2->execute();
+            $res2 = $stmt2->get_result();
+            while ($row = $res2->fetch_assoc()) {
+                $dateRaw = (string)($row['payment_date'] ?? '');
+                $dateLabel = $dateRaw !== '' ? date('d/m/Y', strtotime($dateRaw)) : '—';
+                $amount = number_format((float)($row['amount'] ?? 0), 2);
+                $line = "በቀን {$dateLabel} - £{$amount}";
+                if (!in_array($line, $lines, true)) {
+                    $lines[] = $line;
+                }
+            }
+            $stmt2->close();
+        }
+
+        if (empty($lines)) {
+            return 'ምንም የክፍያ ታሪክ የለም።';
+        }
+
+        return implode("\n", $lines);
     }
 
     /**
@@ -608,6 +678,10 @@ class WhatsAppPaymentCommandHandler
             'method' => (string)($payload['method'] ?? 'cash'),
             'payment_date' => (string)($payload['payment_date'] ?? date('Y-m-d')),
             'balance' => number_format((float)($payload['balance'] ?? 0), 2),
+            'remaining' => number_format((float)($payload['balance'] ?? 0), 2),
+            'total_pledged' => number_format((float)($payload['total_pledged'] ?? 0), 2),
+            'total_paid' => number_format((float)($payload['total_paid'] ?? 0), 2),
+            'payment_history' => (string)($payload['payment_history'] ?? $this->buildPaymentHistoryText((int)($payload['donor_id'] ?? 0))),
         ]);
     }
 
@@ -737,27 +811,27 @@ class WhatsAppPaymentCommandHandler
             ],
             'confirm_request' => [
                 'label' => 'Confirm Request (message 2)',
-                'description' => 'Ask staff to confirm before recording payment',
-                'placeholders' => '{preview} {donor_name} {donor_phone} {reference} {amount} {method} {payment_date} {balance} {expires_minutes}',
-                'body' => "✅ ለጋሽ ተገኝቷል። እባክዎ ያረጋግጡ:\n\n{preview}\n\n*አዎ* ይበሉ ክፍያውን ለመመዝገብና ለማጽደቅ\n*አይ* ይበሉ ለመሰረዝ\n(በ{expires_minutes} ደቂቃ ውስጥ ይጠፋል)",
+                'description' => 'Ask if this is the correct donor before recording payment',
+                'placeholders' => '{preview} {donor_name} {total_pledged} {remaining} {payment_history} {amount} {reference}',
+                'body' => "{preview}\n\nአዲስ ክፍያ: £{amount} (መከታተያ {reference})\n\nይህ ትክክለኛው ሰው ነው? ከሆነ Yes ብለው ይላኩ ካልሆነ No.",
             ],
             'preview_block' => [
                 'label' => 'Preview Block',
-                'description' => 'Donor/payment details block used inside confirm messages',
-                'placeholders' => '{donor_name} {donor_phone} {reference} {amount} {method} {payment_date} {balance}',
-                'body' => "👤 {donor_name}\n📞 {donor_phone}\n🔖 መከታተያ: {reference}\n💷 መጠን: £{amount}\n📅 ቀን: {payment_date}\n💳 ዘዴ: {method}\n📊 አሁን ያለ ቀሪ: £{balance}",
+                'description' => 'Donor identity + pledge + remaining + payment history',
+                'placeholders' => '{donor_name} {total_pledged} {remaining} {payment_history}',
+                'body' => "ስም - {donor_name}\nቃል የገቡት - £{total_pledged}\nቀሪ ክፍያ - £{remaining}\n\nየክፍያ ታሪክ\n{payment_history}",
             ],
             'pending_reminder' => [
                 'label' => 'Pending Reminder',
                 'description' => 'Reminder when a confirmation is still waiting',
-                'placeholders' => '{preview} {expires_minutes}',
-                'body' => "⏳ ገና ያልተረጋገጠ ክፍያ አለዎት።\n*አዎ* ይበሉ ለማረጋገጥ ወይም *አይ* ለመሰረዝ።\n\n{preview}",
+                'placeholders' => '{preview}',
+                'body' => "⏳ ገና ማረጋገጫ እየጠበቁ ነው።\n\n{preview}\n\nይህ ትክክለኛው ሰው ነው? ከሆነ Yes ብለው ይላኩ ካልሆነ No.",
             ],
             'cancelled' => [
-                'label' => 'Cancelled',
-                'description' => 'Sent after NO/cancel',
-                'placeholders' => '',
-                'body' => "❌ ተሰርዟል። ምንም ክፍያ አልተመዘገበም።\n\nእንደገና ለመጀመር: PAY 0335 50",
+                'label' => 'Cancelled / Wrong Person',
+                'description' => 'Sent after NO — ask them to send reference again',
+                'placeholders' => '{hint}',
+                'body' => "❌ ትክክለኛው ሰው አይደለም።\n\nእባክዎ መከታተያ ቁጥሩን እንደገና ይላኩ።\nምሳሌ: PAY 0335 50",
             ],
             'success' => [
                 'label' => 'Success (message 4)',
@@ -806,18 +880,64 @@ class WhatsAppPaymentCommandHandler
                 (template_key, label, description, placeholders_help, body, updated_at)
             VALUES (?, ?, ?, ?, ?, NOW())
         ");
-        if (!$stmt) {
-            return;
+        if ($stmt) {
+            foreach ($defaults as $key => $tpl) {
+                $label = $tpl['label'];
+                $desc = $tpl['description'];
+                $ph = $tpl['placeholders'];
+                $body = $tpl['body'];
+                $stmt->bind_param('sssss', $key, $label, $desc, $ph, $body);
+                $stmt->execute();
+            }
+            $stmt->close();
         }
-        foreach ($defaults as $key => $tpl) {
-            $label = $tpl['label'];
-            $desc = $tpl['description'];
-            $ph = $tpl['placeholders'];
-            $body = $tpl['body'];
-            $stmt->bind_param('sssss', $key, $label, $desc, $ph, $body);
-            $stmt->execute();
+
+        // One-time upgrade of identity-confirm flow templates (versioned)
+        $flowVersion = 2;
+        $currentVersion = 0;
+        $verRes = $this->db->query("SELECT body FROM whatsapp_pay_message_templates WHERE template_key = '_flow_version' LIMIT 1");
+        if ($verRes && ($verRow = $verRes->fetch_assoc())) {
+            $currentVersion = (int)$verRow['body'];
+        } else {
+            $this->db->query("
+                INSERT IGNORE INTO whatsapp_pay_message_templates
+                    (template_key, label, description, placeholders_help, body, updated_at)
+                VALUES ('_flow_version', 'Internal', 'Flow template version marker', '', '0', NOW())
+            ");
         }
-        $stmt->close();
+
+        if ($currentVersion < $flowVersion) {
+            $flowKeys = ['confirm_request', 'preview_block', 'pending_reminder', 'cancelled'];
+            $upd = $this->db->prepare("
+                UPDATE whatsapp_pay_message_templates
+                SET body = ?, label = ?, description = ?, placeholders_help = ?, updated_at = NOW()
+                WHERE template_key = ?
+            ");
+            if ($upd) {
+                foreach ($flowKeys as $key) {
+                    if (!isset($defaults[$key])) {
+                        continue;
+                    }
+                    $tpl = $defaults[$key];
+                    $body = $tpl['body'];
+                    $label = $tpl['label'];
+                    $desc = $tpl['description'];
+                    $ph = $tpl['placeholders'];
+                    $upd->bind_param('sssss', $body, $label, $desc, $ph, $key);
+                    $upd->execute();
+                }
+                $upd->close();
+            }
+
+            $ver = (string)$flowVersion;
+            $verKey = '_flow_version';
+            $setVer = $this->db->prepare("UPDATE whatsapp_pay_message_templates SET body = ?, updated_at = NOW() WHERE template_key = ?");
+            if ($setVer) {
+                $setVer->bind_param('ss', $ver, $verKey);
+                $setVer->execute();
+                $setVer->close();
+            }
+        }
     }
 
     private function ensureTables(): void
