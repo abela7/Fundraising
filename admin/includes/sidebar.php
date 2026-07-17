@@ -285,6 +285,13 @@ try {
         </span>
         <span class="nav-label">Record Payment</span>
       </a>
+      <a href="<?php echo url_for('admin/donations/whatsapp-pay-setup.php'); ?>"
+         class="nav-link <?php echo ($current_dir === 'donations' && $current_page === 'whatsapp-pay-setup') ? 'active' : ''; ?>">
+        <span class="nav-icon">
+          <i class="fab fa-whatsapp" style="color: #25D366;"></i>
+        </span>
+        <span class="nav-label">WhatsApp PAY Setup</span>
+      </a>
       <a href="<?php echo url_for('admin/agent-reports/daily-payments.php'); ?>" 
          class="nav-link <?php echo $current_dir === 'agent-reports' ? 'active' : ''; ?>">
         <span class="nav-icon">
