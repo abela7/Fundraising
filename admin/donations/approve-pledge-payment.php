@@ -324,13 +324,19 @@ try {
             $isFullyPaid = $updatedTotalPledged > 0 && $updatedBalance <= 0;
             $sqmValue = round(max($updatedTotalPledged, $updatedTotalPaid) / 400, 2);
 
+            // Use the recorded payment_date from entry (record-pledge-payment), not approval day
+            $recordedPaymentDate = !empty($payment['payment_date'])
+                ? (string)$payment['payment_date']
+                : date('Y-m-d');
+            $formattedPaymentDate = date('l, j F Y', strtotime($recordedPaymentDate));
+
             $notificationData = [
                 'donor_id' => $donor_id,
                 'donor_name' => $payment['donor_name'] ?? 'Donor',
                 'donor_phone' => $payment['donor_phone'] ?? '',
                 'donor_language' => $payment['donor_language'] ?? 'en',
                 'payment_amount' => number_format((float)$payment['amount'], 2),
-                'payment_date' => date('l, j F Y'),
+                'payment_date' => $formattedPaymentDate,
                 'total_pledge' => number_format((float)($updatedDonor['pledge_amount'] ?? 0), 2),
                 'total_paid' => number_format($updatedTotalPaid, 2),
                 'outstanding_balance' => number_format($updatedBalance, 2),
