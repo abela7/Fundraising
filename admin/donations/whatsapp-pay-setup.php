@@ -207,13 +207,13 @@ if ($editId > 0) {
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <title><?php echo htmlspecialchars($page_title); ?></title>
     <link rel="icon" type="image/svg+xml" href="../../assets/favicon.svg">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-    <link rel="stylesheet" href="../assets/admin.css?v=<?php echo @filemtime(__DIR__ . '/../assets/admin.css'); ?>">
+    <link rel="stylesheet" href="../assets/admin.css">
     <style>
         .setup-card { border: 1px solid #e5e7eb; border-radius: 12px; background: #fff; overflow: hidden; }
         .setup-card .card-header {
@@ -232,19 +232,28 @@ if ($editId > 0) {
     </style>
 </head>
 <body>
-<div class="app-wrapper">
-    <?php include __DIR__ . '/../includes/sidebar.php'; ?>
-    <div class="app-content">
-        <?php include __DIR__ . '/../includes/topbar.php'; ?>
+<div class="admin-wrapper">
+    <?php include '../includes/sidebar.php'; ?>
+    <div class="admin-content">
+        <?php include '../includes/topbar.php'; ?>
         <main class="main-content">
-            <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
-                <div>
-                    <h1 class="h4 mb-1"><i class="fab fa-whatsapp text-success me-2"></i><?php echo htmlspecialchars($page_title); ?></h1>
-                    <p class="text-muted mb-0">Authorize WhatsApp numbers and edit Amharic bot replies for PAY commands.</p>
-                </div>
-                <div class="d-flex gap-2">
-                    <a href="record-pledge-payment.php" class="btn btn-outline-secondary btn-sm">Record Payment</a>
-                    <a href="review-pledge-payments.php" class="btn btn-outline-secondary btn-sm">Review Payments</a>
+            <div class="container-fluid p-2 p-md-4">
+            <div class="page-header">
+                <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                    <div>
+                        <h1>
+                            <i class="fab fa-whatsapp me-2"></i><?php echo htmlspecialchars($page_title); ?>
+                        </h1>
+                        <p class="text-muted mb-0 small">Authorize WhatsApp numbers and edit Amharic bot replies for PAY commands.</p>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <a href="record-pledge-payment.php" class="btn btn-light btn-sm">
+                            <i class="fas fa-plus me-1"></i><span class="d-none d-sm-inline">Record Payment</span>
+                        </a>
+                        <a href="review-pledge-payments.php" class="btn btn-light btn-sm">
+                            <i class="fas fa-receipt me-1"></i><span class="d-none d-sm-inline">Review Payments</span>
+                        </a>
+                    </div>
                 </div>
             </div>
 
@@ -438,10 +447,11 @@ if ($editId > 0) {
                     </div>
                 </div>
             </div>
+            </div>
         </main>
     </div>
 </div>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-<script src="../assets/admin.js?v=<?php echo @filemtime(__DIR__ . '/../assets/admin.js'); ?>"></script>
+<script src="../assets/admin.js"></script>
 </body>
 </html>
