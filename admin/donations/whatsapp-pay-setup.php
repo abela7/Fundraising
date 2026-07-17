@@ -211,11 +211,11 @@ if ($editId > 0) {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo htmlspecialchars($page_title); ?></title>
     <link rel="icon" type="image/svg+xml" href="../../assets/favicon.svg">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="../../assets/theme.css?v=<?php echo @filemtime(__DIR__ . '/../../assets/theme.css'); ?>">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="../assets/admin.css?v=<?php echo @filemtime(__DIR__ . '/../assets/admin.css'); ?>">
     <style>
-        .setup-card { border: 1px solid #e5e7eb; border-radius: 12px; background: #fff; }
+        .setup-card { border: 1px solid #e5e7eb; border-radius: 12px; background: #fff; overflow: hidden; }
         .setup-card .card-header {
             background: #f8fafc; border-bottom: 1px solid #e5e7eb;
             font-weight: 600; padding: 0.9rem 1.1rem;
@@ -227,8 +227,8 @@ if ($editId > 0) {
         }
         .ph-help { font-size: 0.8rem; color: #6b7280; }
         .phone-hint { font-size: 0.8rem; color: #6b7280; }
-        .badge-active { background: #10b981; }
-        .badge-inactive { background: #9ca3af; }
+        .badge-active { background: #10b981; color: #fff; }
+        .badge-inactive { background: #9ca3af; color: #fff; }
     </style>
 </head>
 <body>
@@ -433,7 +433,8 @@ if ($editId > 0) {
                         <strong>How to use:</strong><br>
                         1. Add the person’s WhatsApp number here (must match the phone they text from).<br>
                         2. Link them to a registrar/admin user.<br>
-                        3. From that WhatsApp send: <code>PAY 0335 50</code> then <code>አዎ</code> / <code>YES</code>.
+                        3. From that WhatsApp send: <code>PAY 0335</code> then the amount, or <code>PAY 0335 50</code> directly.<br>
+                        4. Confirm with <code>አዎ</code> / cancel with <code>አይደለም</code> or <code>ይቅር</code>.
                     </div>
                 </div>
             </div>
@@ -441,5 +442,6 @@ if ($editId > 0) {
     </div>
 </div>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="../assets/admin.js?v=<?php echo @filemtime(__DIR__ . '/../assets/admin.js'); ?>"></script>
 </body>
 </html>

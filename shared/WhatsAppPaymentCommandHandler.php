@@ -15,11 +15,14 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/FinancialCalculator.php';
 require_once __DIR__ . '/../services/UltraMsgService.php';
+require_once __DIR__ . '/../services/MessagingHelper.php';
 
 class WhatsAppPaymentCommandHandler
 {
     private const SESSION_TTL_MINUTES = 10;
     private const MAX_AMOUNT = 100000.0;
+    private const KESIS_BIRHANU_PHONE = '07473822244';
+    private const KESIS_BIRHANU_NAME = 'Kesis Birhanu';
 
     /** @var mysqli */
     private $db;
@@ -37,6 +40,10 @@ class WhatsAppPaymentCommandHandler
     /**
      * Process an inbound WhatsApp text from a possible registrar/admin.
      *
+     * Flows:
+     * - PAY 0335 50 → show donor → Yes/አይደለም → approve
+     * - PAY 0335 → show donor → ask amount or ይቅር → then Yes/አይደለም → approve
+     *
      * @return bool True if this message was handled as a PAY command flow
      */
     public function handleIncoming(string $fromPhone, string $body, int $conversationId = 0): bool
@@ -53,18 +60,64 @@ class WhatsAppPaymentCommandHandler
 
         $normalizedFrom = $this->normalizePhoneDigits($fromPhone);
         $pending = $this->getPendingSession($normalizedFrom);
+        $pendingStatus = (string)($pending['status'] ?? '');
 
-        if ($pending && $this->isConfirmMessage($body)) {
+        // Abort / leave flow (ይቅር) — works for amount or confirm stages
+        if ($pending && $this->isAbortMessage($body)) {
+            $this->cancelSession((int)$pending['id']);
+            $this->reply(
+                $fromPhone,
+                $this->renderTemplate('cancelled_abort', []),
+                $conversationId,
+                (int)$operator['id']
+            );
+            return true;
+        }
+
+        // Wrong person (አይደለም) during identity confirm
+        if ($pending && $pendingStatus === 'pending_confirm' && $this->isWrongPersonMessage($body)) {
+            $this->cancelSession((int)$pending['id']);
+            $this->reply(
+                $fromPhone,
+                $this->renderTemplate('cancelled', []),
+                $conversationId,
+                (int)$operator['id']
+            );
+            return true;
+        }
+
+        // Waiting for amount after PAY 0335
+        if ($pending && $pendingStatus === 'pending_amount') {
+            $amountOnly = $this->parseAmountOnly($body);
+            if ($amountOnly !== null) {
+                $this->promoteAmountSession($operator, $pending, $amountOnly, $fromPhone, $conversationId);
+                return true;
+            }
+
+            $this->reply(
+                $fromPhone,
+                $this->renderTemplate('ask_amount_reminder', [
+                    'preview' => $this->formatPreview($pending),
+                ]),
+                $conversationId,
+                (int)$operator['id']
+            );
+            return true;
+        }
+
+        // Identity confirm stage
+        if ($pending && $pendingStatus === 'pending_confirm' && $this->isConfirmMessage($body)) {
             $this->completePayment($operator, $pending, $fromPhone, $conversationId);
             return true;
         }
 
-        if ($pending && $this->isCancelMessage($body)) {
-            $this->cancelSession((int)$pending['id']);
+        if ($pending && $pendingStatus === 'pending_confirm') {
             $this->reply(
                 $fromPhone,
-                $this->renderTemplate('cancelled', [
-                    'hint' => 'እባክዎ መከታተያ ቁጥሩን እንደገና ይላኩ። ምሳሌ: PAY 0335 50',
+                $this->renderTemplate('pending_reminder', [
+                    'preview' => $this->formatPreview($pending),
+                    'amount' => number_format((float)($this->payloadFromSession($pending)['amount'] ?? 0), 2),
+                    'reference' => (string)($this->payloadFromSession($pending)['reference'] ?? ''),
                 ]),
                 $conversationId,
                 (int)$operator['id']
@@ -74,19 +127,6 @@ class WhatsAppPaymentCommandHandler
 
         $parsed = $this->parsePayCommand($body);
         if ($parsed === null) {
-            if ($pending) {
-                $this->reply(
-                    $fromPhone,
-                    $this->renderTemplate('pending_reminder', [
-                        'preview' => $this->formatPreview($pending),
-                        'expires_minutes' => (string)self::SESSION_TTL_MINUTES,
-                    ]),
-                    $conversationId,
-                    (int)$operator['id']
-                );
-                return true;
-            }
-
             if (preg_match('/^(?:PAY|APPROVE|ክፍያ|HELP|እገዛ)\b/iu', $body)) {
                 $this->reply(
                     $fromPhone,
@@ -98,10 +138,15 @@ class WhatsAppPaymentCommandHandler
                 );
                 return true;
             }
-
             return false;
         }
 
+        // PAY 0335 (no amount) → ask for amount
+        if ($parsed['amount'] === null) {
+            return $this->startAmountPrompt($operator, $parsed, $fromPhone, $conversationId);
+        }
+
+        // PAY 0335 50 → identity confirm
         return $this->startConfirmation($operator, $parsed, $fromPhone, $conversationId);
     }
 
@@ -121,35 +166,55 @@ class WhatsAppPaymentCommandHandler
     }
 
     /**
-     * @return array{reference:string,amount:float,method:string,payment_date:string}|null
+     * @return array{reference:string,amount:?float,method:string,payment_date:string}|null
      */
     private function parsePayCommand(string $body): ?array
     {
-        if (!preg_match('/^(?:PAY|APPROVE|ክፍያ)\s+(\d{4})\s+([0-9]+(?:\.[0-9]{1,2})?)(?:\s+(cash|card|bank|other))?(?:\s+(\d{4}-\d{2}-\d{2}))?\s*$/iu', $body, $m)) {
-            return null;
+        // With amount: PAY 0335 50 [method] [date]
+        if (preg_match('/^(?:PAY|APPROVE|ክፍያ)\s+(\d{4})\s+([0-9]+(?:\.[0-9]{1,2})?)(?:\s+(cash|card|bank|other))?(?:\s+(\d{4}-\d{2}-\d{2}))?\s*$/iu', $body, $m)) {
+            $amount = (float)$m[2];
+            if ($amount <= 0 || $amount > self::MAX_AMOUNT) {
+                return null;
+            }
+            $method = strtolower($m[3] ?? 'cash');
+            if (!in_array($method, ['cash', 'card', 'bank', 'other'], true)) {
+                $method = 'cash';
+            }
+            $paymentDate = $m[4] ?? date('Y-m-d');
+            if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $paymentDate)) {
+                $paymentDate = date('Y-m-d');
+            }
+            return [
+                'reference' => $m[1],
+                'amount' => $amount,
+                'method' => $method,
+                'payment_date' => $paymentDate,
+            ];
         }
 
-        $amount = (float)$m[2];
+        // Without amount: PAY 0335
+        if (preg_match('/^(?:PAY|APPROVE|ክፍያ)\s+(\d{4})\s*$/iu', $body, $m)) {
+            return [
+                'reference' => $m[1],
+                'amount' => null,
+                'method' => 'cash',
+                'payment_date' => date('Y-m-d'),
+            ];
+        }
+
+        return null;
+    }
+
+    private function parseAmountOnly(string $body): ?float
+    {
+        if (!preg_match('/^£?\s*([0-9]+(?:\.[0-9]{1,2})?)\s*$/u', trim($body), $m)) {
+            return null;
+        }
+        $amount = (float)$m[1];
         if ($amount <= 0 || $amount > self::MAX_AMOUNT) {
             return null;
         }
-
-        $method = strtolower($m[3] ?? 'cash');
-        if (!in_array($method, ['cash', 'card', 'bank', 'other'], true)) {
-            $method = 'cash';
-        }
-
-        $paymentDate = $m[4] ?? date('Y-m-d');
-        if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $paymentDate)) {
-            $paymentDate = date('Y-m-d');
-        }
-
-        return [
-            'reference' => $m[1],
-            'amount' => $amount,
-            'method' => $method,
-            'payment_date' => $paymentDate,
-        ];
+        return $amount;
     }
 
     private function isConfirmMessage(string $body): bool
@@ -158,16 +223,25 @@ class WhatsAppPaymentCommandHandler
         return in_array($t, ['yes', 'y', 'ok', 'confirm', 'አዎ', 'እሺ', 'እሳምማለሁ'], true);
     }
 
-    private function isCancelMessage(string $body): bool
+    private function isWrongPersonMessage(string $body): bool
     {
         $t = mb_strtolower(trim($body));
-        return in_array($t, ['no', 'n', 'cancel', 'አይ', 'ሰርዝ'], true);
+        return in_array($t, ['no', 'n', 'አይደለም', 'አይደለም።'], true);
+    }
+
+    private function isAbortMessage(string $body): bool
+    {
+        $t = mb_strtolower(trim($body));
+        return in_array($t, ['ይቅር', 'ይቅር።', 'cancel', 'abort', 'stop'], true);
     }
 
     /**
-     * @param array{reference:string,amount:float,method:string,payment_date:string} $parsed
+     * Resolve donor by reference and build shared payload fields.
+     *
+     * @param array{reference:string,amount:?float,method:string,payment_date:string} $parsed
+     * @return array<string,mixed>|null payload on success; null if reply already sent
      */
-    private function startConfirmation(array $operator, array $parsed, string $fromPhone, int $conversationId): bool
+    private function resolveDonorPayload(array $operator, array $parsed, string $fromPhone, int $conversationId): ?array
     {
         $matches = $this->findDonorsByReference($parsed['reference']);
 
@@ -178,7 +252,7 @@ class WhatsAppPaymentCommandHandler
                 $conversationId,
                 (int)$operator['id']
             );
-            return true;
+            return null;
         }
 
         if (count($matches) > 1) {
@@ -195,7 +269,7 @@ class WhatsAppPaymentCommandHandler
                 $conversationId,
                 (int)$operator['id']
             );
-            return true;
+            return null;
         }
 
         $donor = $matches[0];
@@ -209,17 +283,15 @@ class WhatsAppPaymentCommandHandler
                 $conversationId,
                 (int)$operator['id']
             );
-            return true;
+            return null;
         }
-
-        $this->cancelOpenSessions($this->normalizePhoneDigits($fromPhone));
 
         $totalPledged = (float)($donor['total_pledged'] ?? 0);
         $totalPaid = (float)($donor['total_paid'] ?? 0);
         $remaining = (float)($donor['balance'] ?? max(0, $totalPledged - $totalPaid));
         $paymentHistory = $this->buildPaymentHistoryText((int)$donor['id']);
 
-        $payload = [
+        return [
             'donor_id' => (int)$donor['id'],
             'donor_name' => (string)$donor['name'],
             'donor_phone' => (string)$donor['phone'],
@@ -233,7 +305,108 @@ class WhatsAppPaymentCommandHandler
             'total_pledged' => $totalPledged,
             'payment_history' => $paymentHistory,
         ];
+    }
 
+    /**
+     * @param array{reference:string,amount:?float,method:string,payment_date:string} $parsed
+     */
+    private function startAmountPrompt(array $operator, array $parsed, string $fromPhone, int $conversationId): bool
+    {
+        $payload = $this->resolveDonorPayload($operator, $parsed, $fromPhone, $conversationId);
+        if ($payload === null) {
+            return true;
+        }
+
+        $this->cancelOpenSessions($this->normalizePhoneDigits($fromPhone));
+        $this->createSession($operator, $payload, 'pending_amount', $fromPhone);
+
+        $preview = $this->formatPreview($payload);
+        $msg = $this->renderTemplate('ask_amount', [
+            'preview' => $preview,
+            'donor_name' => $payload['donor_name'],
+            'reference' => $payload['reference'],
+            'remaining' => number_format((float)$payload['balance'], 2),
+            'total_pledged' => number_format((float)$payload['total_pledged'], 2),
+            'payment_history' => (string)$payload['payment_history'],
+        ]);
+        $this->reply($fromPhone, $msg, $conversationId, (int)$operator['id']);
+        return true;
+    }
+
+    /**
+     * @param array{reference:string,amount:?float,method:string,payment_date:string} $parsed
+     */
+    private function startConfirmation(array $operator, array $parsed, string $fromPhone, int $conversationId): bool
+    {
+        $payload = $this->resolveDonorPayload($operator, $parsed, $fromPhone, $conversationId);
+        if ($payload === null) {
+            return true;
+        }
+
+        $this->cancelOpenSessions($this->normalizePhoneDigits($fromPhone));
+        $this->createSession($operator, $payload, 'pending_confirm', $fromPhone);
+        $this->sendIdentityConfirm($operator, $payload, $fromPhone, $conversationId);
+        return true;
+    }
+
+    /**
+     * @param array<string,mixed> $pending
+     */
+    private function promoteAmountSession(array $operator, array $pending, float $amount, string $fromPhone, int $conversationId): void
+    {
+        $payload = $this->payloadFromSession($pending);
+        $payload['amount'] = $amount;
+        if (empty($payload['method'])) {
+            $payload['method'] = 'cash';
+        }
+        if (empty($payload['payment_date'])) {
+            $payload['payment_date'] = date('Y-m-d');
+        }
+
+        $payloadJson = json_encode($payload, JSON_UNESCAPED_UNICODE);
+        $sessionId = (int)$pending['id'];
+        $expiresAt = date('Y-m-d H:i:s', time() + (self::SESSION_TTL_MINUTES * 60));
+        $stmt = $this->db->prepare("
+            UPDATE whatsapp_payment_command_sessions
+            SET status = 'pending_confirm', payload_json = ?, expires_at = ?
+            WHERE id = ?
+        ");
+        $stmt->bind_param('ssi', $payloadJson, $expiresAt, $sessionId);
+        $stmt->execute();
+        $stmt->close();
+
+        $this->sendIdentityConfirm($operator, $payload, $fromPhone, $conversationId);
+    }
+
+    /**
+     * @param array<string,mixed> $payload
+     */
+    private function sendIdentityConfirm(array $operator, array $payload, string $fromPhone, int $conversationId): void
+    {
+        $preview = $this->formatPreview($payload);
+        $msg = $this->renderTemplate('confirm_request', [
+            'preview' => $preview,
+            'donor_name' => (string)$payload['donor_name'],
+            'donor_phone' => (string)$payload['donor_phone'],
+            'reference' => (string)$payload['reference'],
+            'amount' => number_format((float)$payload['amount'], 2),
+            'method' => (string)$payload['method'],
+            'payment_date' => (string)$payload['payment_date'],
+            'balance' => number_format((float)$payload['balance'], 2),
+            'remaining' => number_format((float)$payload['balance'], 2),
+            'total_pledged' => number_format((float)$payload['total_pledged'], 2),
+            'total_paid' => number_format((float)$payload['total_paid'], 2),
+            'payment_history' => (string)$payload['payment_history'],
+            'expires_minutes' => (string)self::SESSION_TTL_MINUTES,
+        ]);
+        $this->reply($fromPhone, $msg, $conversationId, (int)$operator['id']);
+    }
+
+    /**
+     * @param array<string,mixed> $payload
+     */
+    private function createSession(array $operator, array $payload, string $status, string $fromPhone): void
+    {
         $expiresAt = date('Y-m-d H:i:s', time() + (self::SESSION_TTL_MINUTES * 60));
         $payloadJson = json_encode($payload, JSON_UNESCAPED_UNICODE);
         $operatorPhone = $this->normalizePhoneDigits($fromPhone);
@@ -242,31 +415,26 @@ class WhatsAppPaymentCommandHandler
         $stmt = $this->db->prepare("
             INSERT INTO whatsapp_payment_command_sessions
                 (operator_user_id, operator_phone, status, payload_json, expires_at, created_at)
-            VALUES (?, ?, 'pending_confirm', ?, ?, NOW())
+            VALUES (?, ?, ?, ?, ?, NOW())
         ");
-        $stmt->bind_param('isss', $operatorId, $operatorPhone, $payloadJson, $expiresAt);
+        $stmt->bind_param('issss', $operatorId, $operatorPhone, $status, $payloadJson, $expiresAt);
         $stmt->execute();
         $stmt->close();
+    }
 
-        $preview = $this->formatPreview($payload);
-        $msg = $this->renderTemplate('confirm_request', [
-            'preview' => $preview,
-            'donor_name' => $payload['donor_name'],
-            'donor_phone' => $payload['donor_phone'],
-            'reference' => $payload['reference'],
-            'amount' => number_format((float)$payload['amount'], 2),
-            'method' => $payload['method'],
-            'payment_date' => $payload['payment_date'],
-            'balance' => number_format($remaining, 2),
-            'remaining' => number_format($remaining, 2),
-            'total_pledged' => number_format($totalPledged, 2),
-            'total_paid' => number_format($totalPaid, 2),
-            'payment_history' => $paymentHistory,
-            'expires_minutes' => (string)self::SESSION_TTL_MINUTES,
-        ]);
-
-        $this->reply($fromPhone, $msg, $conversationId, $operatorId);
-        return true;
+    /**
+     * @param array<string,mixed> $pending
+     * @return array<string,mixed>
+     */
+    private function payloadFromSession(array $pending): array
+    {
+        if (isset($pending['payload_json'])) {
+            $decoded = json_decode((string)$pending['payload_json'], true);
+            if (is_array($decoded)) {
+                return $decoded;
+            }
+        }
+        return $pending;
     }
 
     /**
@@ -445,11 +613,20 @@ class WhatsAppPaymentCommandHandler
 
             $this->db->commit();
 
-            $donorStmt = $this->db->prepare("SELECT name, total_pledged, total_paid, balance FROM donors WHERE id = ? LIMIT 1");
+            $donorStmt = $this->db->prepare("SELECT name, phone, total_pledged, total_paid, balance FROM donors WHERE id = ? LIMIT 1");
             $donorStmt->bind_param('i', $donorId);
             $donorStmt->execute();
             $donor = $donorStmt->get_result()->fetch_assoc() ?: [];
             $donorStmt->close();
+
+            // Same confirmation logic as review-pledge-payments (templates + Kesis routing)
+            $confirmResult = $this->sendDonorConfirmation(
+                $operator,
+                $donorId,
+                $amount,
+                $paymentDate,
+                $donor
+            );
 
             $msg = $this->renderTemplate('success', [
                 'donor_name' => (string)($donor['name'] ?? $payload['donor_name']),
@@ -461,6 +638,7 @@ class WhatsAppPaymentCommandHandler
                 'total_pledged' => number_format((float)($donor['total_pledged'] ?? 0), 2),
                 'total_paid' => number_format((float)($donor['total_paid'] ?? 0), 2),
                 'remaining' => number_format((float)($donor['balance'] ?? 0), 2),
+                'confirmation_status' => (string)($confirmResult['operator_note'] ?? ''),
             ]);
 
             $this->reply($fromPhone, $msg, $conversationId, $operatorId);
@@ -476,6 +654,250 @@ class WhatsAppPaymentCommandHandler
                 $conversationId,
                 (int)$operator['id']
             );
+        }
+    }
+
+    /**
+     * Send donor confirmation using the same templates + routing as review-pledge-payments.
+     *
+     * @param array<string,mixed> $operator
+     * @param array<string,mixed> $donor
+     * @return array{success:bool,operator_note:string}
+     */
+    private function sendDonorConfirmation(array $operator, int $donorId, float $amount, string $paymentDate, array $donor): array
+    {
+        try {
+            $hasUserPhoneNumberCol = $this->db->query("SHOW COLUMNS FROM users LIKE 'phone_number'")->num_rows > 0;
+            $assignedAgentPhoneExpr = $hasUserPhoneNumberCol
+                ? "COALESCE(NULLIF(agent.phone_number, ''), NULLIF(agent.phone, ''))"
+                : "NULLIF(agent.phone, '')";
+
+            $stmt = $this->db->prepare("
+                SELECT d.name, d.phone, d.preferred_language,
+                       d.total_pledged, d.total_paid, d.balance,
+                       p.amount AS pledge_amount,
+                       dpp.next_payment_due AS plan_next_payment,
+                       dpp.monthly_amount AS plan_amount,
+                       dpp.status AS plan_status,
+                       agent.id AS assigned_agent_id,
+                       agent.name AS assigned_agent_name,
+                       {$assignedAgentPhoneExpr} AS assigned_agent_phone
+                FROM donors d
+                LEFT JOIN pledges p ON d.id = p.donor_id AND p.status IN ('approved','pending')
+                LEFT JOIN donor_payment_plans dpp ON d.active_payment_plan_id = dpp.id
+                LEFT JOIN users agent ON d.agent_id = agent.id
+                WHERE d.id = ?
+                ORDER BY (p.status = 'approved') DESC, p.id DESC
+                LIMIT 1
+            ");
+            $stmt->bind_param('i', $donorId);
+            $stmt->execute();
+            $info = $stmt->get_result()->fetch_assoc() ?: [];
+            $stmt->close();
+
+            $totalPledged = (float)($info['total_pledged'] ?? $donor['total_pledged'] ?? 0);
+            $totalPaid = (float)($info['total_paid'] ?? $donor['total_paid'] ?? 0);
+            $balance = (float)($info['balance'] ?? $donor['balance'] ?? 0);
+            $isFullyPaid = $totalPledged > 0 && $balance <= 0;
+            $hasPlan = !empty($info['plan_next_payment']) && ($info['plan_status'] ?? '') === 'active';
+
+            $formattedPaymentDate = date('l, j F Y', strtotime($paymentDate));
+            $donorName = (string)($info['name'] ?? $donor['name'] ?? 'Donor');
+            $donorPhone = (string)($info['phone'] ?? $donor['phone'] ?? '');
+
+            $templateKey = $isFullyPaid ? 'fully_paid_confirmation' : 'payment_confirmed';
+            $tpl = $this->loadSmsTemplate($templateKey);
+            $templateMode = $this->resolveTemplateMode($tpl);
+
+            $message = '';
+            if ($tpl) {
+                $message = (string)($tpl['message_am'] ?: ($tpl['message_en'] ?? ''));
+            }
+
+            if ($message === '') {
+                if ($isFullyPaid) {
+                    $message = "ሰላም ጤና ይስጥልን ወድ {donor_name}፣\n\nሙሉ ቃል ኪዳን ክፍያዎን ስለጨረሱ እናመሰግናለን።\n\nበቀን ({date}) የተቀበልነው ክፍያ: £{payment_amount}\n\nየቃል ኪዳንዎ ማጠቃለያ፡\n→ ጠቅላላ ቃል ኪዳን: £{total_pledged}\n→ ጠቅላላ የከፈሉት: £{total_paid}\n→ ቀሪ: £{remaining}\n\nአምላከ ተክለሃይማኖት በሰጡት አብዝቶ ይስጥልን።\n\n- ሊቨርፑል አቡነ ተክለሃይማኖት ቤተ ክርስቲያን";
+                } else {
+                    $message = "ሰላም ጤና ይስጥልን የተከበሩ {name}፣\n\nበቀን {payment_date} የ {amount} ፓውንድ ክፍያዎን ተቀብለናል።\n\nየቃል ኪዳንዎ ማጠቃለያ፡\n→ ጠቅላላ ቃል ኪዳን የገቡት፡ £{total_pledge}\n→ እስካሁን የከፈሉት: £{total_paid}\n→ ቀሪ ሂሳብ፡ £{outstanding_balance}\n\n{next_payment_info}\n\nአምላከ ተክለሃይማኖት በሰጡት አብዝቶ ይስጥልን🙏\n\n- ሊቨርፑል መካነ ቅዱሳን አቡነ ተክለሃይማኖት ቤተ ክርስቲያን";
+                }
+            }
+
+            $nextWithPlan = 'ቀጣዩ የ£{next_payment_amount} ክፍያዎ በ{next_payment_date} ነው።';
+            $nextWithoutPlan = 'ቀሪ ሂሳብዎን በቀላሉ ማስተካከል እንዲሁም የክፍያ እቅድ ማዘጋጀት ይችላሉ።';
+            $nextInfo = $hasPlan ? $nextWithPlan : $nextWithoutPlan;
+
+            $message = str_replace('{next_payment_info}', $nextInfo, $message);
+            $replacements = [
+                '{name}' => $donorName,
+                '{donor_name}' => $donorName,
+                '{amount}' => number_format($amount, 2),
+                '{payment_amount}' => number_format($amount, 2),
+                '{payment_date}' => $formattedPaymentDate,
+                '{date}' => $formattedPaymentDate,
+                '{total_pledge}' => number_format((float)($info['pledge_amount'] ?? $totalPledged), 2),
+                '{total_pledged}' => number_format($totalPledged, 2),
+                '{total_paid}' => number_format($totalPaid, 2),
+                '{outstanding_balance}' => number_format($balance, 2),
+                '{remaining}' => number_format($balance, 2),
+                '{total_pledged_sqm}' => (string)round(max($totalPledged, $totalPaid) / 400, 2),
+                '{next_payment_amount}' => $hasPlan ? number_format((float)($info['plan_amount'] ?? 0), 2) : '',
+                '{next_payment_date}' => $hasPlan && !empty($info['plan_next_payment'])
+                    ? date('l, j F Y', strtotime((string)$info['plan_next_payment']))
+                    : '',
+            ];
+            $message = str_replace(array_keys($replacements), array_values($replacements), $message);
+            $message = str_replace(['\\n', "\r\n"], "\n", $message);
+
+            $routedToKesis = $this->phonesMatch((string)($info['assigned_agent_phone'] ?? ''), self::KESIS_BIRHANU_PHONE);
+            $destinationPhone = $routedToKesis ? self::KESIS_BIRHANU_PHONE : $donorPhone;
+            $agentName = $routedToKesis
+                ? ((string)($info['assigned_agent_name'] ?: self::KESIS_BIRHANU_NAME))
+                : null;
+
+            if (trim($destinationPhone) === '') {
+                return [
+                    'success' => false,
+                    'operator_note' => "\n⚠️ ክፍያ ተጽድቋል፣ ግን የለጋሽ/ወኪል ስልክ አልተገኘም — ማረጋገጫ አልተላከም።",
+                ];
+            }
+
+            $channel = MessagingHelper::CHANNEL_AUTO;
+            $allowSmsFallback = true;
+            if ($templateMode === 'sms') {
+                $channel = MessagingHelper::CHANNEL_SMS;
+            } elseif ($templateMode === 'whatsapp') {
+                $channel = MessagingHelper::CHANNEL_WHATSAPP;
+                $allowSmsFallback = false;
+            }
+
+            $messaging = new MessagingHelper($this->db);
+            $messaging->setCurrentUser((int)$operator['id'], $operator);
+            $result = $messaging->sendDirect(
+                $destinationPhone,
+                $message,
+                $channel,
+                $donorId,
+                $templateKey,
+                $allowSmsFallback
+            );
+
+            if (!empty($result['success'])) {
+                $this->logPaymentNotification(
+                    $donorId,
+                    $templateKey,
+                    (string)($result['channel'] ?? 'whatsapp'),
+                    $destinationPhone,
+                    $message,
+                    (int)$operator['id'],
+                    $routedToKesis,
+                    $agentName
+                );
+
+                if ($routedToKesis) {
+                    return [
+                        'success' => true,
+                        'operator_note' => "\n📨 ማረጋገጫ ወደ ወኪል ተልኳል: " . ($agentName ?: self::KESIS_BIRHANU_NAME),
+                    ];
+                }
+                return [
+                    'success' => true,
+                    'operator_note' => "\n📨 ማረጋገጫ ለለጋሹ ተልኳል።",
+                ];
+            }
+
+            return [
+                'success' => false,
+                'operator_note' => "\n⚠️ ክፍያ ተጽድቋል፣ ግን ማረጋገጫ መላክ አልተሳካም: " . (string)($result['error'] ?? 'unknown'),
+            ];
+        } catch (Throwable $e) {
+            error_log('WhatsApp PAY donor confirmation failed: ' . $e->getMessage());
+            return [
+                'success' => false,
+                'operator_note' => "\n⚠️ ክፍያ ተጽድቋል፣ ግን ማረጋገጫ መላክ አልተሳካም።",
+            ];
+        }
+    }
+
+    /**
+     * @return array<string,mixed>|null
+     */
+    private function loadSmsTemplate(string $templateKey): ?array
+    {
+        $check = $this->db->query("SHOW TABLES LIKE 'sms_templates'");
+        if (!$check || $check->num_rows === 0) {
+            return null;
+        }
+        $stmt = $this->db->prepare("SELECT * FROM sms_templates WHERE template_key = ? LIMIT 1");
+        if (!$stmt) {
+            return null;
+        }
+        $stmt->bind_param('s', $templateKey);
+        $stmt->execute();
+        $row = $stmt->get_result()->fetch_assoc();
+        $stmt->close();
+        return $row ?: null;
+    }
+
+    /**
+     * @param array<string,mixed>|null $template
+     */
+    private function resolveTemplateMode(?array $template): string
+    {
+        if (!$template) {
+            return 'auto';
+        }
+        $preferred = strtolower(trim((string)($template['preferred_channel'] ?? '')));
+        if (in_array($preferred, ['auto', 'sms', 'whatsapp'], true)) {
+            return $preferred;
+        }
+        $platform = strtolower(trim((string)($template['platform'] ?? '')));
+        if (in_array($platform, ['sms', 'whatsapp'], true)) {
+            return $platform;
+        }
+        return 'auto';
+    }
+
+    private function phonesMatch(string $a, string $b): bool
+    {
+        $na = $this->normalizePhoneDigits($a);
+        $nb = $this->normalizePhoneDigits($b);
+        if ($na === '' || $nb === '') {
+            return false;
+        }
+        $va = $this->phoneVariants($na);
+        $vb = $this->phoneVariants($nb);
+        return count(array_intersect($va, $vb)) > 0;
+    }
+
+    private function logPaymentNotification(
+        int $donorId,
+        string $templateKey,
+        string $channel,
+        string $phone,
+        string $message,
+        int $userId,
+        bool $routedViaAgent,
+        ?string $agentName
+    ): void {
+        try {
+            $tableCheck = $this->db->query("SHOW TABLES LIKE 'payment_notifications_log'");
+            if (!$tableCheck || $tableCheck->num_rows === 0) {
+                return;
+            }
+            $preview = mb_substr($message, 0, 500);
+            $routedFlag = $routedViaAgent ? 1 : 0;
+            $stmt = $this->db->prepare("
+                INSERT INTO payment_notifications_log
+                (donor_id, notification_type, channel, phone_number, message_preview, sent_by_user_id, routed_via_agent, agent_name)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            ");
+            if ($stmt) {
+                $stmt->bind_param('issssiis', $donorId, $templateKey, $channel, $phone, $preview, $userId, $routedFlag, $agentName);
+                $stmt->execute();
+                $stmt->close();
+            }
+        } catch (Throwable $e) {
+            error_log('WhatsApp PAY notification log failed: ' . $e->getMessage());
         }
     }
 
@@ -622,7 +1044,7 @@ class WhatsAppPaymentCommandHandler
         $stmt = $this->db->prepare("
             SELECT * FROM whatsapp_payment_command_sessions
             WHERE operator_phone = ?
-              AND status = 'pending_confirm'
+              AND status IN ('pending_confirm', 'pending_amount')
               AND expires_at > NOW()
             ORDER BY id DESC
             LIMIT 1
@@ -651,7 +1073,7 @@ class WhatsAppPaymentCommandHandler
         $stmt = $this->db->prepare("
             UPDATE whatsapp_payment_command_sessions
             SET status = 'cancelled', completed_at = NOW()
-            WHERE operator_phone = ? AND status = 'pending_confirm'
+            WHERE operator_phone = ? AND status IN ('pending_confirm', 'pending_amount')
         ");
         $stmt->bind_param('s', $operatorPhoneDigits);
         $stmt->execute();
@@ -807,13 +1229,25 @@ class WhatsAppPaymentCommandHandler
                 'label' => 'Help / Usage',
                 'description' => 'Sent when staff type PAY/HELP incorrectly',
                 'placeholders' => '{expires_minutes}',
-                'body' => "📌 *የWhatsApp ክፍያ ትእዛዝ*\n\nይላኩ:\n*PAY 0335 50*\n\nአማራጭ:\n*PAY 0335 50 cash*\n*PAY 0335 50 cash 2025-06-08*\n\nከዚያ *አዎ* ይበሉ ለማረጋገጥ፣ ወይም *አይ* ለመሰረዝ።",
+                'body' => "📌 *የWhatsApp ክፍያ ትእዛዝ*\n\nይላኩ:\n*PAY 0335*\nወይም\n*PAY 0335 50*\n\nከዚያ:\n• መጠን ካልላኩ — የክፍያ መጠን ይላኩ ወይም *ይቅር*\n• መጠን ካላኩ — *አዎ* ለማረጋገጥ ወይም *አይደለም* ትክክለኛው ሰው ካልሆነ",
+            ],
+            'ask_amount' => [
+                'label' => 'Ask Amount (after PAY ref only)',
+                'description' => 'Show donor info then ask for payment amount or ይቅር',
+                'placeholders' => '{preview} {donor_name} {reference} {total_pledged} {remaining} {payment_history}',
+                'body' => "{preview}\n\nአዲስ ክፍያ ለመጨመር የክፍያውን መጠን ይላኩ።\nለመተው *ይቅር* ብለው ይላኩ።",
+            ],
+            'ask_amount_reminder' => [
+                'label' => 'Ask Amount Reminder',
+                'description' => 'Reminder while waiting for amount',
+                'placeholders' => '{preview}',
+                'body' => "⏳ የክፍያ መጠን እየጠበቁ ነው።\n\n{preview}\n\nአዲስ ክፍያ ለመጨመር የክፍያውን መጠን ይላኩ።\nለመተው *ይቅር* ብለው ይላኩ።",
             ],
             'confirm_request' => [
-                'label' => 'Confirm Request (message 2)',
+                'label' => 'Confirm Request (identity)',
                 'description' => 'Ask if this is the correct donor before recording payment',
                 'placeholders' => '{preview} {donor_name} {total_pledged} {remaining} {payment_history} {amount} {reference}',
-                'body' => "{preview}\n\nአዲስ ክፍያ: £{amount} (መከታተያ {reference})\n\nይህ ትክክለኛው ሰው ነው? ከሆነ Yes ብለው ይላኩ ካልሆነ No.",
+                'body' => "{preview}\n\nአዲስ ክፍያ: £{amount} (መከታተያ {reference})\n\nይህ ትክክለኛው ሰው ነው?\nከሆነ *አዎ* ብለው ይላኩ።\nካልሆነ *አይደለም* ብለው ይላኩ።",
             ],
             'preview_block' => [
                 'label' => 'Preview Block',
@@ -823,21 +1257,27 @@ class WhatsAppPaymentCommandHandler
             ],
             'pending_reminder' => [
                 'label' => 'Pending Reminder',
-                'description' => 'Reminder when a confirmation is still waiting',
-                'placeholders' => '{preview}',
-                'body' => "⏳ ገና ማረጋገጫ እየጠበቁ ነው።\n\n{preview}\n\nይህ ትክክለኛው ሰው ነው? ከሆነ Yes ብለው ይላኩ ካልሆነ No.",
+                'description' => 'Reminder when identity confirmation is still waiting',
+                'placeholders' => '{preview} {amount} {reference}',
+                'body' => "⏳ ገና ማረጋገጫ እየጠበቁ ነው።\n\n{preview}\n\nአዲስ ክፍያ: £{amount} (መከታተያ {reference})\n\nይህ ትክክለኛው ሰው ነው?\nከሆነ *አዎ* ብለው ይላኩ።\nካልሆነ *አይደለም* ብለው ይላኩ።",
             ],
             'cancelled' => [
-                'label' => 'Cancelled / Wrong Person',
-                'description' => 'Sent after NO — ask them to send reference again',
-                'placeholders' => '{hint}',
-                'body' => "❌ ትክክለኛው ሰው አይደለም።\n\nእባክዎ መከታተያ ቁጥሩን እንደገና ይላኩ።\nምሳሌ: PAY 0335 50",
+                'label' => 'Wrong Person (አይደለም)',
+                'description' => 'Sent after አይደለም — ask them to send reference again',
+                'placeholders' => '',
+                'body' => "❌ ትክክለኛው ሰው አይደለም።\n\nእባክዎ መከታተያ ቁጥሩን እንደገና ይላኩ።\nምሳሌ: PAY 0335",
+            ],
+            'cancelled_abort' => [
+                'label' => 'Aborted (ይቅር)',
+                'description' => 'Sent after ይቅር — leave without recording',
+                'placeholders' => '',
+                'body' => "❌ ተቋርጧል። ምንም ክፍያ አልተመዘገበም።\n\nእንደገና ለመጀመር: PAY 0335",
             ],
             'success' => [
                 'label' => 'Success (message 4)',
                 'description' => 'Sent after payment is recorded and approved',
-                'placeholders' => '{donor_name} {reference} {amount} {payment_date} {method} {payment_id} {total_pledged} {total_paid} {remaining}',
-                'body' => "✅ *ክፍያ ተጽድቋል*\n\nለጋሽ: {donor_name}\nመከታተያ: {reference}\nመጠን: £{amount}\nቀን: {payment_date}\nዘዴ: {method}\nየክፍያ መለያ: #{payment_id}\n\nማጠቃለያ:\n→ ጠቅላላ ቃል ኪዳን: £{total_pledged}\n→ እስካሁን የከፈሉት: £{total_paid}\n→ ቀሪ: £{remaining}\n\nሌላ ለመጀመር: PAY 0335 50",
+                'placeholders' => '{donor_name} {reference} {amount} {payment_date} {method} {payment_id} {total_pledged} {total_paid} {remaining} {confirmation_status}',
+                'body' => "✅ *ክፍያ ተጽድቋል*\n\nለጋሽ: {donor_name}\nመከታተያ: {reference}\nመጠን: £{amount}\nቀን: {payment_date}\nዘዴ: {method}\nየክፍያ መለያ: #{payment_id}\n\nማጠቃለያ:\n→ ጠቅላላ ቃል ኪዳን: £{total_pledged}\n→ እስካሁን የከፈሉት: £{total_paid}\n→ ቀሪ: £{remaining}{confirmation_status}\n\nሌላ ለመጀመር: PAY 0335 50",
             ],
             'not_found' => [
                 'label' => 'Reference Not Found',
@@ -893,7 +1333,7 @@ class WhatsAppPaymentCommandHandler
         }
 
         // One-time upgrade of identity-confirm flow templates (versioned)
-        $flowVersion = 2;
+        $flowVersion = 4;
         $currentVersion = 0;
         $verRes = $this->db->query("SELECT body FROM whatsapp_pay_message_templates WHERE template_key = '_flow_version' LIMIT 1");
         if ($verRes && ($verRow = $verRes->fetch_assoc())) {
@@ -907,13 +1347,24 @@ class WhatsAppPaymentCommandHandler
         }
 
         if ($currentVersion < $flowVersion) {
-            $flowKeys = ['confirm_request', 'preview_block', 'pending_reminder', 'cancelled'];
+            $flowKeys = ['help', 'ask_amount', 'ask_amount_reminder', 'confirm_request', 'preview_block', 'pending_reminder', 'cancelled', 'cancelled_abort', 'success'];
             $upd = $this->db->prepare("
                 UPDATE whatsapp_pay_message_templates
                 SET body = ?, label = ?, description = ?, placeholders_help = ?, updated_at = NOW()
                 WHERE template_key = ?
             ");
-            if ($upd) {
+            $ins = $this->db->prepare("
+                INSERT INTO whatsapp_pay_message_templates
+                    (template_key, label, description, placeholders_help, body, updated_at)
+                VALUES (?, ?, ?, ?, ?, NOW())
+                ON DUPLICATE KEY UPDATE
+                    body = VALUES(body),
+                    label = VALUES(label),
+                    description = VALUES(description),
+                    placeholders_help = VALUES(placeholders_help),
+                    updated_at = NOW()
+            ");
+            if ($upd && $ins) {
                 foreach ($flowKeys as $key) {
                     if (!isset($defaults[$key])) {
                         continue;
@@ -923,10 +1374,11 @@ class WhatsAppPaymentCommandHandler
                     $label = $tpl['label'];
                     $desc = $tpl['description'];
                     $ph = $tpl['placeholders'];
-                    $upd->bind_param('sssss', $body, $label, $desc, $ph, $key);
-                    $upd->execute();
+                    $ins->bind_param('sssss', $key, $label, $desc, $ph, $body);
+                    $ins->execute();
                 }
                 $upd->close();
+                $ins->close();
             }
 
             $ver = (string)$flowVersion;
@@ -947,7 +1399,7 @@ class WhatsAppPaymentCommandHandler
                 id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
                 operator_user_id INT NOT NULL,
                 operator_phone VARCHAR(30) NOT NULL,
-                status ENUM('pending_confirm','completed','cancelled','expired') NOT NULL DEFAULT 'pending_confirm',
+                status ENUM('pending_amount','pending_confirm','completed','cancelled','expired') NOT NULL DEFAULT 'pending_confirm',
                 payload_json TEXT NOT NULL,
                 completed_payment_id INT NULL,
                 expires_at DATETIME NOT NULL,
@@ -956,6 +1408,13 @@ class WhatsAppPaymentCommandHandler
                 INDEX idx_operator_pending (operator_phone, status),
                 INDEX idx_expires (expires_at)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        ");
+
+        // Add pending_amount for existing installs
+        @$this->db->query("
+            ALTER TABLE whatsapp_payment_command_sessions
+            MODIFY COLUMN status ENUM('pending_amount','pending_confirm','completed','cancelled','expired')
+            NOT NULL DEFAULT 'pending_confirm'
         ");
 
         $this->db->query("
