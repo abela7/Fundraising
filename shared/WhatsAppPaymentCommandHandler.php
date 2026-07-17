@@ -1081,6 +1081,9 @@ class WhatsAppPaymentCommandHandler
     }
 
     /**
+     * Build donor preview. Uses identity-only template when amount is unknown,
+     * or identity + payment amount/date when amount is already provided.
+     *
      * @param array<string,mixed> $payload
      */
     private function formatPreview(array $payload): string
@@ -1092,19 +1095,33 @@ class WhatsAppPaymentCommandHandler
             }
         }
 
-        return $this->renderTemplate('preview_block', [
+        $rawAmount = $payload['amount'] ?? null;
+        $hasAmount = $rawAmount !== null && $rawAmount !== '' && (float)$rawAmount > 0;
+
+        $paymentDateRaw = (string)($payload['payment_date'] ?? date('Y-m-d'));
+        $dayLabel = $paymentDateRaw;
+        $ts = strtotime($paymentDateRaw);
+        if ($ts !== false) {
+            $dayLabel = date('d/m/Y', $ts);
+        }
+
+        $vars = [
             'donor_name' => (string)($payload['donor_name'] ?? 'Donor'),
             'donor_phone' => (string)($payload['donor_phone'] ?? ''),
             'reference' => (string)($payload['reference'] ?? ''),
-            'amount' => number_format((float)($payload['amount'] ?? 0), 2),
+            'amount' => $hasAmount ? number_format((float)$rawAmount, 2) : '',
             'method' => (string)($payload['method'] ?? 'cash'),
-            'payment_date' => (string)($payload['payment_date'] ?? date('Y-m-d')),
+            'payment_date' => $dayLabel,
+            'day' => $dayLabel,
             'balance' => number_format((float)($payload['balance'] ?? 0), 2),
             'remaining' => number_format((float)($payload['balance'] ?? 0), 2),
             'total_pledged' => number_format((float)($payload['total_pledged'] ?? 0), 2),
             'total_paid' => number_format((float)($payload['total_paid'] ?? 0), 2),
             'payment_history' => (string)($payload['payment_history'] ?? $this->buildPaymentHistoryText((int)($payload['donor_id'] ?? 0))),
-        ]);
+        ];
+
+        $templateKey = $hasAmount ? 'preview_block_with_amount' : 'preview_block';
+        return $this->renderTemplate($templateKey, $vars);
     }
 
     /**
@@ -1233,33 +1250,39 @@ class WhatsAppPaymentCommandHandler
             ],
             'ask_amount' => [
                 'label' => 'Ask Amount (after PAY ref only)',
-                'description' => 'Show donor info then ask for payment amount or ይቅር',
-                'placeholders' => '{preview} {donor_name} {reference} {total_pledged} {remaining} {payment_history}',
-                'body' => "{preview}\n\nአዲስ ክፍያ ለመጨመር የክፍያውን መጠን ይላኩ።\nለመተው *ይቅር* ብለው ይላኩ።",
+                'description' => 'Show donor identity (no payment amount yet), then ask for amount or ይቅር',
+                'placeholders' => '{preview}',
+                'body' => "{preview}\n\nአዲስ ክፍያ ለመመዝገብ የሚከፍለውን መጠን ይላኩ።\nለመተው *ይቅር* ብለው ይላኩ።",
             ],
             'ask_amount_reminder' => [
                 'label' => 'Ask Amount Reminder',
-                'description' => 'Reminder while waiting for amount',
+                'description' => 'Reminder while waiting for amount (reference-only flow)',
                 'placeholders' => '{preview}',
-                'body' => "⏳ የክፍያ መጠን እየጠበቁ ነው።\n\n{preview}\n\nአዲስ ክፍያ ለመጨመር የክፍያውን መጠን ይላኩ።\nለመተው *ይቅር* ብለው ይላኩ።",
+                'body' => "⏳ የክፍያ መጠን እየጠበቁ ነው።\n\n{preview}\n\nአዲስ ክፍያ ለመመዝገብ የሚከፍለውን መጠን ይላኩ።\nለመተው *ይቅር* ብለው ይላኩ።",
             ],
             'confirm_request' => [
                 'label' => 'Confirm Request (identity)',
-                'description' => 'Ask if this is the correct donor before recording payment',
-                'placeholders' => '{preview} {donor_name} {total_pledged} {remaining} {payment_history} {amount} {reference}',
-                'body' => "{preview}\n\nአዲስ ክፍያ: £{amount} (መከታተያ {reference})\n\nይህ ትክክለኛው ሰው ነው?\nከሆነ *አዎ* ብለው ይላኩ።\nካልሆነ *አይደለም* ብለው ይላኩ።",
+                'description' => 'Ask if this is the correct donor. Preview already includes payment amount when provided.',
+                'placeholders' => '{preview}',
+                'body' => "{preview}\n\nይህ ትክክለኛው ሰው ነው?\nከሆነ *አዎ* ብለው ይላኩ።\nካልሆነ *አይደለም* ብለው ይላኩ።",
             ],
             'preview_block' => [
-                'label' => 'Preview Block',
-                'description' => 'Donor identity + pledge + remaining + payment history',
-                'placeholders' => '{donor_name} {total_pledged} {remaining} {payment_history}',
-                'body' => "ስም - {donor_name}\nቃል የገቡት - £{total_pledged}\nቀሪ ክፍያ - £{remaining}\n\nየክፍያ ታሪክ\n{payment_history}",
+                'label' => 'Preview (reference only)',
+                'description' => 'Shown after PAY 0335 (no amount yet). ቃል የገቡት = pledge total, not payment.',
+                'placeholders' => '{donor_name} {donor_phone} {reference} {total_pledged} {balance}',
+                'body' => "👤 {donor_name}\n📞 {donor_phone}\n🔖 መከታተያ: {reference}\n💷 ቃል የገቡት መጠን: £{total_pledged}\n📊 ቀሪ ክፍያ: £{balance}",
+            ],
+            'preview_block_with_amount' => [
+                'label' => 'Preview (reference + amount)',
+                'description' => 'Shown after PAY 0335 50. Separates pledge total from the amount being paid now.',
+                'placeholders' => '{donor_name} {donor_phone} {reference} {total_pledged} {balance} {amount} {day}',
+                'body' => "👤 {donor_name}\n📞 {donor_phone}\n🔖 መከታተያ: {reference}\n💷 ቃል የገቡት መጠን: £{total_pledged}\n📊 ቀሪ ክፍያ: £{balance}\n---------------------------\nአሁን የሚከፍለው መጠን: £{amount}\nቀን: {day}",
             ],
             'pending_reminder' => [
                 'label' => 'Pending Reminder',
                 'description' => 'Reminder when identity confirmation is still waiting',
-                'placeholders' => '{preview} {amount} {reference}',
-                'body' => "⏳ ገና ማረጋገጫ እየጠበቁ ነው።\n\n{preview}\n\nአዲስ ክፍያ: £{amount} (መከታተያ {reference})\n\nይህ ትክክለኛው ሰው ነው?\nከሆነ *አዎ* ብለው ይላኩ።\nካልሆነ *አይደለም* ብለው ይላኩ።",
+                'placeholders' => '{preview}',
+                'body' => "⏳ ገና ማረጋገጫ እየጠበቁ ነው።\n\n{preview}\n\nይህ ትክክለኛው ሰው ነው?\nከሆነ *አዎ* ብለው ይላኩ።\nካልሆነ *አይደለም* ብለው ይላኩ።",
             ],
             'cancelled' => [
                 'label' => 'Wrong Person (አይደለም)',
@@ -1333,7 +1356,7 @@ class WhatsAppPaymentCommandHandler
         }
 
         // One-time upgrade of identity-confirm flow templates (versioned)
-        $flowVersion = 4;
+        $flowVersion = 5;
         $currentVersion = 0;
         $verRes = $this->db->query("SELECT body FROM whatsapp_pay_message_templates WHERE template_key = '_flow_version' LIMIT 1");
         if ($verRes && ($verRow = $verRes->fetch_assoc())) {
@@ -1347,7 +1370,18 @@ class WhatsAppPaymentCommandHandler
         }
 
         if ($currentVersion < $flowVersion) {
-            $flowKeys = ['help', 'ask_amount', 'ask_amount_reminder', 'confirm_request', 'preview_block', 'pending_reminder', 'cancelled', 'cancelled_abort', 'success'];
+            $flowKeys = [
+                'help',
+                'ask_amount',
+                'ask_amount_reminder',
+                'confirm_request',
+                'preview_block',
+                'preview_block_with_amount',
+                'pending_reminder',
+                'cancelled',
+                'cancelled_abort',
+                'success',
+            ];
             $upd = $this->db->prepare("
                 UPDATE whatsapp_pay_message_templates
                 SET body = ?, label = ?, description = ?, placeholders_help = ?, updated_at = NOW()
