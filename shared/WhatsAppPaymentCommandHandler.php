@@ -46,6 +46,7 @@ class WhatsAppPaymentCommandHandler
      * - PAY 0335 50 → show donor → Yes/አይደለም → approve
      * - PAY 0335 → show donor → ask amount or ይቅር → then Yes/አይደለም → approve
      * - CHECK 0335 → show donor status without starting a session
+     * - CONFIRM 0335 → pick a past payment → resend certificate preview to staff
      *
      * @return bool True if this message was handled as a supported command
      */
@@ -74,6 +75,17 @@ class WhatsAppPaymentCommandHandler
             return true;
         }
 
+        $confirmReference = $this->parseConfirmResendCommand($body);
+        if ($confirmReference !== null) {
+            $this->startConfirmResendFlow(
+                $operator,
+                $confirmReference,
+                $fromPhone,
+                $conversationId
+            );
+            return true;
+        }
+
         $pending = $this->getPendingSession($normalizedFrom);
         $pendingStatus = (string)($pending['status'] ?? '');
 
@@ -95,6 +107,27 @@ class WhatsAppPaymentCommandHandler
             $this->reply(
                 $fromPhone,
                 $this->renderTemplate('cancelled', []),
+                $conversationId,
+                (int)$operator['id']
+            );
+            return true;
+        }
+
+        // Waiting for payment pick after CONFIRM 0335
+        if ($pending && $pendingStatus === 'pending_confirm_pick') {
+            $pick = $this->parsePaymentPickNumber($body);
+            if ($pick !== null) {
+                $this->completeConfirmResendPick($operator, $pending, $pick, $fromPhone, $conversationId);
+                return true;
+            }
+
+            $payload = $this->payloadFromSession($pending);
+            $this->reply(
+                $fromPhone,
+                $this->renderTemplate('confirm_pick_reminder', [
+                    'reference' => (string)($payload['reference'] ?? ''),
+                    'payment_list' => (string)($payload['payment_list'] ?? ''),
+                ]),
                 $conversationId,
                 (int)$operator['id']
             );
@@ -142,7 +175,7 @@ class WhatsAppPaymentCommandHandler
 
         $parsed = $this->parsePayCommand($body);
         if ($parsed === null) {
-            if (preg_match('/^(?:PAY|APPROVE|CHECK|ክፍያ|HELP|እገዛ)\b/iu', $body)) {
+            if (preg_match('/^(?:PAY|APPROVE|CHECK|CONFIRM|ክፍያ|HELP|እገዛ)\b/iu', $body)) {
                 $this->reply(
                     $fromPhone,
                     $this->renderTemplate('help', [
@@ -172,6 +205,338 @@ class WhatsAppPaymentCommandHandler
         }
 
         return $matches[1];
+    }
+
+    private function parseConfirmResendCommand(string $body): ?string
+    {
+        if (!preg_match('/^CONFIRM\s+(\d{4})\s*$/iu', $body, $matches)) {
+            return null;
+        }
+
+        return $matches[1];
+    }
+
+    /**
+     * @param array<string,mixed> $operator
+     */
+    private function startConfirmResendFlow(
+        array $operator,
+        string $reference,
+        string $fromPhone,
+        int $conversationId
+    ): void {
+        $matches = $this->findDonorsForStatusByReference($reference);
+
+        if (count($matches) === 0) {
+            $this->reply(
+                $fromPhone,
+                $this->renderTemplate('not_found', ['reference' => $reference]),
+                $conversationId,
+                (int)$operator['id']
+            );
+            return;
+        }
+
+        if (count($matches) > 1) {
+            $lines = [];
+            foreach ($matches as $donor) {
+                $lines[] = '• ' . ($donor['name'] ?? '') . ' — ' . ($donor['phone'] ?? '');
+            }
+            $this->reply(
+                $fromPhone,
+                $this->renderTemplate('multiple_matches', [
+                    'reference' => $reference,
+                    'matches_list' => implode("\n", $lines),
+                ]),
+                $conversationId,
+                (int)$operator['id']
+            );
+            return;
+        }
+
+        $donor = $matches[0];
+        $donorId = (int)$donor['id'];
+        $payments = $this->fetchConfirmedPaymentsList($donorId);
+
+        if (empty($payments)) {
+            $this->reply(
+                $fromPhone,
+                $this->renderTemplate('confirm_no_payments', [
+                    'donor_name' => (string)($donor['name'] ?? ''),
+                    'reference' => $reference,
+                ]),
+                $conversationId,
+                (int)$operator['id']
+            );
+            return;
+        }
+
+        $paymentList = $this->formatNumberedPaymentPickList($payments);
+        $this->cancelOpenSessions($this->normalizePhoneDigits($fromPhone));
+
+        $payload = [
+            'mode' => 'confirm_resend',
+            'donor_id' => $donorId,
+            'donor_name' => (string)($donor['name'] ?? ''),
+            'donor_phone' => (string)($donor['phone'] ?? ''),
+            'reference' => $reference,
+            'total_pledged' => (float)($donor['total_pledged'] ?? 0),
+            'payments' => $payments,
+            'payment_list' => $paymentList,
+        ];
+        $this->createSession($operator, $payload, 'pending_confirm_pick', $fromPhone);
+
+        $this->reply(
+            $fromPhone,
+            $this->renderTemplate('confirm_pick_list', [
+                'donor_name' => (string)($donor['name'] ?? ''),
+                'reference' => $reference,
+                'payment_list' => $paymentList,
+            ]),
+            $conversationId,
+            (int)$operator['id']
+        );
+    }
+
+    /**
+     * @param list<array<string,mixed>> $payments
+     */
+    private function formatNumberedPaymentPickList(array $payments): string
+    {
+        $lines = [];
+        foreach ($payments as $payment) {
+            $index = (int)($payment['index'] ?? 0);
+            $amount = number_format((float)($payment['amount'] ?? 0), 2);
+            $dateRaw = (string)($payment['payment_date'] ?? '');
+            $dateLabel = $dateRaw !== '' ? date('d/m/Y', strtotime($dateRaw)) : '—';
+            $approvedBy = trim((string)($payment['approved_by'] ?? ''));
+            if ($approvedBy === '') {
+                $approvedBy = '—';
+            }
+            $lines[] = "{$index}. £{$amount} - {$dateLabel} - approved by {$approvedBy}";
+        }
+
+        return implode("\n", $lines);
+    }
+
+    /**
+     * Confirmed pledge payments and approved immediate payments, oldest first.
+     *
+     * @return list<array<string,mixed>>
+     */
+    private function fetchConfirmedPaymentsList(int $donorId): array
+    {
+        $rows = [];
+
+        $stmt = $this->db->prepare("
+            SELECT pp.id,
+                   pp.payment_date AS paid_on,
+                   pp.amount,
+                   COALESCE(NULLIF(approver.name, ''), '—') AS approved_by,
+                   'pledge_payment' AS source,
+                   COALESCE(pp.approved_at, pp.payment_date) AS sort_ts
+            FROM pledge_payments pp
+            LEFT JOIN users approver ON approver.id = pp.approved_by_user_id
+            WHERE pp.donor_id = ? AND pp.status = 'confirmed'
+        ");
+        if ($stmt) {
+            $stmt->bind_param('i', $donorId);
+            $stmt->execute();
+            $res = $stmt->get_result();
+            while ($row = $res->fetch_assoc()) {
+                $rows[] = $row;
+            }
+            $stmt->close();
+        }
+
+        $stmt2 = $this->db->prepare("
+            SELECT pay.id,
+                   COALESCE(DATE(pay.received_at), DATE(pay.created_at)) AS paid_on,
+                   pay.amount,
+                   COALESCE(NULLIF(approver.name, ''), '—') AS approved_by,
+                   'immediate_payment' AS source,
+                   COALESCE(pay.received_at, pay.created_at) AS sort_ts
+            FROM payments pay
+            LEFT JOIN users approver ON approver.id = pay.received_by_user_id
+            WHERE pay.donor_id = ? AND pay.status = 'approved'
+        ");
+        if ($stmt2) {
+            $stmt2->bind_param('i', $donorId);
+            $stmt2->execute();
+            $res2 = $stmt2->get_result();
+            while ($row = $res2->fetch_assoc()) {
+                $rows[] = $row;
+            }
+            $stmt2->close();
+        }
+
+        usort($rows, static function (array $a, array $b): int {
+            $aTs = strtotime((string)($a['paid_on'] ?? '')) ?: 0;
+            $bTs = strtotime((string)($b['paid_on'] ?? '')) ?: 0;
+            if ($aTs !== $bTs) {
+                return $aTs <=> $bTs;
+            }
+            $aSort = strtotime((string)($a['sort_ts'] ?? '')) ?: 0;
+            $bSort = strtotime((string)($b['sort_ts'] ?? '')) ?: 0;
+            if ($aSort !== $bSort) {
+                return $aSort <=> $bSort;
+            }
+
+            return ((int)($a['id'] ?? 0)) <=> ((int)($b['id'] ?? 0));
+        });
+
+        $indexed = [];
+        $index = 1;
+        foreach ($rows as $row) {
+            $paidOn = (string)($row['paid_on'] ?? '');
+            $indexed[] = [
+                'index' => $index,
+                'id' => (int)($row['id'] ?? 0),
+                'source' => (string)($row['source'] ?? 'pledge_payment'),
+                'amount' => (float)($row['amount'] ?? 0),
+                'payment_date' => $paidOn,
+                'approved_by' => (string)($row['approved_by'] ?? '—'),
+            ];
+            $index++;
+        }
+
+        return $indexed;
+    }
+
+    private function parsePaymentPickNumber(string $body): ?int
+    {
+        if (!preg_match('/^(\d{1,2})\s*$/u', trim($body), $matches)) {
+            return null;
+        }
+
+        $pick = (int)$matches[1];
+        return $pick > 0 ? $pick : null;
+    }
+
+    /**
+     * @param array<string,mixed> $pending
+     * @param array<string,mixed> $operator
+     */
+    private function completeConfirmResendPick(
+        array $operator,
+        array $pending,
+        int $pick,
+        string $fromPhone,
+        int $conversationId
+    ): void {
+        $sessionId = (int)$pending['id'];
+        $payload = $this->payloadFromSession($pending);
+        $payments = $payload['payments'] ?? [];
+        if (!is_array($payments)) {
+            $payments = [];
+        }
+
+        $selected = null;
+        foreach ($payments as $payment) {
+            if (!is_array($payment)) {
+                continue;
+            }
+            if ((int)($payment['index'] ?? 0) === $pick) {
+                $selected = $payment;
+                break;
+            }
+        }
+
+        if ($selected === null) {
+            $this->reply(
+                $fromPhone,
+                $this->renderTemplate('confirm_pick_reminder', [
+                    'reference' => (string)($payload['reference'] ?? ''),
+                    'payment_list' => (string)($payload['payment_list'] ?? ''),
+                ]),
+                $conversationId,
+                (int)$operator['id']
+            );
+            return;
+        }
+
+        $donorId = (int)($payload['donor_id'] ?? 0);
+        $totalPledged = (float)($payload['total_pledged'] ?? 0);
+        $cumulativePaid = 0.0;
+        foreach ($payments as $payment) {
+            if (!is_array($payment)) {
+                continue;
+            }
+            $cumulativePaid += (float)($payment['amount'] ?? 0);
+            if ((int)($payment['index'] ?? 0) === $pick) {
+                break;
+            }
+        }
+
+        $balance = max(0.0, $totalPledged - $cumulativePaid);
+        $isFullyPaid = $totalPledged > 0 && $balance <= 0.01;
+        $amount = (float)($selected['amount'] ?? 0);
+        $paymentDate = (string)($selected['payment_date'] ?? date('Y-m-d'));
+
+        $donorStmt = $this->db->prepare("SELECT name, phone, total_pledged, total_paid, balance FROM donors WHERE id = ? LIMIT 1");
+        $donor = [];
+        if ($donorStmt) {
+            $donorStmt->bind_param('i', $donorId);
+            $donorStmt->execute();
+            $donor = $donorStmt->get_result()->fetch_assoc() ?: [];
+            $donorStmt->close();
+        }
+
+        $financialSnapshot = [
+            'total_pledged' => $totalPledged,
+            'total_paid' => $cumulativePaid,
+            'balance' => $balance,
+        ];
+
+        $confirmResult = $this->sendDonorConfirmation(
+            $operator,
+            $donorId,
+            $amount,
+            $paymentDate,
+            $donor,
+            $fromPhone,
+            $isFullyPaid,
+            $financialSnapshot
+        );
+
+        $done = $this->db->prepare("
+            UPDATE whatsapp_payment_command_sessions
+            SET status = 'completed', completed_at = NOW()
+            WHERE id = ?
+        ");
+        if ($done) {
+            $done->bind_param('i', $sessionId);
+            $done->execute();
+            $done->close();
+        }
+
+        $dateLabel = $paymentDate !== '' ? date('d/m/Y', strtotime($paymentDate)) : '—';
+        if (!empty($confirmResult['success'])) {
+            $this->reply(
+                $fromPhone,
+                $this->renderTemplate('confirm_preview_sent', [
+                    'donor_name' => (string)($payload['donor_name'] ?? ($donor['name'] ?? '')),
+                    'reference' => (string)($payload['reference'] ?? ''),
+                    'payment_index' => (string)$pick,
+                    'amount' => number_format($amount, 2),
+                    'payment_date' => $dateLabel,
+                ]),
+                $conversationId,
+                (int)$operator['id']
+            );
+            return;
+        }
+
+        $this->reply(
+            $fromPhone,
+            $this->renderTemplate('confirm_preview_failed', [
+                'donor_name' => (string)($payload['donor_name'] ?? ($donor['name'] ?? '')),
+                'reference' => (string)($payload['reference'] ?? ''),
+                'error' => (string)($confirmResult['operator_note'] ?? 'unknown'),
+            ]),
+            $conversationId,
+            (int)$operator['id']
+        );
     }
 
     /**
@@ -882,10 +1247,19 @@ class WhatsAppPaymentCommandHandler
      *
      * @param array<string,mixed> $operator
      * @param array<string,mixed> $donor
+     * @param array{total_pledged:float,total_paid:float,balance:float}|null $financialSnapshot
      * @return array{success:bool,operator_note:string}
      */
-    private function sendDonorConfirmation(array $operator, int $donorId, float $amount, string $paymentDate, array $donor): array
-    {
+    private function sendDonorConfirmation(
+        array $operator,
+        int $donorId,
+        float $amount,
+        string $paymentDate,
+        array $donor,
+        ?string $destinationPhoneOverride = null,
+        ?bool $isFullyPaidOverride = null,
+        ?array $financialSnapshot = null
+    ): array {
         try {
             $hasUserPhoneNumberCol = $this->db->query("SHOW COLUMNS FROM users LIKE 'phone_number'")->num_rows > 0;
             $assignedAgentPhoneExpr = $hasUserPhoneNumberCol
@@ -918,7 +1292,12 @@ class WhatsAppPaymentCommandHandler
             $totalPledged = (float)($info['total_pledged'] ?? $donor['total_pledged'] ?? 0);
             $totalPaid = (float)($info['total_paid'] ?? $donor['total_paid'] ?? 0);
             $balance = (float)($info['balance'] ?? $donor['balance'] ?? 0);
-            $isFullyPaid = $totalPledged > 0 && $balance <= 0;
+            if ($financialSnapshot !== null) {
+                $totalPledged = (float)($financialSnapshot['total_pledged'] ?? $totalPledged);
+                $totalPaid = (float)($financialSnapshot['total_paid'] ?? $totalPaid);
+                $balance = (float)($financialSnapshot['balance'] ?? $balance);
+            }
+            $isFullyPaid = $isFullyPaidOverride ?? ($totalPledged > 0 && $balance <= 0);
             $hasPlan = !empty($info['plan_next_payment']) && ($info['plan_status'] ?? '') === 'active';
 
             $formattedPaymentDate = date('l, j F Y', strtotime($paymentDate));
@@ -968,11 +1347,17 @@ class WhatsAppPaymentCommandHandler
             $message = str_replace(array_keys($replacements), array_values($replacements), $message);
             $message = str_replace(['\\n', "\r\n"], "\n", $message);
 
-            $routedToKesis = $this->phonesMatch((string)($info['assigned_agent_phone'] ?? ''), self::KESIS_BIRHANU_PHONE);
-            $destinationPhone = $routedToKesis ? self::KESIS_BIRHANU_PHONE : $donorPhone;
-            $agentName = $routedToKesis
-                ? ((string)($info['assigned_agent_name'] ?: self::KESIS_BIRHANU_NAME))
-                : null;
+            $routedToKesis = false;
+            $agentName = null;
+            if ($destinationPhoneOverride !== null && trim($destinationPhoneOverride) !== '') {
+                $destinationPhone = $destinationPhoneOverride;
+            } else {
+                $routedToKesis = $this->phonesMatch((string)($info['assigned_agent_phone'] ?? ''), self::KESIS_BIRHANU_PHONE);
+                $destinationPhone = $routedToKesis ? self::KESIS_BIRHANU_PHONE : $donorPhone;
+                $agentName = $routedToKesis
+                    ? ((string)($info['assigned_agent_name'] ?: self::KESIS_BIRHANU_NAME))
+                    : null;
+            }
 
             if (trim($destinationPhone) === '') {
                 return [
@@ -1476,7 +1861,7 @@ class WhatsAppPaymentCommandHandler
         $stmt = $this->db->prepare("
             SELECT * FROM whatsapp_payment_command_sessions
             WHERE operator_phone = ?
-              AND status IN ('pending_confirm', 'pending_amount')
+              AND status IN ('pending_confirm', 'pending_amount', 'pending_confirm_pick')
               AND expires_at > NOW()
             ORDER BY id DESC
             LIMIT 1
@@ -1505,7 +1890,7 @@ class WhatsAppPaymentCommandHandler
         $stmt = $this->db->prepare("
             UPDATE whatsapp_payment_command_sessions
             SET status = 'cancelled', completed_at = NOW()
-            WHERE operator_phone = ? AND status IN ('pending_confirm', 'pending_amount')
+            WHERE operator_phone = ? AND status IN ('pending_confirm', 'pending_amount', 'pending_confirm_pick')
         ");
         $stmt->bind_param('s', $operatorPhoneDigits);
         $stmt->execute();
@@ -1678,7 +2063,37 @@ class WhatsAppPaymentCommandHandler
                 'label' => 'Help / Usage',
                 'description' => 'Sent when staff type PAY/HELP incorrectly',
                 'placeholders' => '{expires_minutes}',
-                'body' => "📌 *የWhatsApp ክፍያ ትእዛዝ*\n\nክፍያ ለመመዝገብ፦\n*PAY 0335*\nወይም\n*PAY 0335 50*\n\nየለጋሽ መረጃን ብቻ ለማየት፦\n*CHECK 0335*\n\nከPAY ትእዛዝ በኋላ፦\n• መጠን ካልላኩ — የክፍያ መጠን ይላኩ ወይም *ይቅር*\n• መጠን ካላኩ — *አዎ* ለማረጋገጥ ወይም *አይደለም* ትክክለኛው ሰው ካልሆነ",
+                'body' => "📌 *የWhatsApp ክፍያ ትእዛዝ*\n\nክፍያ ለመመዝገብ፦\n*PAY 0335*\nወይም\n*PAY 0335 50*\n\nየለጋሽ መረጃን ብቻ ለማየት፦\n*CHECK 0335*\n\nማረጋገጫ ለመሞከር (ወደ እርስዎ ይላካል)፦\n*CONFIRM 0335*\n\nከPAY ትእዛዝ በኋላ፦\n• መጠን ካልላኩ — የክፍያ መጠን ይላኩ ወይም *ይቅር*\n• መጠን ካላኩ — *አዎ* ለማረጋገጥ ወይም *አይደለም* ትክክለኛው ሰው ካልሆነ",
+            ],
+            'confirm_pick_list' => [
+                'label' => 'Confirm Resend — Payment List',
+                'description' => 'Shown after CONFIRM 0335 with numbered payment history',
+                'placeholders' => '{donor_name} {reference} {payment_list}',
+                'body' => "📜 *የክፍያ ታሪክ* — {donor_name} ({reference})\n\n{payment_list}\n\nለማረጋገጫ መልእክት ለመሞከር ቁጥሩን ይምረጡ።\nለመተው *ይቅር* ብለው ይላኩ።",
+            ],
+            'confirm_pick_reminder' => [
+                'label' => 'Confirm Resend — Pick Reminder',
+                'description' => 'Reminder while waiting for payment number after CONFIRM',
+                'placeholders' => '{reference} {payment_list}',
+                'body' => "⏳ ቁጥር ይምረጡ።\n\n{payment_list}\n\nለመተው *ይቅር* ብለው ይላኩ።",
+            ],
+            'confirm_preview_sent' => [
+                'label' => 'Confirm Resend — Preview Sent',
+                'description' => 'After staff picks a payment and preview is sent to them',
+                'placeholders' => '{donor_name} {reference} {payment_index} {amount} {payment_date}',
+                'body' => "✅ ማረጋገጫ ከምስክር ወረቀት ጋር ወደ እርስዎ ተልኳል።\n\nለጋሽ: {donor_name}\nመከታተያ: {reference}\nክፍያ #{payment_index}: £{amount} ({payment_date})\n\nእንደገና ለመሞከር: CONFIRM {reference}",
+            ],
+            'confirm_preview_failed' => [
+                'label' => 'Confirm Resend — Preview Failed',
+                'description' => 'Certificate or message could not be sent to staff',
+                'placeholders' => '{donor_name} {reference} {error}',
+                'body' => "❌ ማረጋገጫ መላክ አልተሳካም።\n\nለጋሽ: {donor_name}\nመከታተያ: {reference}\n{error}",
+            ],
+            'confirm_no_payments' => [
+                'label' => 'Confirm Resend — No Payments',
+                'description' => 'Donor has no confirmed payments yet',
+                'placeholders' => '{donor_name} {reference}',
+                'body' => "❌ ለ *{donor_name}* ({reference}) የተጽድቀ ክፍያ አልተገኘም።",
             ],
             'status_check' => [
                 'label' => 'Donor Status Check',
@@ -1794,7 +2209,7 @@ class WhatsAppPaymentCommandHandler
         }
 
         // One-time upgrade of identity-confirm flow templates (versioned)
-        $flowVersion = 6;
+        $flowVersion = 7;
         $currentVersion = 0;
         $verRes = $this->db->query("SELECT body FROM whatsapp_pay_message_templates WHERE template_key = '_flow_version' LIMIT 1");
         if ($verRes && ($verRow = $verRes->fetch_assoc())) {
@@ -1811,6 +2226,11 @@ class WhatsAppPaymentCommandHandler
             $flowKeys = [
                 'help',
                 'status_check',
+                'confirm_pick_list',
+                'confirm_pick_reminder',
+                'confirm_preview_sent',
+                'confirm_preview_failed',
+                'confirm_no_payments',
                 'ask_amount',
                 'ask_amount_reminder',
                 'confirm_request',
@@ -1886,7 +2306,7 @@ class WhatsAppPaymentCommandHandler
         // Add pending_amount for existing installs
         @$this->db->query("
             ALTER TABLE whatsapp_payment_command_sessions
-            MODIFY COLUMN status ENUM('pending_amount','pending_confirm','completed','cancelled','expired')
+            MODIFY COLUMN status ENUM('pending_amount','pending_confirm','pending_confirm_pick','completed','cancelled','expired')
             NOT NULL DEFAULT 'pending_confirm'
         ");
 
