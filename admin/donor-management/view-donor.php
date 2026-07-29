@@ -4,8 +4,25 @@ require_once __DIR__ . '/../../shared/auth.php';
 require_once __DIR__ . '/../../config/db.php';
 require_once __DIR__ . '/../../shared/audit_helper.php';
 require_once __DIR__ . '/../../shared/csrf.php';
-require_login();
-require_admin();
+
+// Headless server-browser access: token from shared/cert_token.php bypasses login.
+$viewToken = (string)($_GET['view_token'] ?? '');
+$donor_id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
+$headlessView = false;
+if ($donor_id > 0 && $viewToken !== '') {
+    require_once __DIR__ . '/../../shared/cert_token.php';
+    foreach ([date('Y-m-d'), date('Y-m-d', strtotime('-1 day'))] as $day) {
+        if (hash_equals(cert_render_token($donor_id, 'view', $day), $viewToken)) {
+            $headlessView = true;
+            break;
+        }
+    }
+}
+
+if (!$headlessView) {
+    require_login();
+    require_admin();
+}
 
 // Resiliently load settings and check for DB errors
 require_once __DIR__ . '/../includes/resilient_db_loader.php';
@@ -19,7 +36,7 @@ if (!$donor_id) {
 }
 
 // Get current user's phone for Twilio calling
-$user_id = (int)$_SESSION['user']['id'];
+$user_id = (int)($_SESSION['user']['id'] ?? 0);
 $user_phone_query = "SELECT phone, phone_number FROM users WHERE id = ?";
 $user_stmt = $db->prepare($user_phone_query);
 $user_stmt->bind_param('i', $user_id);
@@ -2842,6 +2859,25 @@ function formatDateTime($date) {
             letter-spacing: 2px;
         }
     </style>
+<?php if (!empty($headlessView)): ?>
+<style>
+/* Headless server-browser: isolate the certificate on a white page */
+body.cert-headless-mode { background: #ffffff !important; overflow: hidden !important; }
+body.cert-headless-mode * { visibility: hidden !important; }
+body.cert-headless-mode .cert-capture-wrapper,
+body.cert-headless-mode .cert-capture-wrapper *,
+body.cert-headless-mode .fc-capture-wrapper,
+body.cert-headless-mode .fc-capture-wrapper * { visibility: visible !important; }
+body.cert-headless-mode .cert-capture-wrapper,
+body.cert-headless-mode .fc-capture-wrapper { position: fixed !important; top: 0 !important; left: 0 !important; z-index: 999999 !important; transform: none !important; }
+body.cert-headless-mode .cert-capture-wrapper { width: 1200px !important; height: 970px !important; }
+body.cert-headless-mode .fc-capture-wrapper { width: 1200px !important; height: 850px !important; }
+</style>
+<script>
+document.body.classList.add('cert-headless-mode');
+document.body.setAttribute('data-cert', '<?php echo (isset($_GET['cert_type']) && $_GET['cert_type'] === 'completed') ? 'completed' : 'progress'; ?>');
+</script>
+<?php endif; ?>
 </head>
 <body>
 <div class="admin-wrapper">
