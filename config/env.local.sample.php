@@ -11,4 +11,7 @@ if (!defined('DB_NAME')) define('DB_NAME', 'DB_NAME_HERE');
 // Timezone (optional)
 // if (!defined('APP_TZ')) define('APP_TZ', 'Africa/Addis_Ababa');
 
+// Headless Chrome for WhatsApp certificate images (Linux shared hosting)
+// if (!defined('CERT_CHROME_PATH')) define('CERT_CHROME_PATH', '/home/USER/chrome/chrome-headless-shell-linux64/chrome-headless-shell');
+// if (!defined('CERT_CHROME_LIB_PATH')) define('CERT_CHROME_LIB_PATH', '/home/USER/chrome/libs/usr/lib/x86_64-linux-gnu');
 

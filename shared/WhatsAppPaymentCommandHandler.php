@@ -1368,6 +1368,8 @@ class WhatsAppPaymentCommandHandler
 
             // Website parity: certificate image with the Amharic message as caption.
             // Only when the template allows WhatsApp delivery; otherwise text below.
+            $certificateRequired = $destinationPhoneOverride !== null
+                && trim((string)$destinationPhoneOverride) !== '';
             if ($templateMode !== 'sms') {
                 $cert = $this->sendDonorCertificateImage(
                     (int)$operator['id'],
@@ -1397,7 +1399,16 @@ class WhatsAppPaymentCommandHandler
                     }
                     return [
                         'success' => true,
-                        'operator_note' => "\n📨 ማረጋገጫ ከምስክር ወረቀት ጋር ለለጋሹ ተልኳል።",
+                        'operator_note' => $certificateRequired
+                            ? ''
+                            : "\n📨 ማረጋገጫ ከምስክር ወረቀት ጋር ለለጋሹ ተልኳል።",
+                    ];
+                }
+
+                if ($certificateRequired) {
+                    return [
+                        'success' => false,
+                        'operator_note' => (string)($cert['error'] ?? 'Certificate image could not be generated'),
                     ];
                 }
             }
@@ -1474,7 +1485,7 @@ class WhatsAppPaymentCommandHandler
         string $caption
     ): array {
         if (!CertificateImageRenderer::isAvailable()) {
-            return ['success' => false, 'error' => 'chrome_missing'];
+            return ['success' => false, 'error' => CertificateImageRenderer::unavailableReason()];
         }
 
         $service = UltraMsgService::fromDatabase($this->db);
@@ -2087,7 +2098,7 @@ class WhatsAppPaymentCommandHandler
                 'label' => 'Confirm Resend — Preview Failed',
                 'description' => 'Certificate or message could not be sent to staff',
                 'placeholders' => '{donor_name} {reference} {error}',
-                'body' => "❌ ማረጋገጫ መላክ አልተሳካም።\n\nለጋሽ: {donor_name}\nመከታተያ: {reference}\n{error}",
+                'body' => "❌ ማረጋገጫ መላክ አልተሳካም።\n\nለጋሽ: {donor_name}\nመከታተያ: {reference}\n\n{error}\n\nእባክዎ ከአስተዳዳሪው ጋር ያገናኙ።",
             ],
             'confirm_no_payments' => [
                 'label' => 'Confirm Resend — No Payments',
@@ -2209,7 +2220,7 @@ class WhatsAppPaymentCommandHandler
         }
 
         // One-time upgrade of identity-confirm flow templates (versioned)
-        $flowVersion = 7;
+        $flowVersion = 8;
         $currentVersion = 0;
         $verRes = $this->db->query("SELECT body FROM whatsapp_pay_message_templates WHERE template_key = '_flow_version' LIMIT 1");
         if ($verRes && ($verRow = $verRes->fetch_assoc())) {

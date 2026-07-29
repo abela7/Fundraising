@@ -94,7 +94,31 @@ class CertificateImageRenderer
 
     public static function isAvailable(): bool
     {
-        return self::chromeBinary() !== null;
+        return self::chromeBinary() !== null && self::canRunShellCommands();
+    }
+
+    /**
+     * Human-readable reason when isAvailable() is false (for operator-facing errors).
+     */
+    public static function unavailableReason(): string
+    {
+        if (!self::canRunShellCommands()) {
+            return 'PHP cannot run shell commands (exec/proc_open disabled)';
+        }
+        if (self::chromeBinary() === null) {
+            return 'Chrome/Chromium binary not found (set CERT_CHROME_PATH in config/env.local.php)';
+        }
+
+        return '';
+    }
+
+    public static function canRunShellCommands(): bool
+    {
+        if (!self::isFunctionDisabled('exec')) {
+            return true;
+        }
+
+        return !self::isFunctionDisabled('proc_open');
     }
 
     /**
@@ -155,13 +179,16 @@ class CertificateImageRenderer
 
         $output = [];
         $exitCode = 1;
-        @exec($cmd, $output, $exitCode);
+        self::runShellCommand($cmd, $output, $exitCode);
 
         if ($exitCode !== 0 || !is_file($outputPath) || filesize($outputPath) < 1024) {
+            $size = is_file($outputPath) ? (int)filesize($outputPath) : 0;
             @unlink($outputPath);
             return [
                 'success' => false,
-                'error' => 'Headless Chrome screenshot failed (exit ' . $exitCode . ')',
+                'error' => 'Headless Chrome screenshot failed (exit ' . $exitCode
+                    . ($size > 0 ? ', ' . $size . ' bytes' : '')
+                    . '). Check cert URL is reachable: ' . $url,
             ];
         }
 
@@ -178,7 +205,7 @@ class CertificateImageRenderer
             $cmd = $isWin ? 'where ' . escapeshellarg($name) : 'command -v ' . escapeshellarg($name);
             $out = [];
             $code = 1;
-            @exec($cmd, $out, $code);
+            self::runShellCommand($cmd, $out, $code);
             if ($code === 0 && !empty($out[0])) {
                 $path = trim((string)$out[0]);
                 if ($path !== '') {
@@ -208,12 +235,69 @@ class CertificateImageRenderer
                 return (string)$info['dir'];
             }
         }
+
+        // cPanel: app often lives at /home/user/domain.tld (HOME unset under PHP-FPM).
+        $appRoot = dirname(__DIR__);
+        if (preg_match('#^/home/([^/]+)(/|$)#', $appRoot, $matches) === 1) {
+            $candidate = '/home/' . $matches[1];
+            if (is_dir($candidate)) {
+                return $candidate;
+            }
+        }
+
         return '';
     }
 
     /**
-     * LD_LIBRARY_PATH for user-space .deb libs on shared cPanel hosts.
+     * @param list<string> $output
      */
+    private static function runShellCommand(string $cmd, array &$output, int &$exitCode): void
+    {
+        $output = [];
+        $exitCode = 1;
+
+        if (!self::isFunctionDisabled('exec')) {
+            @exec($cmd, $output, $exitCode);
+            return;
+        }
+
+        if (self::isFunctionDisabled('proc_open')) {
+            return;
+        }
+
+        $descriptors = [
+            0 => ['pipe', 'r'],
+            1 => ['pipe', 'w'],
+            2 => ['pipe', 'w'],
+        ];
+        $process = @proc_open($cmd, $descriptors, $pipes);
+        if (!is_resource($process)) {
+            return;
+        }
+
+        fclose($pipes[0]);
+        $stdout = stream_get_contents($pipes[1]);
+        fclose($pipes[1]);
+        fclose($pipes[2]);
+        $exitCode = proc_close($process);
+        if (is_string($stdout) && $stdout !== '') {
+            $output = preg_split('/\r\n|\r|\n/', trim($stdout)) ?: [];
+        }
+    }
+
+    private static function isFunctionDisabled(string $function): bool
+    {
+        if (!function_exists($function)) {
+            return true;
+        }
+        $disabled = ini_get('disable_functions');
+        if (!is_string($disabled) || $disabled === '') {
+            return false;
+        }
+
+        return in_array($function, array_map('trim', explode(',', $disabled)), true);
+    }
+
     private static function chromeLibraryPath(): string
     {
         if (defined('CERT_CHROME_LIB_PATH') && CERT_CHROME_LIB_PATH !== '') {
