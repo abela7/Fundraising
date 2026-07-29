@@ -16,6 +16,8 @@ declare(strict_types=1);
 require_once __DIR__ . '/FinancialCalculator.php';
 require_once __DIR__ . '/../services/UltraMsgService.php';
 require_once __DIR__ . '/../services/MessagingHelper.php';
+require_once __DIR__ . '/CertificateImageRenderer.php';
+require_once __DIR__ . '/cert_token.php';
 
 class WhatsAppPaymentCommandHandler
 {
@@ -979,6 +981,42 @@ class WhatsAppPaymentCommandHandler
                 ];
             }
 
+            // Website parity: certificate image with the Amharic message as caption.
+            // Only when the template allows WhatsApp delivery; otherwise text below.
+            if ($templateMode !== 'sms') {
+                $cert = $this->sendDonorCertificateImage(
+                    (int)$operator['id'],
+                    $donorId,
+                    $isFullyPaid,
+                    $destinationPhone,
+                    $message
+                );
+
+                if (!empty($cert['success'])) {
+                    $this->logPaymentNotification(
+                        $donorId,
+                        $templateKey,
+                        'whatsapp',
+                        $destinationPhone,
+                        $message,
+                        (int)$operator['id'],
+                        $routedToKesis,
+                        $agentName
+                    );
+
+                    if ($routedToKesis) {
+                        return [
+                            'success' => true,
+                            'operator_note' => "\n📨 ማረጋገጫ ከምስክር ወረቀት ጋር ወደ ወኪል ተልኳል: " . ($agentName ?: self::KESIS_BIRHANU_NAME),
+                        ];
+                    }
+                    return [
+                        'success' => true,
+                        'operator_note' => "\n📨 ማረጋገጫ ከምስክር ወረቀት ጋር ለለጋሹ ተልኳል።",
+                    ];
+                }
+            }
+
             $channel = MessagingHelper::CHANNEL_AUTO;
             $allowSmsFallback = true;
             if ($templateMode === 'sms') {
@@ -1034,6 +1072,182 @@ class WhatsAppPaymentCommandHandler
                 'operator_note' => "\n⚠️ ክፍያ ተጽድቋል፣ ግን ማረጋገጫ መላክ አልተሳካም።",
             ];
         }
+    }
+
+    /**
+     * Render the donor certificate with headless Chrome and send it via
+     * WhatsApp with the confirmation message as caption — the same single
+     * image+message the website's review page produces.
+     *
+     * @return array{success:bool,error?:string}
+     */
+    private function sendDonorCertificateImage(
+        int $operatorId,
+        int $donorId,
+        bool $isFullyPaid,
+        string $phone,
+        string $caption
+    ): array {
+        if (!CertificateImageRenderer::isAvailable()) {
+            return ['success' => false, 'error' => 'chrome_missing'];
+        }
+
+        $service = UltraMsgService::fromDatabase($this->db);
+        if (!$service) {
+            return ['success' => false, 'error' => 'whatsapp_not_configured'];
+        }
+
+        $type = $isFullyPaid ? 'completed' : 'progress';
+        $token = cert_render_token($donorId, $type);
+        $url = $this->appBaseUrl() . '/cert/render.php?donor_id=' . $donorId
+            . '&type=' . $type . '&token=' . urlencode($token);
+
+        $uploadDir = dirname(__DIR__) . '/uploads/certificates/' . date('Y/m');
+        $localPath = $uploadDir . '/cert_pay_' . $donorId . '_' . date('Ymd_His') . '.png';
+
+        $renderer = new CertificateImageRenderer();
+        $render = $renderer->render($url, $type, $localPath);
+        if (empty($render['success'])) {
+            error_log('WhatsApp PAY certificate render failed: ' . (string)($render['error'] ?? 'unknown'));
+            return ['success' => false, 'error' => (string)($render['error'] ?? 'render_failed')];
+        }
+
+        $result = $service->sendImageFromFile($phone, $localPath, $caption);
+        if (empty($result['success'])) {
+            @unlink($localPath);
+            error_log('WhatsApp PAY certificate send failed: ' . json_encode($result));
+            return ['success' => false, 'error' => (string)($result['error'] ?? 'send_failed')];
+        }
+
+        $this->logCertificateWhatsappMessage(
+            $operatorId,
+            $donorId,
+            $phone,
+            $caption,
+            $localPath,
+            $result
+        );
+
+        return ['success' => true];
+    }
+
+    /**
+     * Record the outgoing certificate image in whatsapp_messages, mirroring
+     * admin/donor-management/api/send-certificate-whatsapp.php.
+     *
+     * @param array<string,mixed> $sendResult
+     */
+    private function logCertificateWhatsappMessage(
+        int $operatorId,
+        int $donorId,
+        string $phone,
+        string $caption,
+        string $localPath,
+        array $sendResult
+    ): void {
+        try {
+            $normalizedPhone = $this->normalizePhoneForDb($phone);
+            $relativePath = 'uploads/certificates/' . date('Y/m') . '/' . basename($localPath);
+
+            $conversationId = 0;
+            $stmt = $this->db->prepare("SELECT id FROM whatsapp_conversations WHERE phone_number = ?");
+            if ($stmt) {
+                $stmt->bind_param('s', $normalizedPhone);
+                $stmt->execute();
+                $row = $stmt->get_result()->fetch_assoc();
+                $stmt->close();
+                if ($row) {
+                    $conversationId = (int)$row['id'];
+                }
+            }
+
+            if ($conversationId <= 0) {
+                $stmt = $this->db->prepare("INSERT INTO whatsapp_conversations (phone_number, donor_id, is_unknown, created_at) VALUES (?, ?, 0, NOW())");
+                if ($stmt) {
+                    $stmt->bind_param('si', $normalizedPhone, $donorId);
+                    $stmt->execute();
+                    $conversationId = (int)$this->db->insert_id;
+                    $stmt->close();
+                }
+            }
+
+            if ($conversationId > 0) {
+                $messageId = isset($sendResult['message_id']) ? (string)$sendResult['message_id'] : null;
+                $status = 'sent';
+                $stmt = $this->db->prepare("
+                    INSERT INTO whatsapp_messages
+                    (conversation_id, ultramsg_id, direction, message_type, body, media_url, media_mime_type, media_filename, media_caption, media_local_path, status, sender_id, is_from_donor, sent_at, created_at)
+                    VALUES (?, ?, 'outgoing', 'image', ?, ?, 'image/png', ?, ?, ?, ?, ?, 0, NOW(), NOW())
+                ");
+                if ($stmt) {
+                    $filename = basename($localPath);
+                    $stmt->bind_param(
+                        'isssssssi',
+                        $conversationId,
+                        $messageId,
+                        $caption,
+                        $relativePath,
+                        $filename,
+                        $caption,
+                        $relativePath,
+                        $status,
+                        $operatorId
+                    );
+                    $stmt->execute();
+                    $stmt->close();
+                }
+
+                $preview = 'Certificate sent';
+                $stmt = $this->db->prepare("
+                    UPDATE whatsapp_conversations
+                    SET last_message_at = NOW(), last_message_preview = ?, last_message_direction = 'outgoing', updated_at = NOW()
+                    WHERE id = ?
+                ");
+                if ($stmt) {
+                    $stmt->bind_param('si', $preview, $conversationId);
+                    $stmt->execute();
+                    $stmt->close();
+                }
+            }
+        } catch (Throwable $e) {
+            error_log('WhatsApp PAY certificate message log failed: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Public base URL of the app, derived from the current webhook request
+     * (e.g. https://donate.abuneteklehaymanot.org or http://localhost/Fundraising).
+     */
+    private function appBaseUrl(): string
+    {
+        $https = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+            || (($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https');
+        $scheme = $https ? 'https' : 'http';
+        $host = (string)($_SERVER['HTTP_HOST'] ?? 'localhost');
+
+        // Webhook entry point lives at <base>/webhooks/ultramsg.php
+        $script = str_replace('\\', '/', (string)($_SERVER['SCRIPT_NAME'] ?? '/webhooks/ultramsg.php'));
+        $base = rtrim(str_replace('\\', '/', dirname(dirname($script))), '/');
+
+        return $scheme . '://' . $host . $base;
+    }
+
+    private function normalizePhoneForDb(string $phone): string
+    {
+        $phone = preg_replace('/[^0-9+]/', '', $phone) ?? '';
+        if (str_starts_with($phone, '+')) {
+            return $phone;
+        }
+        if (str_starts_with($phone, '44') && strlen($phone) === 12) {
+            return '+' . $phone;
+        }
+        if (str_starts_with($phone, '251') && strlen($phone) === 12) {
+            return '+' . $phone;
+        }
+        if (str_starts_with($phone, '0')) {
+            return '+44' . substr($phone, 1);
+        }
+        return '+' . $phone;
     }
 
     /**
