@@ -246,7 +246,7 @@ class CertificateImageRenderer
             $cmd .= ' ' . escapeshellarg($arg);
         }
 
-        $envPrefix = self::buildExecEnvPrefix($binary);
+        $envPrefix = self::buildExecEnvPrefix($binary, $profileDir);
         if ($envPrefix !== '') {
             $cmd = $envPrefix . $cmd;
         }
@@ -464,14 +464,15 @@ class CertificateImageRenderer
     }
 
     /**
-     * Prefix exec with LD_LIBRARY_PATH when bundled libs exist (Linux only).
+     * Give Chrome a private writable runtime environment under PHP-FPM.
      */
-    private static function buildExecEnvPrefix(string $chromeBinary): string
+    private static function buildExecEnvPrefix(string $chromeBinary, string $profileDir): string
     {
         if (DIRECTORY_SEPARATOR === '\\') {
             return '';
         }
 
+        $assignments = [];
         $parts = [];
         $libPath = self::chromeLibraryPath();
         if ($libPath !== '') {
@@ -485,11 +486,26 @@ class CertificateImageRenderer
         if (is_string($existing) && $existing !== '') {
             $parts[] = $existing;
         }
-        if (empty($parts)) {
-            return '';
+        if (!empty($parts)) {
+            $assignments[] = 'LD_LIBRARY_PATH=' . escapeshellarg(implode(':', $parts));
         }
 
-        return 'LD_LIBRARY_PATH=' . escapeshellarg(implode(':', $parts)) . ' ';
+        $runtimeDir = $profileDir . DIRECTORY_SEPARATOR . 'runtime';
+        $cacheDir = $profileDir . DIRECTORY_SEPARATOR . 'cache';
+
+        $home = self::resolveHomeDir();
+        if ($home !== '') {
+            $assignments[] = 'HOME=' . escapeshellarg($home);
+        }
+        $assignments[] = 'XDG_CONFIG_HOME=' . escapeshellarg($profileDir);
+        if (is_dir($cacheDir) || @mkdir($cacheDir, 0700, true)) {
+            $assignments[] = 'XDG_CACHE_HOME=' . escapeshellarg($cacheDir);
+        }
+        if (is_dir($runtimeDir) || @mkdir($runtimeDir, 0700, true)) {
+            $assignments[] = 'XDG_RUNTIME_DIR=' . escapeshellarg($runtimeDir);
+        }
+
+        return implode(' ', $assignments) . ' ';
     }
 
     private static function tempProfileDir(): string
