@@ -1496,7 +1496,7 @@ class WhatsAppPaymentCommandHandler
         $type = $isFullyPaid ? 'completed' : 'progress';
         $token = cert_render_token($donorId, $type);
         $url = $this->appBaseUrl() . '/cert/render.php?donor_id=' . $donorId
-            . '&type=' . $type . '&token=' . urlencode($token);
+            . '&type=' . $type . '&token=' . urlencode($token) . '&headless=1';
 
         $uploadDir = dirname(__DIR__) . '/uploads/certificates/' . date('Y/m');
         $localPath = $uploadDir . '/cert_pay_' . $donorId . '_' . date('Ymd_His') . '.png';

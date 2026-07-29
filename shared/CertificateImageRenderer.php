@@ -27,11 +27,16 @@ class CertificateImageRenderer
         'completed' => [1200, 850],
     ];
 
-    /** Crisp output like html2canvas scale: 2 on the website. */
-    private const SCALE_FACTOR = 2;
+    /** Crisp output on website uses html2canvas scale 2; headless uses 1 to avoid OOM/crash. */
+    private const SCALE_FACTOR = 1;
 
     /** Time budget for fonts / QR / background images to finish loading. */
-    private const VIRTUAL_TIME_BUDGET_MS = 15000;
+    private const VIRTUAL_TIME_BUDGET_MS = 20000;
+
+    /** Match review-pledge-payments certificate upload limit. */
+    private const UPLOAD_LIMIT_BYTES = 5 * 1024 * 1024;
+
+    private const MAX_OUTPUT_WIDTH = 1200;
 
     private static ?string $resolvedBinary = null;
 
@@ -143,15 +148,87 @@ class CertificateImageRenderer
             return ['success' => false, 'error' => 'Cannot create output directory'];
         }
 
-        $args = [
-            // Plain --headless works on both chrome-headless-shell and
-            // current full Chrome (where old/new headless were unified).
+        $stderrFile = sys_get_temp_dir() . '/cert-chrome-' . uniqid('', true) . '.log';
+        $attemptProfiles = [
+            [
+                'scale' => self::SCALE_FACTOR,
+                'flags' => [
+                    '--no-zygote',
+                    '--disable-setuid-sandbox',
+                    '--disable-breakpad',
+                    '--disable-software-rasterizer',
+                ],
+            ],
+            [
+                'scale' => self::SCALE_FACTOR,
+                'flags' => [
+                    '--single-process',
+                    '--no-zygote',
+                    '--disable-setuid-sandbox',
+                    '--disable-breakpad',
+                ],
+            ],
+        ];
+
+        $lastError = 'Headless Chrome screenshot failed';
+        foreach ($attemptProfiles as $profile) {
+            $attempt = $this->runScreenshotAttempt(
+                $binary,
+                $url,
+                $type,
+                $width,
+                $height,
+                $outputPath,
+                $stderrFile,
+                (int)$profile['scale'],
+                $profile['flags']
+            );
+            if (!empty($attempt['success'])) {
+                @unlink($stderrFile);
+                $this->optimizeOutputImage($outputPath);
+                return ['success' => true, 'path' => $outputPath];
+            }
+            $lastError = (string)($attempt['error'] ?? $lastError);
+        }
+
+        $stderrTail = '';
+        if (is_file($stderrFile)) {
+            $stderrRaw = (string)@file_get_contents($stderrFile);
+            $stderrTail = trim(substr($stderrRaw, -500));
+            @unlink($stderrFile);
+        }
+
+        if ($stderrTail !== '') {
+            $lastError .= ' | chrome: ' . $stderrTail;
+        }
+
+        return ['success' => false, 'error' => $lastError];
+    }
+
+    /**
+     * @param list<string> $extraFlags
+     * @return array{success:bool,error?:string}
+     */
+    private function runScreenshotAttempt(
+        string $binary,
+        string $url,
+        string $type,
+        int $width,
+        int $height,
+        string $outputPath,
+        string $stderrFile,
+        int $scaleFactor,
+        array $extraFlags
+    ): array {
+        @unlink($outputPath);
+
+        $args = array_merge([
             '--headless',
             '--disable-gpu',
             '--no-sandbox',
             '--disable-dev-shm-usage',
             '--hide-scrollbars',
-            '--force-device-scale-factor=' . self::SCALE_FACTOR,
+            '--force-device-scale-factor=' . max(1, $scaleFactor),
             '--window-size=' . $width . ',' . $height,
             '--virtual-time-budget=' . self::VIRTUAL_TIME_BUDGET_MS,
             '--run-all-compositor-stages-before-draw',
@@ -159,8 +236,7 @@ class CertificateImageRenderer
             '--no-first-run',
             '--user-data-dir=' . self::tempProfileDir(),
             '--screenshot=' . $outputPath,
-            $url,
-        ];
+        ], $extraFlags, [$url]);
 
         $cmd = escapeshellarg($binary);
         foreach ($args as $arg) {
@@ -173,8 +249,7 @@ class CertificateImageRenderer
         }
 
         if (DIRECTORY_SEPARATOR !== '\\') {
-            // exec() only captures stdout; silence Chrome's stderr noise.
-            $cmd .= ' 2>/dev/null';
+            $cmd .= ' 2>' . escapeshellarg($stderrFile);
         }
 
         $output = [];
@@ -188,11 +263,80 @@ class CertificateImageRenderer
                 'success' => false,
                 'error' => 'Headless Chrome screenshot failed (exit ' . $exitCode
                     . ($size > 0 ? ', ' . $size . ' bytes' : '')
-                    . '). Check cert URL is reachable: ' . $url,
+                    . '). URL: ' . $url,
             ];
         }
 
-        return ['success' => true, 'path' => $outputPath];
+        return ['success' => true];
+    }
+
+    /**
+     * Resize/compress like review-pledge-payments optimizeCertificateBlob.
+     */
+    private function optimizeOutputImage(string $outputPath): void
+    {
+        if (!function_exists('imagecreatefrompng') || !is_file($outputPath)) {
+            return;
+        }
+
+        $info = @getimagesize($outputPath);
+        if ($info === false) {
+            return;
+        }
+
+        $width = (int)($info[0] ?? 0);
+        $height = (int)($info[1] ?? 0);
+        if ($width <= 0 || $height <= 0) {
+            return;
+        }
+
+        $image = @imagecreatefrompng($outputPath);
+        if ($image === false) {
+            return;
+        }
+
+        $targetWidth = $width;
+        if ($targetWidth > self::MAX_OUTPUT_WIDTH) {
+            $targetWidth = self::MAX_OUTPUT_WIDTH;
+        }
+        $targetHeight = (int)round($height * ($targetWidth / $width));
+
+        $canvas = $image;
+        if ($targetWidth !== $width) {
+            $resized = imagecreatetruecolor($targetWidth, $targetHeight);
+            if ($resized !== false) {
+                imagealphablending($resized, false);
+                imagesavealpha($resized, true);
+                imagecopyresampled($resized, $image, 0, 0, 0, 0, $targetWidth, $targetHeight, $width, $height);
+                imagedestroy($image);
+                $canvas = $resized;
+            }
+        }
+
+        $pngOk = imagepng($canvas, $outputPath, 6);
+        $size = $pngOk ? (int)filesize($outputPath) : PHP_INT_MAX;
+        if ($size <= self::UPLOAD_LIMIT_BYTES) {
+            imagedestroy($canvas);
+            return;
+        }
+
+        $jpegPath = preg_replace('/\.png$/i', '.jpg', $outputPath) ?? ($outputPath . '.jpg');
+        foreach ([92, 86, 80, 74] as $quality) {
+            if (!imagejpeg($canvas, $jpegPath, $quality)) {
+                continue;
+            }
+            if ((int)filesize($jpegPath) <= self::UPLOAD_LIMIT_BYTES) {
+                @unlink($outputPath);
+                if ($jpegPath !== $outputPath) {
+                    @rename($jpegPath, $outputPath);
+                }
+                imagedestroy($canvas);
+                return;
+            }
+        }
+
+        imagedestroy($canvas);
+        @unlink($jpegPath);
     }
 
     /**

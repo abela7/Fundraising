@@ -87,15 +87,29 @@ if ($type === 'completed' && !$isFullyPaid) {
 
 $pageW = 1200;
 $pageH = $type === 'completed' ? 850 : 970;
+
+$scriptDir = str_replace('\\', '/', dirname((string)($_SERVER['SCRIPT_NAME'] ?? '/cert/render.php')));
+$appRootPath = rtrim(dirname($scriptDir), '/');
+$https = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+    || (($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https');
+$origin = ($https ? 'https' : 'http') . '://' . ($_SERVER['HTTP_HOST'] ?? 'localhost');
+$assetBase = $origin . $appRootPath;
+$certBgUrl = $assetBase . '/assets/images/cert-bg.png';
+$churchImgUrl = $assetBase . '/assets/images/new-church.png';
+$headless = isset($_GET['headless']) && (string)$_GET['headless'] === '1';
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <title>Certificate</title>
+<?php if (!$headless): ?>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<?php endif; ?>
 <style>
+<?php if (!$headless): ?>
 @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@200;600;800;900&family=Noto+Sans+Ethiopic:wght@200;600;800;900&display=swap');
+<?php endif; ?>
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
 html, body {
@@ -109,7 +123,7 @@ html, body {
     position: relative;
     width: 1200px;
     height: 750px;
-    background-image: url('../assets/images/cert-bg.png');
+    background-image: url('<?php echo htmlspecialchars($certBgUrl, ENT_QUOTES); ?>');
     background-size: cover;
     background-position: center;
     background-repeat: no-repeat;
@@ -136,7 +150,7 @@ html, body {
     transform: translateY(-50%);
     width: 450px;
     height: 450px;
-    background-image: url('../assets/images/new-church.png');
+    background-image: url('<?php echo htmlspecialchars($churchImgUrl, ENT_QUOTES); ?>');
     background-size: cover;
     background-position: center;
     border-radius: 50%;
@@ -438,7 +452,7 @@ html, body {
             rgba(18, 28, 58, 0.82) 75%,
             rgba(12, 12, 40, 0.88) 100%
         ),
-        url('../assets/images/new-church.png');
+        url('<?php echo htmlspecialchars($churchImgUrl, ENT_QUOTES); ?>');
     background-size: cover, cover;
     background-position: center, center;
 }
@@ -776,6 +790,26 @@ html, body {
     color: rgba(255,255,255,0.45);
     letter-spacing: 2px;
 }
+.cert-qr-placeholder {
+    display: block;
+    background: #ffffff;
+    border: 2px solid rgba(255, 215, 0, 0.55);
+}
+.cert-qr-code .cert-qr-placeholder {
+    width: 150px;
+    height: 150px;
+}
+.fc-qr .fc-qr-placeholder {
+    width: 120px;
+    height: 120px;
+}
+<?php if ($headless): ?>
+.donor-certificate,
+.final-certificate,
+.fc-certificate {
+    font-family: 'Segoe UI', Arial, Helvetica, sans-serif;
+}
+<?php endif; ?>
 </style>
 </head>
 <body>
@@ -796,7 +830,11 @@ html, body {
         <div class="cert-bottom-section">
             <div class="cert-bank-area">
                 <div class="cert-qr-code">
+                    <?php if ($headless): ?>
+                    <div class="cert-qr-placeholder" aria-hidden="true"></div>
+                    <?php else: ?>
                     <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&amp;data=http://donate.abuneteklehaymanot.org/" alt="QR">
+                    <?php endif; ?>
                 </div>
                 <div class="cert-bank-details">
                     <div class="cert-bank-row">
@@ -895,7 +933,11 @@ html, body {
         <div class="fc-bottom">
             <div class="fc-bottom-left">
                 <div class="fc-qr">
+                    <?php if ($headless): ?>
+                    <div class="cert-qr-placeholder fc-qr-placeholder" aria-hidden="true"></div>
+                    <?php else: ?>
                     <img src="https://api.qrserver.com/v1/create-qr-code/?size=120x120&amp;data=http://donate.abuneteklehaymanot.org/" alt="QR">
+                    <?php endif; ?>
                 </div>
                 <div class="fc-bottom-details">
                     <div class="fc-detail-row">
