@@ -2872,10 +2872,25 @@ body.cert-headless-mode .cert-capture-wrapper,
 body.cert-headless-mode .fc-capture-wrapper { position: fixed !important; top: 0 !important; left: 0 !important; z-index: 999999 !important; transform: none !important; }
 body.cert-headless-mode .cert-capture-wrapper { width: 1200px !important; height: 970px !important; }
 body.cert-headless-mode .fc-capture-wrapper { width: 1200px !important; height: 850px !important; }
+/* Hide the non-requested certificate when both exist (fully paid donors) */
+body.cert-headless-mode[data-cert="progress"] .fc-capture-wrapper,
+body.cert-headless-mode[data-cert="progress"] .fc-capture-wrapper * { visibility: hidden !important; display: none !important; }
+body.cert-headless-mode[data-cert="completed"] .cert-capture-wrapper,
+body.cert-headless-mode[data-cert="completed"] .cert-capture-wrapper * { visibility: hidden !important; display: none !important; }
 </style>
 <script>
-document.body.classList.add('cert-headless-mode');
-document.body.setAttribute('data-cert', '<?php echo (isset($_GET['cert_type']) && $_GET['cert_type'] === 'completed') ? 'completed' : 'progress'; ?>');
+document.documentElement.classList.add('cert-headless-mode');
+document.documentElement.setAttribute('data-cert', '<?php echo (isset($_GET['cert_type']) && $_GET['cert_type'] === 'completed') ? 'completed' : 'progress'; ?>');
+document.addEventListener('DOMContentLoaded', function () {
+    document.body.classList.add('cert-headless-mode');
+    document.body.setAttribute('data-cert', document.documentElement.getAttribute('data-cert'));
+    // Donor may not be fully paid: the completed markup is not in the page
+    // then, so fall back to the progress certificate instead of blank.
+    if (document.body.getAttribute('data-cert') === 'completed'
+        && !document.getElementById('completed-certificate')) {
+        document.body.setAttribute('data-cert', 'progress');
+    }
+});
 </script>
 <?php endif; ?>
 </head>

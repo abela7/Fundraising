@@ -222,6 +222,7 @@ class CertificateImageRenderer
     ): array {
         @unlink($outputPath);
 
+        $profileDir = self::freshProfileDir();
         $args = array_merge([
             '--headless',
             '--disable-gpu',
@@ -234,7 +235,9 @@ class CertificateImageRenderer
             '--run-all-compositor-stages-before-draw',
             '--disable-extensions',
             '--no-first-run',
-            '--user-data-dir=' . self::tempProfileDir(),
+            // Unique profile per attempt: a stale SingletonLock in a reused
+            // profile dir makes Chrome crash with exit 133 on shared hosting.
+            '--user-data-dir=' . $profileDir,
             '--screenshot=' . $outputPath,
         ], $extraFlags, [$url]);
 
@@ -255,6 +258,7 @@ class CertificateImageRenderer
         $output = [];
         $exitCode = 1;
         self::runShellCommand($cmd, $output, $exitCode);
+        self::removeProfileDir($profileDir);
 
         if ($exitCode !== 0 || !is_file($outputPath) || filesize($outputPath) < 1024) {
             $size = is_file($outputPath) ? (int)filesize($outputPath) : 0;
@@ -495,5 +499,34 @@ class CertificateImageRenderer
             @mkdir($base, 0755, true);
         }
         return $base;
+    }
+
+    private static function freshProfileDir(): string
+    {
+        $dir = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'cert-chrome-profile-' . uniqid('', true);
+        @mkdir($dir, 0755, true);
+        return $dir;
+    }
+
+    private static function removeProfileDir(string $dir): void
+    {
+        if ($dir === '' || !is_dir($dir) || basename($dir) === 'cert-chrome-profile') {
+            return;
+        }
+        try {
+            $iterator = new RecursiveIteratorIterator(
+                new RecursiveDirectoryIterator($dir, FilesystemIterator::SKIP_DOTS),
+                RecursiveIteratorIterator::CHILD_FIRST
+            );
+            foreach ($iterator as $file) {
+                if ($file->isDir()) {
+                    @rmdir($file->getPathname());
+                } else {
+                    @unlink($file->getPathname());
+                }
+            }
+            @rmdir($dir);
+        } catch (Throwable $ignored) {
+        }
     }
 }
