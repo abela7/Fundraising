@@ -2865,7 +2865,28 @@ function formatDateTime($date) {
     font-family: 'Certificate Unified';
     src: url('/assets/fonts/NotoSansEthiopic-Regular.ttf') format('truetype');
     font-style: normal;
-    font-weight: 100 900;
+    font-weight: 400;
+    font-display: block;
+}
+@font-face {
+    font-family: 'Certificate Unified';
+    src: url('/assets/fonts/NotoSansEthiopic-SemiBold.ttf') format('truetype');
+    font-style: normal;
+    font-weight: 600;
+    font-display: block;
+}
+@font-face {
+    font-family: 'Certificate Unified';
+    src: url('/assets/fonts/NotoSansEthiopic-Bold.ttf') format('truetype');
+    font-style: normal;
+    font-weight: 700;
+    font-display: block;
+}
+@font-face {
+    font-family: 'Certificate Unified';
+    src: url('/assets/fonts/NotoSansEthiopic-ExtraBold.ttf') format('truetype');
+    font-style: normal;
+    font-weight: 800 900;
     font-display: block;
 }
 /* Headless server-browser: isolate the certificate on a white page */
@@ -2884,6 +2905,24 @@ body.cert-headless-mode .cert-capture-wrapper *,
 body.cert-headless-mode .fc-capture-wrapper,
 body.cert-headless-mode .fc-capture-wrapper * {
     font-family: 'Certificate Unified', sans-serif !important;
+}
+body.cert-headless-mode .cert-capture-wrapper .fas,
+body.cert-headless-mode .fc-capture-wrapper .fas {
+    font-family: 'Font Awesome 6 Free' !important;
+    font-weight: 900 !important;
+}
+body.cert-headless-mode .cert-capture-wrapper sup,
+body.cert-headless-mode .fc-capture-wrapper sup {
+    position: static !important;
+    top: auto !important;
+    font-size: 0.6em;
+    line-height: 0;
+    vertical-align: super;
+}
+body.cert-headless-mode .cert-reference-number,
+body.cert-headless-mode .cert-stat-value.cert-val-ref,
+body.cert-headless-mode .fc-ref {
+    font-variant-numeric: tabular-nums;
 }
 /* Hide the non-requested certificate when both exist (fully paid donors) */
 body.cert-headless-mode[data-cert="progress"] .fc-capture-wrapper,
@@ -3966,7 +4005,7 @@ document.addEventListener('DOMContentLoaded', function () {
                                                         </div>
                                                         <div class="cert-right-area">
                                                             <div class="cert-pill-box">
-                                                                <span class="cert-sqm-value"><?= $sqmValue ?>m²</span>
+                                                                <span class="cert-sqm-value"><?= $sqmValue ?>m<sup>2</sup></span>
                                                             </div>
                                                             <?php if ($donor_reference): ?>
                                                             <div class="cert-reference-number"><?= htmlspecialchars($donor_reference) ?></div>
@@ -3993,7 +4032,7 @@ document.addEventListener('DOMContentLoaded', function () {
                                                         <div class="cert-stat-divider"></div>
                                                         <div class="cert-stat-item">
                                                             <div class="cert-stat-label">Area</div>
-                                                            <div class="cert-stat-value cert-val-area"><?= $sqmValue ?> m²</div>
+                                                            <div class="cert-stat-value cert-val-area"><?= $sqmValue ?> m<sup>2</sup></div>
                                                         </div>
                                                     </div>
                                                     <?php if ($hasPledge): ?>
@@ -4118,14 +4157,14 @@ document.addEventListener('DOMContentLoaded', function () {
                                                                 <div class="fc-detail-row">
                                                                     <div class="fc-detail-icon"><i class="fas fa-vector-square"></i></div>
                                                                     <div class="fc-detail-text">
-                                                                        <span class="fc-detail-label">Area:</span><span class="fc-detail-highlight"><?= $sqmValue ?> m²</span>
+                                                                        <span class="fc-detail-label">Area:</span><span class="fc-detail-highlight"><?= $sqmValue ?> m<sup>2</sup></span>
                                                                     </div>
                                                                 </div>
                                                             </div>
                                                         </div>
                                                         <div class="fc-bottom-right">
                                                             <div class="fc-seal">
-                                                                <span class="fc-seal-sqm"><?= $sqmValue ?>m²</span>
+                                                                <span class="fc-seal-sqm"><?= $sqmValue ?>m<sup>2</sup></span>
                                                                 <span class="fc-seal-label">Allocated</span>
                                                             </div>
                                                             <div class="fc-fully-paid-ribbon">
