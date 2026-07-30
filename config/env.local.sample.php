@@ -14,4 +14,5 @@ if (!defined('DB_NAME')) define('DB_NAME', 'DB_NAME_HERE');
 // Headless Chrome for WhatsApp certificate images (Linux shared hosting)
 // if (!defined('CERT_CHROME_PATH')) define('CERT_CHROME_PATH', '/home/USER/chrome/chrome-headless-shell-linux64/chrome-headless-shell');
 // if (!defined('CERT_CHROME_LIB_PATH')) define('CERT_CHROME_LIB_PATH', '/home/USER/chrome/libs/usr/lib/x86_64-linux-gnu');
+// if (!defined('CERT_APP_URL')) define('CERT_APP_URL', 'https://donate.example.org');
 

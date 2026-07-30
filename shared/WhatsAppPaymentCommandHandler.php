@@ -18,6 +18,7 @@ require_once __DIR__ . '/../services/UltraMsgService.php';
 require_once __DIR__ . '/../services/MessagingHelper.php';
 require_once __DIR__ . '/CertificateImageRenderer.php';
 require_once __DIR__ . '/cert_token.php';
+require_once __DIR__ . '/WhatsAppCertificateJobQueue.php';
 
 class WhatsAppPaymentCommandHandler
 {
@@ -496,7 +497,16 @@ class WhatsAppPaymentCommandHandler
             $donor,
             $fromPhone,
             $isFullyPaid,
-            $financialSnapshot
+            $financialSnapshot,
+            'confirm-session-' . $sessionId . '-payment-' . $pick,
+            [
+                'source' => 'whatsapp_confirm',
+                'reference' => (string)($payload['reference'] ?? ''),
+                'donor_name' => (string)($payload['donor_name'] ?? ''),
+                'payment_index' => $pick,
+                'payment_amount' => $amount,
+                'payment_date' => $paymentDate,
+            ]
         );
 
         $done = $this->db->prepare("
@@ -512,14 +522,18 @@ class WhatsAppPaymentCommandHandler
 
         $dateLabel = $paymentDate !== '' ? date('d/m/Y', strtotime($paymentDate)) : '—';
         if (!empty($confirmResult['success'])) {
+            $templateKey = !empty($confirmResult['queued'])
+                ? 'confirm_preview_queued'
+                : 'confirm_preview_sent';
             $this->reply(
                 $fromPhone,
-                $this->renderTemplate('confirm_preview_sent', [
+                $this->renderTemplate($templateKey, [
                     'donor_name' => (string)($payload['donor_name'] ?? ($donor['name'] ?? '')),
                     'reference' => (string)($payload['reference'] ?? ''),
                     'payment_index' => (string)$pick,
                     'amount' => number_format($amount, 2),
                     'payment_date' => $dateLabel,
+                    'job_id' => (string)($confirmResult['job_id'] ?? ''),
                 ]),
                 $conversationId,
                 (int)$operator['id']
@@ -1250,7 +1264,8 @@ class WhatsAppPaymentCommandHandler
      * @param array<string,mixed> $operator
      * @param array<string,mixed> $donor
      * @param array{total_pledged:float,total_paid:float,balance:float}|null $financialSnapshot
-     * @return array{success:bool,operator_note:string}
+     * @param array<string,mixed> $queueMetadata
+     * @return array{success:bool,operator_note:string,queued?:bool,job_id?:int}
      */
     private function sendDonorConfirmation(
         array $operator,
@@ -1260,7 +1275,9 @@ class WhatsAppPaymentCommandHandler
         array $donor,
         ?string $destinationPhoneOverride = null,
         ?bool $isFullyPaidOverride = null,
-        ?array $financialSnapshot = null
+        ?array $financialSnapshot = null,
+        ?string $certificateQueueKey = null,
+        array $queueMetadata = []
     ): array {
         try {
             $hasUserPhoneNumberCol = $this->db->query("SHOW COLUMNS FROM users LIKE 'phone_number'")->num_rows > 0;
@@ -1365,6 +1382,26 @@ class WhatsAppPaymentCommandHandler
                 return [
                     'success' => false,
                     'operator_note' => "\n⚠️ ክፍያ ተጽድቋል፣ ግን የለጋሽ/ወኪል ስልክ አልተገኘም — ማረጋገጫ አልተላከም።",
+                ];
+            }
+
+            if ($certificateQueueKey !== null) {
+                $queue = new WhatsAppCertificateJobQueue($this->db);
+                $jobId = $queue->enqueue(
+                    $certificateQueueKey,
+                    (int)$operator['id'],
+                    $donorId,
+                    $destinationPhone,
+                    $isFullyPaid ? 'completed' : 'progress',
+                    $message,
+                    $queueMetadata
+                );
+
+                return [
+                    'success' => true,
+                    'operator_note' => '',
+                    'queued' => true,
+                    'job_id' => $jobId,
                 ];
             }
 
@@ -2152,6 +2189,12 @@ class WhatsAppPaymentCommandHandler
                 'description' => 'After staff picks a payment and preview is sent to them',
                 'placeholders' => '{donor_name} {reference} {payment_index} {amount} {payment_date}',
                 'body' => "✅ ማረጋገጫ ከምስክር ወረቀት ጋር ወደ እርስዎ ተልኳል።\n\nለጋሽ: {donor_name}\nመከታተያ: {reference}\nክፍያ #{payment_index}: £{amount} ({payment_date})\n\nእንደገና ለመሞከር: CONFIRM {reference}",
+            ],
+            'confirm_preview_queued' => [
+                'label' => 'Confirm Resend — Preview Queued',
+                'description' => 'After staff picks a payment and the CLI job is queued',
+                'placeholders' => '{donor_name} {reference} {payment_index} {amount} {payment_date} {job_id}',
+                'body' => "⏳ *Certificate queued*\n\nDonor: {donor_name}\nReference: {reference}\nPayment #{payment_index}: £{amount} ({payment_date})\nJob: #{job_id}\n\nThe certificate image and confirmation message will arrive here after the CLI worker runs, normally within one minute.",
             ],
             'confirm_preview_failed' => [
                 'label' => 'Confirm Resend — Preview Failed',
