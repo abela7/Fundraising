@@ -117,6 +117,17 @@ class CertificateImageRenderer
         return '';
     }
 
+    public static function unavailableDiagnosticReport(): string
+    {
+        return "🔎 *Certificate diagnostic*\n"
+            . "Stage: Renderer startup\n"
+            . 'PHP SAPI: ' . php_sapi_name() . "\n"
+            . 'Shell: exec=' . (self::isFunctionDisabled('exec') ? 'off' : 'on')
+            . ', proc_open=' . (self::isFunctionDisabled('proc_open') ? 'off' : 'on') . "\n"
+            . 'Chrome: ' . (self::chromeBinary() !== null ? 'detected' : 'not found') . "\n"
+            . 'Reason: ' . self::unavailableReason();
+    }
+
     public static function canRunShellCommands(): bool
     {
         if (!self::isFunctionDisabled('exec')) {
@@ -148,7 +159,6 @@ class CertificateImageRenderer
             return ['success' => false, 'error' => 'Cannot create output directory'];
         }
 
-        $stderrFile = sys_get_temp_dir() . '/cert-chrome-' . uniqid('', true) . '.log';
         $attemptProfiles = [
             [
                 'scale' => self::SCALE_FACTOR,
@@ -170,8 +180,9 @@ class CertificateImageRenderer
             ],
         ];
 
-        $lastError = 'Headless Chrome screenshot failed';
-        foreach ($attemptProfiles as $profile) {
+        $attempts = [];
+        foreach ($attemptProfiles as $index => $profile) {
+            $stderrFile = sys_get_temp_dir() . '/cert-chrome-' . uniqid('', true) . '.log';
             $attempt = $this->runScreenshotAttempt(
                 $binary,
                 $url,
@@ -183,31 +194,31 @@ class CertificateImageRenderer
                 (int)$profile['scale'],
                 $profile['flags']
             );
+            $stderr = is_file($stderrFile)
+                ? self::sanitizeDiagnosticText((string)@file_get_contents($stderrFile))
+                : '';
+            @unlink($stderrFile);
+            $attempts[] = [
+                'number' => $index + 1,
+                'exit_code' => (int)($attempt['exit_code'] ?? 1),
+                'file_bytes' => (int)($attempt['file_bytes'] ?? 0),
+                'stderr' => $stderr,
+            ];
             if (!empty($attempt['success'])) {
-                @unlink($stderrFile);
                 $this->optimizeOutputImage($outputPath);
                 return ['success' => true, 'path' => $outputPath];
             }
-            $lastError = (string)($attempt['error'] ?? $lastError);
         }
 
-        $stderrTail = '';
-        if (is_file($stderrFile)) {
-            $stderrRaw = (string)@file_get_contents($stderrFile);
-            $stderrTail = trim(substr($stderrRaw, -500));
-            @unlink($stderrFile);
-        }
-
-        if ($stderrTail !== '') {
-            $lastError .= ' | chrome: ' . $stderrTail;
-        }
-
-        return ['success' => false, 'error' => $lastError];
+        return [
+            'success' => false,
+            'error' => self::buildFailureReport($binary, $url, $type, $attempts),
+        ];
     }
 
     /**
      * @param list<string> $extraFlags
-     * @return array{success:bool,error?:string}
+     * @return array{success:bool,error?:string,exit_code?:int,file_bytes?:int}
      */
     private function runScreenshotAttempt(
         string $binary,
@@ -260,18 +271,63 @@ class CertificateImageRenderer
         self::runShellCommand($cmd, $output, $exitCode);
         self::removeProfileDir($profileDir);
 
-        if ($exitCode !== 0 || !is_file($outputPath) || filesize($outputPath) < 1024) {
-            $size = is_file($outputPath) ? (int)filesize($outputPath) : 0;
+        $fileBytes = is_file($outputPath) ? (int)filesize($outputPath) : 0;
+        if ($exitCode !== 0 || $fileBytes < 1024) {
             @unlink($outputPath);
             return [
                 'success' => false,
                 'error' => 'Headless Chrome screenshot failed (exit ' . $exitCode
-                    . ($size > 0 ? ', ' . $size . ' bytes' : '')
-                    . '). URL: ' . $url,
+                    . ($fileBytes > 0 ? ', ' . $fileBytes . ' bytes' : '') . ')',
+                'exit_code' => $exitCode,
+                'file_bytes' => $fileBytes,
             ];
         }
 
-        return ['success' => true];
+        return ['success' => true, 'exit_code' => $exitCode, 'file_bytes' => $fileBytes];
+    }
+
+    /**
+     * @param list<array{number:int,exit_code:int,file_bytes:int,stderr:string}> $attempts
+     */
+    private static function buildFailureReport(
+        string $binary,
+        string $url,
+        string $type,
+        array $attempts
+    ): string {
+        $targetPath = (string)(parse_url($url, PHP_URL_PATH) ?: 'unknown');
+        $lines = [
+            '🔎 *Certificate diagnostic*',
+            'Stage: Headless Chrome screenshot',
+            'Target: ' . $targetPath . ' (' . $type . ')',
+            'PHP SAPI: ' . php_sapi_name(),
+            'Chrome: ' . basename($binary),
+            'Shell: exec=' . (self::isFunctionDisabled('exec') ? 'off' : 'on')
+                . ', proc_open=' . (self::isFunctionDisabled('proc_open') ? 'off' : 'on'),
+        ];
+
+        foreach ($attempts as $attempt) {
+            $lines[] = 'Attempt ' . $attempt['number'] . ': exit '
+                . $attempt['exit_code'] . ', output ' . $attempt['file_bytes'] . ' bytes';
+            if ($attempt['stderr'] !== '') {
+                $lines[] = 'Chrome: ' . $attempt['stderr'];
+            }
+        }
+
+        return implode("\n", $lines);
+    }
+
+    private static function sanitizeDiagnosticText(string $value): string
+    {
+        $value = preg_replace('/(view_token|token)=[^&\s]+/i', '$1=[redacted]', $value) ?? '';
+        $value = preg_replace(
+            '#/(?:home|opt|snap|proc|run|srv|etc|var|tmp|usr|app|web)[^\s:]*#',
+            '[server-path]',
+            $value
+        ) ?? '';
+        $value = preg_replace('#https?://[^\s]+#i', '[url-redacted]', $value) ?? '';
+        $value = preg_replace('/\s+/', ' ', trim($value)) ?? '';
+        return mb_substr($value, 0, 700);
     }
 
     /**

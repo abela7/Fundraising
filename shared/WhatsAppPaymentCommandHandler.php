@@ -1235,7 +1235,9 @@ class WhatsAppPaymentCommandHandler
             error_log('WhatsApp PAY complete error: ' . $e->getMessage());
             $this->reply(
                 $fromPhone,
-                $this->renderTemplate('error', ['error' => $e->getMessage()]),
+                $this->renderTemplate('error', [
+                    'error' => 'የስርዓት ስህተት ተከስቷል። እባክዎ ከአስተዳዳሪው ጋር ያገናኙ።',
+                ]),
                 $conversationId,
                 (int)$operator['id']
             );
@@ -1459,7 +1461,8 @@ class WhatsAppPaymentCommandHandler
 
             return [
                 'success' => false,
-                'operator_note' => "\n⚠️ ክፍያ ተጽድቋል፣ ግን ማረጋገጫ መላክ አልተሳካም: " . (string)($result['error'] ?? 'unknown'),
+                'operator_note' => "\n⚠️ ክፍያ ተጽድቋል፣ ግን ማረጋገጫ መላክ አልተሳካም: "
+                    . $this->sanitizeStaffDiagnostic((string)($result['error'] ?? 'unknown')),
             ];
         } catch (Throwable $e) {
             error_log('WhatsApp PAY donor confirmation failed: ' . $e->getMessage());
@@ -1485,7 +1488,10 @@ class WhatsAppPaymentCommandHandler
         string $caption
     ): array {
         if (!CertificateImageRenderer::isAvailable()) {
-            return ['success' => false, 'error' => CertificateImageRenderer::unavailableReason()];
+            return [
+                'success' => false,
+                'error' => CertificateImageRenderer::unavailableDiagnosticReport(),
+            ];
         }
 
         $service = UltraMsgService::fromDatabase($this->db);
@@ -1510,9 +1516,15 @@ class WhatsAppPaymentCommandHandler
 
         $result = $service->sendImageFromFile($phone, $localPath, $caption);
         if (empty($result['success'])) {
+            $fileBytes = is_file($localPath) ? (int)filesize($localPath) : 0;
+            $diagnostic = $this->formatCertificateSendFailure(
+                $result,
+                $type,
+                $fileBytes
+            );
             @unlink($localPath);
-            error_log('WhatsApp PAY certificate send failed: ' . json_encode($result));
-            return ['success' => false, 'error' => (string)($result['error'] ?? 'send_failed')];
+            error_log('WhatsApp PAY certificate send failed: ' . $diagnostic);
+            return ['success' => false, 'error' => $diagnostic];
         }
 
         $this->logCertificateWhatsappMessage(
@@ -1525,6 +1537,53 @@ class WhatsAppPaymentCommandHandler
         );
 
         return ['success' => true];
+    }
+
+    /**
+     * Build a staff-facing report without exposing UltraMsg credentials.
+     *
+     * @param array<string,mixed> $result
+     */
+    private function formatCertificateSendFailure(
+        array $result,
+        string $type,
+        int $fileBytes
+    ): string {
+        $apiError = $this->sanitizeStaffDiagnostic(
+            trim((string)($result['error'] ?? 'No API error returned'))
+        );
+        $errorCode = $this->sanitizeStaffDiagnostic(
+            trim((string)($result['error_code'] ?? 'not provided'))
+        );
+
+        return "🔎 *Certificate diagnostic*\n"
+            . "Stage: UltraMsg image upload\n"
+            . 'Certificate: ' . $type . ', ' . $fileBytes . " bytes\n"
+            . 'API error code: ' . $errorCode . "\n"
+            . 'API message: ' . $apiError;
+    }
+
+    private function sanitizeStaffDiagnostic(string $value): string
+    {
+        $value = preg_replace(
+            '/(token|api[_-]?key|authorization|instance)[=:]\s*[^\s&]+/i',
+            '$1=[redacted]',
+            $value
+        ) ?? '';
+        $value = preg_replace(
+            '/bearer\s+[a-z0-9._~+\/=-]{12,}/i',
+            'Bearer [redacted]',
+            $value
+        ) ?? '';
+        $value = preg_replace(
+            '#/(?:home|opt|snap|proc|run|srv|etc|var|tmp|usr|app|web)[^\s:]*#',
+            '[server-path]',
+            $value
+        ) ?? '';
+        $value = preg_replace('#https?://[^\s]+#i', '[url-redacted]', $value) ?? '';
+        $value = preg_replace('/\s+/', ' ', trim($value)) ?? '';
+
+        return mb_substr($value, 0, 700);
     }
 
     /**
