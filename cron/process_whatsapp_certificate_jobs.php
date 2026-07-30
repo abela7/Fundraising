@@ -85,7 +85,7 @@ function notify_certificate_job_failure(
 
     $message = "❌ *ማረጋገጫውን መላክ አልተሳካም።*\n\n"
         . WhatsAppCertificateJobQueue::sanitizeFailure($error)
-        . "\n\nእባክዎ ከአስተዳዳሪው ጋር ያገናኙ።";
+        . "\n\nእባክዎ ከአስተዳዳሪው ጋር ይገናኙ።";
 
     $service->send($failurePhone, $message, [
         'log' => true,

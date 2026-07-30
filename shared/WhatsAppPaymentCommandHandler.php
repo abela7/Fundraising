@@ -747,7 +747,7 @@ class WhatsAppPaymentCommandHandler
     private function isConfirmMessage(string $body): bool
     {
         $t = mb_strtolower(trim($body));
-        return in_array($t, ['yes', 'y', 'ok', 'confirm', 'አዎ', 'እሺ', 'እሳምማለሁ'], true);
+        return in_array($t, ['yes', 'y', 'ok', 'confirm', 'አዎ', 'እሺ', 'እስማማለሁ'], true);
     }
 
     private function isWrongPersonMessage(string $body): bool
@@ -1281,7 +1281,7 @@ class WhatsAppPaymentCommandHandler
             $this->reply(
                 $fromPhone,
                 $this->renderTemplate('error', [
-                    'error' => 'የስርዓት ስህተት ተከስቷል። እባክዎ ከአስተዳዳሪው ጋር ያገናኙ።',
+                    'error' => 'የስርዓት ስህተት ተከስቷል። እባክዎ ከአስተዳዳሪው ጋር ይገናኙ።',
                 ]),
                 $conversationId,
                 (int)$operator['id']
@@ -1367,11 +1367,18 @@ class WhatsAppPaymentCommandHandler
 
             if ($message === '') {
                 if ($isFullyPaid) {
-                    $message = "ሰላም ጤና ይስጥልን ወድ {donor_name}፣\n\nሙሉ ቃል ኪዳን ክፍያዎን ስለጨረሱ እናመሰግናለን።\n\nበቀን ({date}) የተቀበልነው ክፍያ: £{payment_amount}\n\nየቃል ኪዳንዎ ማጠቃለያ፡\n→ ጠቅላላ ቃል ኪዳን: £{total_pledged}\n→ ጠቅላላ የከፈሉት: £{total_paid}\n→ ቀሪ: £{remaining}\n\nአምላከ ተክለሃይማኖት በሰጡት አብዝቶ ይስጥልን።\n\n- ሊቨርፑል አቡነ ተክለሃይማኖት ቤተ ክርስቲያን";
+                    $message = "ሰላም ጤና ይስጥልን ውድ {donor_name}፣\n\nሙሉ ቃል ኪዳን ክፍያዎን ስለጨረሱ እናመሰግናለን።\n\nበቀን ({date}) የተቀበልነው ክፍያ: £{payment_amount}\n\nየቃል ኪዳንዎ ማጠቃለያ፡\n→ ጠቅላላ ቃል ኪዳን: £{total_pledged}\n→ ጠቅላላ የከፈሉት: £{total_paid}\n→ ቀሪ: £{remaining}\n\nአምላከ ተክለሃይማኖት በሰጡት አብዝቶ ይስጥልን።\n\n- ሊቨርፑል አቡነ ተክለሃይማኖት ቤተ ክርስቲያን";
                 } else {
                     $message = "ሰላም ጤና ይስጥልን የተከበሩ {name}፣\n\nበቀን {payment_date} የ {amount} ፓውንድ ክፍያዎን ተቀብለናል።\n\nየቃል ኪዳንዎ ማጠቃለያ፡\n→ ጠቅላላ ቃል ኪዳን የገቡት፡ £{total_pledge}\n→ እስካሁን የከፈሉት: £{total_paid}\n→ ቀሪ ሂሳብ፡ £{outstanding_balance}\n\n{next_payment_info}\n\nአምላከ ተክለሃይማኖት በሰጡት አብዝቶ ይስጥልን🙏\n\n- ሊቨርፑል መካነ ቅዱሳን አቡነ ተክለሃይማኖት ቤተ ክርስቲያን";
                 }
             }
+
+            // Correct a legacy typo that may still exist in saved templates.
+            $message = str_replace(
+                'ሰላም ጤና ይስጥልን ወድ',
+                'ሰላም ጤና ይስጥልን ውድ',
+                $message
+            );
 
             $nextWithPlan = 'ቀጣዩ የ£{next_payment_amount} ክፍያዎ በ{next_payment_date} ነው።';
             $nextWithoutPlan = 'ቀሪ ሂሳብዎን በቀላሉ ማስተካከል እንዲሁም የክፍያ እቅድ ማዘጋጀት ይችላሉ።';
@@ -2213,13 +2220,13 @@ class WhatsAppPaymentCommandHandler
                 'label' => 'Help / Usage',
                 'description' => 'Sent when staff type PAY/HELP incorrectly',
                 'placeholders' => '{expires_minutes}',
-                'body' => "📌 *የWhatsApp ክፍያ ትእዛዝ*\n\nክፍያ ለመመዝገብ፦\n*PAY 0335*\nወይም\n*PAY 0335 50*\n\nየለጋሽ መረጃን ብቻ ለማየት፦\n*CHECK 0335*\n\nማረጋገጫ ለመሞከር (ወደ እርስዎ ይላካል)፦\n*CONFIRM 0335*\n\nከPAY ትእዛዝ በኋላ፦\n• መጠን ካልላኩ — የክፍያ መጠን ይላኩ ወይም *ይቅር*\n• መጠን ካላኩ — *አዎ* ለማረጋገጥ ወይም *አይደለም* ትክክለኛው ሰው ካልሆነ",
+                'body' => "📌 *የWhatsApp ክፍያ ትዕዛዝ*\n\nክፍያ ለመመዝገብ፦\n*PAY 0335*\nወይም\n*PAY 0335 50*\n\nየለጋሽ መረጃን ብቻ ለማየት፦\n*CHECK 0335*\n\nማረጋገጫ ለመሞከር (ወደ እርስዎ ይላካል)፦\n*CONFIRM 0335*\n\nከPAY ትዕዛዝ በኋላ፦\n• መጠን ካልላኩ — የክፍያ መጠን ይላኩ ወይም *ይቅር*\n• መጠን ካላኩ — *አዎ* ለማረጋገጥ ወይም *አይደለም* ትክክለኛው ሰው ካልሆነ",
             ],
             'confirm_pick_list' => [
                 'label' => 'Confirm Resend — Payment List',
                 'description' => 'Shown after CONFIRM 0335 with numbered payment history',
                 'placeholders' => '{donor_name} {reference} {payment_list}',
-                'body' => "📜 *የክፍያ ታሪክ* — {donor_name} ({reference})\n\n{payment_list}\n\nለማረጋገጫ መልእክት ለመሞከር ቁጥሩን ይምረጡ።\nለመተው *ይቅር* ብለው ይላኩ።",
+                'body' => "📜 *የክፍያ ታሪክ* — {donor_name} ({reference})\n\n{payment_list}\n\nየማረጋገጫ መልእክቱን ለመሞከር ቁጥሩን ይምረጡ።\nለመተው *ይቅር* ብለው ይላኩ።",
             ],
             'confirm_pick_reminder' => [
                 'label' => 'Confirm Resend — Pick Reminder',
@@ -2243,7 +2250,7 @@ class WhatsAppPaymentCommandHandler
                 'label' => 'Confirm Resend — Preview Failed',
                 'description' => 'Certificate or message could not be sent to staff',
                 'placeholders' => '{donor_name} {reference} {error}',
-                'body' => "❌ ማረጋገጫ መላክ አልተሳካም።\n\nለጋሽ: {donor_name}\nመከታተያ: {reference}\n\n{error}\n\nእባክዎ ከአስተዳዳሪው ጋር ያገናኙ።",
+                'body' => "❌ ማረጋገጫ መላክ አልተሳካም።\n\nለጋሽ: {donor_name}\nመከታተያ: {reference}\n\n{error}\n\nእባክዎ ከአስተዳዳሪው ጋር ይገናኙ።",
             ],
             'confirm_no_payments' => [
                 'label' => 'Confirm Resend — No Payments',
@@ -2315,19 +2322,19 @@ class WhatsAppPaymentCommandHandler
                 'label' => 'PAY Processing',
                 'description' => 'Sent immediately after staff confirms with አዎ',
                 'placeholders' => '',
-                'body' => "⏳ *በሂደት ላይ...*\n\nማረጋገጫው እየተዘጋጁ ነው።",
+                'body' => "⏳ *በሂደት ላይ...*\n\nማረጋገጫው እየተዘጋጀ ነው።",
             ],
             'not_found' => [
                 'label' => 'Reference Not Found',
                 'description' => 'No donor for the 4-digit reference',
                 'placeholders' => '{reference}',
-                'body' => "❌ ለመከታተያ *{reference}* ለጋሽ አልተገኘም።\nባለ 4 አሃዝ ቁጥሩን ያረጋግጡ።\n\nቅርጸት: PAY 0335 50",
+                'body' => "❌ በመከታተያ ቁጥር *{reference}* የተመዘገበ ለጋሽ አልተገኘም።\nባለ 4 አሃዝ ቁጥሩን ያረጋግጡ።\n\nቅርጸት: PAY 0335 50",
             ],
             'multiple_matches' => [
                 'label' => 'Multiple Matches',
                 'description' => 'More than one donor shares the reference',
                 'placeholders' => '{reference} {matches_list}',
-                'body' => "⚠️ መከታተያ *{reference}* ለብዙ ለጋሾች ተመሳሳይ ነው። በራስ መስራት አይቻልም:\n{matches_list}\n\nእባክዎ ከአስተዳዳሪ ገጽ ይጠቀሙ።",
+                'body' => "⚠️ መከታተያ ቁጥር *{reference}* ለብዙ ለጋሾች ተመዝግቧል። በራስ-ሰር ማስኬድ አይቻልም፦\n{matches_list}\n\nእባክዎ የአስተዳዳሪውን ገጽ ይጠቀሙ።",
             ],
             'no_pledge' => [
                 'label' => 'No Active Pledge',
@@ -2443,6 +2450,113 @@ class WhatsAppPaymentCommandHandler
                 $setVer->bind_param('ss', $ver, $verKey);
                 $setVer->execute();
                 $setVer->close();
+            }
+        }
+
+        // Apply copy corrections once without overwriting unrelated
+        // administrator-customized templates.
+        $copyVersion = 1;
+        $copyVersionKey = '_amharic_copy_version';
+        $currentCopyVersion = 0;
+        $copyVersionResult = $this->db->prepare("
+            SELECT body
+            FROM whatsapp_pay_message_templates
+            WHERE template_key = ?
+            LIMIT 1
+        ");
+        if ($copyVersionResult) {
+            $copyVersionResult->bind_param('s', $copyVersionKey);
+            if ($copyVersionResult->execute()) {
+                $copyVersionRows = $copyVersionResult->get_result();
+                $copyVersionRow = $copyVersionRows
+                    ? $copyVersionRows->fetch_assoc()
+                    : null;
+                $currentCopyVersion = (int)($copyVersionRow['body'] ?? 0);
+            }
+            $copyVersionResult->close();
+        }
+
+        if ($currentCopyVersion < $copyVersion) {
+            $copyCorrections = [
+                ['help', 'ትእዛዝ', 'ትዕዛዝ'],
+                [
+                    'confirm_pick_list',
+                    'ለማረጋገጫ መልእክት ለመሞከር ቁጥሩን ይምረጡ።',
+                    'የማረጋገጫ መልእክቱን ለመሞከር ቁጥሩን ይምረጡ።',
+                ],
+                [
+                    'confirm_preview_failed',
+                    'ከአስተዳዳሪው ጋር ያገናኙ።',
+                    'ከአስተዳዳሪው ጋር ይገናኙ።',
+                ],
+                [
+                    'pay_processing',
+                    'ማረጋገጫው እየተዘጋጁ ነው።',
+                    'ማረጋገጫው እየተዘጋጀ ነው።',
+                ],
+                [
+                    'not_found',
+                    'ለመከታተያ *{reference}* ለጋሽ አልተገኘም።',
+                    'በመከታተያ ቁጥር *{reference}* የተመዘገበ ለጋሽ አልተገኘም።',
+                ],
+                [
+                    'multiple_matches',
+                    'መከታተያ *{reference}* ለብዙ ለጋሾች ተመሳሳይ ነው። በራስ መስራት አይቻልም:',
+                    'መከታተያ ቁጥር *{reference}* ለብዙ ለጋሾች ተመዝግቧል። በራስ-ሰር ማስኬድ አይቻልም፦',
+                ],
+                [
+                    'multiple_matches',
+                    'ከአስተዳዳሪ ገጽ ይጠቀሙ።',
+                    'የአስተዳዳሪውን ገጽ ይጠቀሙ።',
+                ],
+            ];
+            $copyUpdate = $this->db->prepare("
+                UPDATE whatsapp_pay_message_templates
+                SET body = REPLACE(body, ?, ?),
+                    updated_at = NOW()
+                WHERE template_key = ?
+                  AND body LIKE CONCAT('%', ?, '%')
+            ");
+            $copyApplied = false;
+            if ($copyUpdate) {
+                $copyApplied = true;
+                foreach ($copyCorrections as [$copyKey, $oldCopy, $newCopy]) {
+                    $copyUpdate->bind_param(
+                        'ssss',
+                        $oldCopy,
+                        $newCopy,
+                        $copyKey,
+                        $oldCopy
+                    );
+                    if (!$copyUpdate->execute()) {
+                        $copyApplied = false;
+                        break;
+                    }
+                }
+                $copyUpdate->close();
+            }
+
+            if ($copyApplied) {
+                $copyVersionBody = (string)$copyVersion;
+                $copyMarker = $this->db->prepare("
+                    INSERT INTO whatsapp_pay_message_templates
+                        (template_key, label, description, placeholders_help,
+                         body, updated_at)
+                    VALUES (?, 'Internal', 'Amharic copy version marker', '',
+                            ?, NOW())
+                    ON DUPLICATE KEY UPDATE
+                        body = VALUES(body),
+                        updated_at = NOW()
+                ");
+                if ($copyMarker) {
+                    $copyMarker->bind_param(
+                        'ss',
+                        $copyVersionKey,
+                        $copyVersionBody
+                    );
+                    $copyMarker->execute();
+                    $copyMarker->close();
+                }
             }
         }
     }
