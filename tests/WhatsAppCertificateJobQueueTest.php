@@ -59,6 +59,47 @@ assertSameValue(
     'legacy jobs never send technical failures to their destination'
 );
 
+$donorDeliveryMessage = WhatsAppCertificateJobQueue::payDeliveryConfirmation([
+    'recipient_type' => 'donor',
+    'recipient_name' => 'Abel Demssie',
+]);
+assertSameValue(
+    true,
+    str_contains($donorDeliveryMessage, 'ለለጋሹ Abel Demssie'),
+    'PAY delivery confirms the donor recipient in Amharic'
+);
+
+$agentDeliveryMessage = WhatsAppCertificateJobQueue::payDeliveryConfirmation([
+    'recipient_type' => 'agent',
+    'recipient_name' => 'Kesis Birhanu',
+]);
+assertSameValue(
+    true,
+    str_contains($agentDeliveryMessage, 'ለወኪሉ Kesis Birhanu'),
+    'PAY delivery confirms the agent recipient in Amharic'
+);
+foreach ([$donorDeliveryMessage, $agentDeliveryMessage] as $deliveryMessage) {
+    foreach (['queue', 'worker', 'Certificate', 'Donor:', 'Agent:'] as $forbidden) {
+        assertSameValue(
+            false,
+            stripos($deliveryMessage, $forbidden) !== false,
+            "PAY delivery confirmation hides technical wording: {$forbidden}"
+        );
+    }
+}
+
+$safeNameMessage = WhatsAppCertificateJobQueue::payDeliveryConfirmation([
+    'recipient_type' => 'donor',
+    'recipient_name' => "Abel\0\u{202E}\nDemssie",
+]);
+foreach (["\0", "\u{202E}", "\n", "\r"] as $unsafeCharacter) {
+    assertSameValue(
+        false,
+        str_contains($safeNameMessage, $unsafeCharacter),
+        'PAY delivery confirmation strips unsafe name controls'
+    );
+}
+
 $sanitized = WhatsAppCertificateJobQueue::sanitizeFailure(
     'token=token-leak password=hunter2 client_secret=oauth-secret '
     . 'https://example.com/private /home/user/file Bearer abcdefghijklmnop'

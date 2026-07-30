@@ -128,6 +128,10 @@ while ($processed < $batchLimit) {
     $lockToken = (string)$job['lock_token'];
     $donorId = (int)$job['donor_id'];
     $type = (string)$job['certificate_type'];
+    $metadata = json_decode((string)($job['metadata_json'] ?? '{}'), true);
+    if (!is_array($metadata)) {
+        $metadata = [];
+    }
     $outputPath = '';
 
     try {
@@ -165,6 +169,40 @@ while ($processed < $batchLimit) {
             'completed_by' => 'cli',
             'image_deleted' => true,
         ]);
+
+        if (($metadata['source'] ?? '') === 'whatsapp_pay') {
+            $staffPhone = WhatsAppCertificateJobQueue::failurePhone($job);
+            if ($staffPhone !== '') {
+                $noticeSent = false;
+                for ($noticeAttempt = 1; $noticeAttempt <= 3; $noticeAttempt++) {
+                    $notice = $service->send(
+                        $staffPhone,
+                        WhatsAppCertificateJobQueue::payDeliveryConfirmation(
+                            $metadata
+                        ),
+                        [
+                            'log' => true,
+                            'source_type' => 'whatsapp_pay_delivery',
+                            'user_id' => (int)$job['operator_user_id'],
+                        ]
+                    );
+                    if (!empty($notice['success'])) {
+                        $noticeSent = true;
+                        break;
+                    }
+                    if ($noticeAttempt < 3) {
+                        usleep(500000);
+                    }
+                }
+                if (!$noticeSent) {
+                    fwrite(
+                        STDERR,
+                        "Could not send PAY delivery notice after three "
+                        . "attempts for job #{$jobId}.\n"
+                    );
+                }
+            }
+        }
         @unlink($outputPath);
 
         fwrite(STDOUT, "Completed certificate job #{$jobId}.\n");

@@ -1240,6 +1240,12 @@ class WhatsAppPaymentCommandHandler
                 ]
             );
 
+            // The worker sends the certificate first, then confirms its
+            // recipient to this operator. Do not send an early PAY summary.
+            if (!empty($confirmResult['queued'])) {
+                return;
+            }
+
             $msg = $this->renderTemplate('success', [
                 'donor_name' => (string)($donor['name'] ?? $payload['donor_name']),
                 'reference' => $reference,
@@ -1401,6 +1407,15 @@ class WhatsAppPaymentCommandHandler
             }
 
             if ($certificateQueueKey !== null) {
+                if ($destinationPhoneOverride === null) {
+                    $queueMetadata['recipient_type'] = $routedToKesis
+                        ? 'agent'
+                        : 'donor';
+                    $queueMetadata['recipient_name'] = $routedToKesis
+                        ? ($agentName ?: self::KESIS_BIRHANU_NAME)
+                        : $donorName;
+                }
+
                 $queue = new WhatsAppCertificateJobQueue($this->db);
                 $jobId = $queue->enqueue(
                     $certificateQueueKey,

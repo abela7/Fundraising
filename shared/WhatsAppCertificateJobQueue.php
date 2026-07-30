@@ -129,7 +129,7 @@ class WhatsAppCertificateJobQueue
         $select = $this->db->prepare("
             SELECT id, operator_user_id, donor_id, destination_phone,
                    failure_phone, certificate_type, caption, status, attempts,
-                   max_attempts, lock_token
+                   max_attempts, lock_token, metadata_json
             FROM whatsapp_certificate_jobs
             WHERE lock_token = ? AND status = 'processing'
             LIMIT 1
@@ -173,7 +173,14 @@ class WhatsAppCertificateJobQueue
         ");
         $stmt->bind_param('ssis', $status, $resultJson, $jobId, $lockToken);
         $stmt->execute();
+        $completed = $stmt->affected_rows === 1;
         $stmt->close();
+
+        if (!$completed) {
+            throw new RuntimeException(
+                'Certificate job lock was lost during completion.'
+            );
+        }
     }
 
     /**
@@ -264,6 +271,31 @@ class WhatsAppCertificateJobQueue
     public static function failurePhone(array $job): string
     {
         return trim((string)($job['failure_phone'] ?? ''));
+    }
+
+    /**
+     * Build the staff-facing notice sent only after PAY image delivery.
+     *
+     * @param array<string,mixed> $metadata
+     */
+    public static function payDeliveryConfirmation(array $metadata): string
+    {
+        $recipientType = (string)($metadata['recipient_type'] ?? 'donor');
+        $recipientName = preg_replace(
+            '/[\x00-\x1F\x7F\x{200B}-\x{200D}\x{202A}-\x{202E}'
+            . '\x{2066}-\x{2069}]/u',
+            ' ',
+            trim((string)($metadata['recipient_name'] ?? ''))
+        ) ?? '';
+        $recipientName = preg_replace(
+            '/\s+/',
+            ' ',
+            $recipientName
+        ) ?? '';
+        $recipient = $recipientType === 'agent' ? 'ለወኪሉ' : 'ለለጋሹ';
+        $name = $recipientName !== '' ? ' ' . $recipientName : '';
+
+        return "✅ ማረጋገጫው ከምስክር ወረቀቱ ጋር {$recipient}{$name} ተልኳል።";
     }
 
     public static function sanitizeFailure(string $value): string
