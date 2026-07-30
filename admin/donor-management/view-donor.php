@@ -2882,13 +2882,25 @@ body.cert-headless-mode[data-cert="completed"] .cert-capture-wrapper * { visibil
 document.documentElement.classList.add('cert-headless-mode');
 document.documentElement.setAttribute('data-cert', '<?php echo (isset($_GET['cert_type']) && $_GET['cert_type'] === 'completed') ? 'completed' : 'progress'; ?>');
 document.addEventListener('DOMContentLoaded', function () {
+    let certificateType = document.documentElement.getAttribute('data-cert');
+    let certificate = certificateType === 'completed'
+        ? document.getElementById('completed-certificate')
+        : document.getElementById('donor-certificate');
+
+    // Historical previews can request a completed certificate that the
+    // donor's current page does not contain. Fall back to progress.
+    if (!certificate && certificateType === 'completed') {
+        certificateType = 'progress';
+        certificate = document.getElementById('donor-certificate');
+    }
+
     document.body.classList.add('cert-headless-mode');
-    document.body.setAttribute('data-cert', document.documentElement.getAttribute('data-cert'));
-    // Donor may not be fully paid: the completed markup is not in the page
-    // then, so fall back to the progress certificate instead of blank.
-    if (document.body.getAttribute('data-cert') === 'completed'
-        && !document.getElementById('completed-certificate')) {
-        document.body.setAttribute('data-cert', 'progress');
+    document.body.setAttribute('data-cert', certificateType);
+
+    // Tab containers can be display:none. Move the capture node directly
+    // under body so hidden ancestors cannot produce a blank screenshot.
+    if (certificate) {
+        document.body.appendChild(certificate);
     }
 });
 </script>
