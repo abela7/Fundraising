@@ -499,6 +499,7 @@ class WhatsAppPaymentCommandHandler
             $isFullyPaid,
             $financialSnapshot,
             'confirm-session-' . $sessionId . '-payment-' . $pick,
+            (string)($operator['phone'] ?? $fromPhone),
             [
                 'source' => 'whatsapp_confirm',
                 'reference' => (string)($payload['reference'] ?? ''),
@@ -1224,7 +1225,19 @@ class WhatsAppPaymentCommandHandler
                 $donorId,
                 $amount,
                 $paymentDate,
-                $donor
+                $donor,
+                null,
+                null,
+                null,
+                'pay-payment-' . $paymentId,
+                (string)($operator['phone'] ?? $fromPhone),
+                [
+                    'source' => 'whatsapp_pay',
+                    'reference' => $reference,
+                    'payment_id' => $paymentId,
+                    'payment_amount' => $amount,
+                    'payment_date' => $paymentDate,
+                ]
             );
 
             $msg = $this->renderTemplate('success', [
@@ -1264,6 +1277,7 @@ class WhatsAppPaymentCommandHandler
      * @param array<string,mixed> $operator
      * @param array<string,mixed> $donor
      * @param array{total_pledged:float,total_paid:float,balance:float}|null $financialSnapshot
+     * @param string|null $certificateFailurePhone Staff failure recipient
      * @param array<string,mixed> $queueMetadata
      * @return array{success:bool,operator_note:string,queued?:bool,job_id?:int}
      */
@@ -1277,6 +1291,7 @@ class WhatsAppPaymentCommandHandler
         ?bool $isFullyPaidOverride = null,
         ?array $financialSnapshot = null,
         ?string $certificateQueueKey = null,
+        ?string $certificateFailurePhone = null,
         array $queueMetadata = []
     ): array {
         try {
@@ -1392,6 +1407,7 @@ class WhatsAppPaymentCommandHandler
                     (int)$operator['id'],
                     $donorId,
                     $destinationPhone,
+                    $certificateFailurePhone ?? $destinationPhone,
                     $isFullyPaid ? 'completed' : 'progress',
                     $message,
                     $queueMetadata

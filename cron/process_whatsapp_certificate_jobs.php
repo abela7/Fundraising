@@ -78,13 +78,16 @@ function notify_certificate_job_failure(
         return;
     }
 
-    $message = "❌ *Certificate job failed*\n\n"
-        . 'Job: #' . (int)$job['id'] . "\n"
-        . 'Donor ID: ' . (int)$job['donor_id'] . "\n"
-        . 'Type: ' . (string)$job['certificate_type'] . "\n\n"
-        . WhatsAppCertificateJobQueue::sanitizeFailure($error);
+    $failurePhone = WhatsAppCertificateJobQueue::failurePhone($job);
+    if ($failurePhone === '') {
+        return;
+    }
 
-    $service->send((string)$job['destination_phone'], $message, [
+    $message = "❌ *ማረጋገጫውን መላክ አልተሳካም።*\n\n"
+        . WhatsAppCertificateJobQueue::sanitizeFailure($error)
+        . "\n\nእባክዎ ከአስተዳዳሪው ጋር ያገናኙ።";
+
+    $service->send($failurePhone, $message, [
         'log' => true,
         'source_type' => 'whatsapp_certificate_worker',
         'user_id' => (int)$job['operator_user_id'],

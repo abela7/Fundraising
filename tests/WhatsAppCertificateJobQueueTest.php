@@ -42,6 +42,22 @@ assertSameValue(
     WhatsAppCertificateJobQueue::statusAfterFailure(3, 3),
     'the final attempt permanently fails the job'
 );
+assertSameValue(
+    '+447700900001',
+    WhatsAppCertificateJobQueue::failurePhone([
+        'failure_phone' => '+447700900001',
+        'destination_phone' => '+447700900002',
+    ]),
+    'delivery failures are sent to the staff operator'
+);
+assertSameValue(
+    '',
+    WhatsAppCertificateJobQueue::failurePhone([
+        'failure_phone' => '',
+        'destination_phone' => '+447700900002',
+    ]),
+    'legacy jobs never send technical failures to their destination'
+);
 
 $sanitized = WhatsAppCertificateJobQueue::sanitizeFailure(
     'token=token-leak password=hunter2 client_secret=oauth-secret '

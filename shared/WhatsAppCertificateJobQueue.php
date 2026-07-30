@@ -30,6 +30,7 @@ class WhatsAppCertificateJobQueue
         int $operatorUserId,
         int $donorId,
         string $destinationPhone,
+        string $failurePhone,
         string $certificateType,
         string $caption,
         array $metadata = []
@@ -43,6 +44,9 @@ class WhatsAppCertificateJobQueue
         if (trim($destinationPhone) === '') {
             throw new InvalidArgumentException('Destination phone is required.');
         }
+        if (trim($failurePhone) === '') {
+            throw new InvalidArgumentException('Failure notification phone is required.');
+        }
 
         $metadataJson = json_encode(
             $metadata,
@@ -54,17 +58,19 @@ class WhatsAppCertificateJobQueue
         $stmt = $this->db->prepare("
             INSERT INTO whatsapp_certificate_jobs
                 (job_key, operator_user_id, donor_id, destination_phone,
-                 certificate_type, caption, metadata_json, status, attempts,
-                 max_attempts, available_at, created_at, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?, NOW(), NOW(), NOW())
+                 failure_phone, certificate_type, caption, metadata_json,
+                 status, attempts, max_attempts, available_at, created_at,
+                 updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, NOW(), NOW(), NOW())
             ON DUPLICATE KEY UPDATE id = LAST_INSERT_ID(id)
         ");
         $stmt->bind_param(
-            'siisssssi',
+            'siissssssi',
             $jobKey,
             $operatorUserId,
             $donorId,
             $destinationPhone,
+            $failurePhone,
             $certificateType,
             $caption,
             $metadataJson,
@@ -122,8 +128,8 @@ class WhatsAppCertificateJobQueue
 
         $select = $this->db->prepare("
             SELECT id, operator_user_id, donor_id, destination_phone,
-                   certificate_type, caption, status, attempts, max_attempts,
-                   lock_token
+                   failure_phone, certificate_type, caption, status, attempts,
+                   max_attempts, lock_token
             FROM whatsapp_certificate_jobs
             WHERE lock_token = ? AND status = 'processing'
             LIMIT 1
@@ -250,6 +256,16 @@ class WhatsAppCertificateJobQueue
         return $attempts >= $maxAttempts ? 'failed' : 'pending';
     }
 
+    /**
+     * Resolve where terminal job failures should be reported.
+     *
+     * @param array<string,mixed> $job
+     */
+    public static function failurePhone(array $job): string
+    {
+        return trim((string)($job['failure_phone'] ?? ''));
+    }
+
     public static function sanitizeFailure(string $value): string
     {
         $value = preg_replace(
@@ -284,8 +300,8 @@ class WhatsAppCertificateJobQueue
         $minutes = self::STALE_LOCK_MINUTES;
         $result = $this->db->query("
             SELECT id, operator_user_id, donor_id, destination_phone,
-                   certificate_type, attempts, max_attempts, lock_token,
-                   available_at
+                   failure_phone, certificate_type, attempts, max_attempts,
+                   lock_token, available_at
             FROM whatsapp_certificate_jobs
             WHERE status = 'processing'
               AND locked_at < DATE_SUB(NOW(), INTERVAL {$minutes} MINUTE)
@@ -359,6 +375,7 @@ class WhatsAppCertificateJobQueue
                 operator_user_id INT NOT NULL,
                 donor_id INT NOT NULL,
                 destination_phone VARCHAR(40) NOT NULL,
+                failure_phone VARCHAR(40) NULL,
                 certificate_type VARCHAR(20) NOT NULL,
                 caption MEDIUMTEXT NOT NULL,
                 metadata_json TEXT NULL,
@@ -381,6 +398,28 @@ class WhatsAppCertificateJobQueue
               DEFAULT CHARSET=utf8mb4
               COLLATE=utf8mb4_unicode_ci
         ");
+
+        $failurePhoneColumn = $this->db->query("
+            SHOW COLUMNS FROM whatsapp_certificate_jobs
+            LIKE 'failure_phone'
+        ");
+        if (!$failurePhoneColumn || $failurePhoneColumn->num_rows === 0) {
+            try {
+                $this->db->query("
+                    ALTER TABLE whatsapp_certificate_jobs
+                    ADD COLUMN failure_phone VARCHAR(40) NULL
+                    AFTER destination_phone
+                ");
+            } catch (Throwable $e) {
+                $recheck = $this->db->query("
+                    SHOW COLUMNS FROM whatsapp_certificate_jobs
+                    LIKE 'failure_phone'
+                ");
+                if (!$recheck || $recheck->num_rows === 0) {
+                    throw $e;
+                }
+            }
+        }
         $ensured = true;
     }
 }
