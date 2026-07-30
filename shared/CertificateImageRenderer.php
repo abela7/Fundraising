@@ -166,7 +166,6 @@ class CertificateImageRenderer
                     '--no-zygote',
                     '--disable-setuid-sandbox',
                     '--disable-breakpad',
-                    '--disable-software-rasterizer',
                 ],
             ],
             [
@@ -302,6 +301,7 @@ class CertificateImageRenderer
             'Target: ' . $targetPath . ' (' . $type . ')',
             'PHP SAPI: ' . php_sapi_name(),
             'Chrome: ' . basename($binary),
+            'Environment: isolated',
             'Shell: exec=' . (self::isFunctionDisabled('exec') ? 'off' : 'on')
                 . ', proc_open=' . (self::isFunctionDisabled('proc_open') ? 'off' : 'on'),
         ];
@@ -520,7 +520,8 @@ class CertificateImageRenderer
     }
 
     /**
-     * Give Chrome a private writable runtime environment under PHP-FPM.
+     * Isolate Chrome from LiteSpeed/PHP-FPM environment variables and give it
+     * private writable runtime directories.
      */
     private static function buildExecEnvPrefix(string $chromeBinary, string $profileDir): string
     {
@@ -528,7 +529,11 @@ class CertificateImageRenderer
             return '';
         }
 
-        $assignments = [];
+        $assignments = [
+            'PATH=' . escapeshellarg('/usr/local/bin:/usr/bin:/bin'),
+            'LANG=' . escapeshellarg('C.UTF-8'),
+            'LC_ALL=' . escapeshellarg('C.UTF-8'),
+        ];
         $parts = [];
         $libPath = self::chromeLibraryPath();
         if ($libPath !== '') {
@@ -538,21 +543,16 @@ class CertificateImageRenderer
         if ($chromeDir !== '' && is_dir($chromeDir)) {
             $parts[] = $chromeDir;
         }
-        $existing = getenv('LD_LIBRARY_PATH');
-        if (is_string($existing) && $existing !== '') {
-            $parts[] = $existing;
-        }
         if (!empty($parts)) {
             $assignments[] = 'LD_LIBRARY_PATH=' . escapeshellarg(implode(':', $parts));
         }
 
         $runtimeDir = $profileDir . DIRECTORY_SEPARATOR . 'runtime';
         $cacheDir = $profileDir . DIRECTORY_SEPARATOR . 'cache';
+        $tempDir = $profileDir . DIRECTORY_SEPARATOR . 'tmp';
 
         $home = self::resolveHomeDir();
-        if ($home !== '') {
-            $assignments[] = 'HOME=' . escapeshellarg($home);
-        }
+        $assignments[] = 'HOME=' . escapeshellarg($home !== '' ? $home : $profileDir);
         $assignments[] = 'XDG_CONFIG_HOME=' . escapeshellarg($profileDir);
         if (is_dir($cacheDir) || @mkdir($cacheDir, 0700, true)) {
             $assignments[] = 'XDG_CACHE_HOME=' . escapeshellarg($cacheDir);
@@ -560,8 +560,11 @@ class CertificateImageRenderer
         if (is_dir($runtimeDir) || @mkdir($runtimeDir, 0700, true)) {
             $assignments[] = 'XDG_RUNTIME_DIR=' . escapeshellarg($runtimeDir);
         }
+        if (is_dir($tempDir) || @mkdir($tempDir, 0700, true)) {
+            $assignments[] = 'TMPDIR=' . escapeshellarg($tempDir);
+        }
 
-        return implode(' ', $assignments) . ' ';
+        return '/usr/bin/env -i ' . implode(' ', $assignments) . ' ';
     }
 
     private static function tempProfileDir(): string
@@ -576,7 +579,7 @@ class CertificateImageRenderer
     private static function freshProfileDir(): string
     {
         $dir = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'cert-chrome-profile-' . uniqid('', true);
-        @mkdir($dir, 0755, true);
+        @mkdir($dir, 0700, true);
         return $dir;
     }
 
