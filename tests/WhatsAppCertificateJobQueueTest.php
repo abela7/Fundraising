@@ -59,6 +59,35 @@ assertSameValue(
     'legacy jobs never send technical failures to their destination'
 );
 
+$staffSummary = WhatsAppCertificateJobQueue::payStaffSuccessSummary([
+    'donor_name' => 'Abel Demssie',
+    'reference' => '1000',
+    'amount' => '20.00',
+    'payment_date' => '2026-07-30',
+    'method' => 'cash',
+    'payment_id' => '325',
+    'total_pledged' => '400.00',
+    'total_paid' => '120.00',
+    'remaining' => '280.00',
+    'recipient_type' => 'donor',
+    'recipient_name' => 'Abel Demssie',
+]);
+assertSameValue(
+    true,
+    str_contains($staffSummary, 'ክፍያ ተጽድቋል'),
+    'PAY staff summary keeps the approved-payment header'
+);
+assertSameValue(
+    true,
+    str_contains($staffSummary, 'ለለጋሹ Abel Demssie'),
+    'PAY staff summary ends with certificate delivery confirmation'
+);
+assertSameValue(
+    false,
+    str_contains($staffSummary, 'ሌላ ለመጀመር'),
+    'PAY staff summary does not include another PAY prompt'
+);
+
 $donorDeliveryMessage = WhatsAppCertificateJobQueue::payDeliveryConfirmation([
     'recipient_type' => 'donor',
     'recipient_name' => 'Abel Demssie',

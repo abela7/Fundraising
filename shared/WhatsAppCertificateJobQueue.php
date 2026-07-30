@@ -298,6 +298,27 @@ class WhatsAppCertificateJobQueue
         return "✅ ማረጋገጫው ከምስክር ወረቀቱ ጋር {$recipient}{$name} ተልኳል።";
     }
 
+    /**
+     * Full staff PAY summary sent after the certificate image is delivered.
+     *
+     * @param array<string,mixed> $metadata
+     */
+    public static function payStaffSuccessSummary(array $metadata): string
+    {
+        return "✅ *ክፍያ ተጽድቋል*\n\n"
+            . 'ለጋሽ: ' . (string)($metadata['donor_name'] ?? '') . "\n"
+            . 'መከታተያ: ' . (string)($metadata['reference'] ?? '') . "\n"
+            . 'መጠን: £' . (string)($metadata['amount'] ?? '') . "\n"
+            . 'ቀን: ' . (string)($metadata['payment_date'] ?? '') . "\n"
+            . 'ዘዴ: ' . (string)($metadata['method'] ?? '') . "\n"
+            . 'የክፍያ መለያ: #' . (string)($metadata['payment_id'] ?? '') . "\n\n"
+            . "ማጠቃለያ:\n"
+            . '→ ጠቅላላ ቃል ኪዳን: £' . (string)($metadata['total_pledged'] ?? '') . "\n"
+            . '→ እስካሁን የከፈሉት: £' . (string)($metadata['total_paid'] ?? '') . "\n"
+            . '→ ቀሪ: £' . (string)($metadata['remaining'] ?? '') . "\n\n"
+            . self::payDeliveryConfirmation($metadata);
+    }
+
     public static function sanitizeFailure(string $value): string
     {
         $value = preg_replace(

@@ -1113,6 +1113,13 @@ class WhatsAppPaymentCommandHandler
             return;
         }
 
+        $this->reply(
+            $fromPhone,
+            $this->renderTemplate('pay_processing', []),
+            $conversationId,
+            (int)$operator['id']
+        );
+
         $donorId = (int)$payload['donor_id'];
         $pledgeId = (int)$payload['pledge_id'];
         $amount = (float)$payload['amount'];
@@ -1237,11 +1244,16 @@ class WhatsAppPaymentCommandHandler
                     'payment_id' => $paymentId,
                     'payment_amount' => $amount,
                     'payment_date' => $paymentDate,
+                    'donor_name' => (string)($donor['name'] ?? $payload['donor_name'] ?? ''),
+                    'amount' => number_format($amount, 2),
+                    'method' => $method,
+                    'total_pledged' => number_format((float)($donor['total_pledged'] ?? 0), 2),
+                    'total_paid' => number_format((float)($donor['total_paid'] ?? 0), 2),
+                    'remaining' => number_format((float)($donor['balance'] ?? 0), 2),
                 ]
             );
 
-            // The worker sends the certificate first, then confirms its
-            // recipient to this operator. Do not send an early PAY summary.
+            // The worker sends the certificate first, then the full PAY summary.
             if (!empty($confirmResult['queued'])) {
                 return;
             }
@@ -2297,7 +2309,13 @@ class WhatsAppPaymentCommandHandler
                 'label' => 'Success (message 4)',
                 'description' => 'Sent after payment is recorded and approved',
                 'placeholders' => '{donor_name} {reference} {amount} {payment_date} {method} {payment_id} {total_pledged} {total_paid} {remaining} {confirmation_status}',
-                'body' => "✅ *ክፍያ ተጽድቋል*\n\nለጋሽ: {donor_name}\nመከታተያ: {reference}\nመጠን: £{amount}\nቀን: {payment_date}\nዘዴ: {method}\nየክፍያ መለያ: #{payment_id}\n\nማጠቃለያ:\n→ ጠቅላላ ቃል ኪዳን: £{total_pledged}\n→ እስካሁን የከፈሉት: £{total_paid}\n→ ቀሪ: £{remaining}{confirmation_status}\n\nሌላ ለመጀመር: PAY 0335 50",
+                'body' => "✅ *ክፍያ ተጽድቋል*\n\nለጋሽ: {donor_name}\nመከታተያ: {reference}\nመጠን: £{amount}\nቀን: {payment_date}\nዘዴ: {method}\nየክፍያ መለያ: #{payment_id}\n\nማጠቃለያ:\n→ ጠቅላላ ቃል ኪዳን: £{total_pledged}\n→ እስካሁን የከፈሉት: £{total_paid}\n→ ቀሪ: £{remaining}\n\n{confirmation_status}",
+            ],
+            'pay_processing' => [
+                'label' => 'PAY Processing',
+                'description' => 'Sent immediately after staff confirms with አዎ',
+                'placeholders' => '',
+                'body' => "⏳ *በሂደት ላይ...*\n\nማረጋገጫው እየተዘጋጁ ነው።",
             ],
             'not_found' => [
                 'label' => 'Reference Not Found',

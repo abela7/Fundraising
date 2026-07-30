@@ -177,7 +177,7 @@ while ($processed < $batchLimit) {
                 for ($noticeAttempt = 1; $noticeAttempt <= 3; $noticeAttempt++) {
                     $notice = $service->send(
                         $staffPhone,
-                        WhatsAppCertificateJobQueue::payDeliveryConfirmation(
+                        WhatsAppCertificateJobQueue::payStaffSuccessSummary(
                             $metadata
                         ),
                         [
