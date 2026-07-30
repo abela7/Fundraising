@@ -2861,6 +2861,13 @@ function formatDateTime($date) {
     </style>
 <?php if (!empty($headlessView)): ?>
 <style>
+@font-face {
+    font-family: 'Certificate Unified';
+    src: url('/assets/fonts/NotoSansEthiopic-Regular.ttf') format('truetype');
+    font-style: normal;
+    font-weight: 100 900;
+    font-display: block;
+}
 /* Headless server-browser: isolate the certificate on a white page */
 body.cert-headless-mode { background: #ffffff !important; overflow: hidden !important; }
 body.cert-headless-mode * { visibility: hidden !important; }
@@ -2872,6 +2879,12 @@ body.cert-headless-mode .cert-capture-wrapper,
 body.cert-headless-mode .fc-capture-wrapper { position: fixed !important; top: 0 !important; left: 0 !important; z-index: 999999 !important; transform: none !important; }
 body.cert-headless-mode .cert-capture-wrapper { width: 1200px !important; height: 970px !important; }
 body.cert-headless-mode .fc-capture-wrapper { width: 1200px !important; height: 850px !important; }
+body.cert-headless-mode .cert-capture-wrapper,
+body.cert-headless-mode .cert-capture-wrapper *,
+body.cert-headless-mode .fc-capture-wrapper,
+body.cert-headless-mode .fc-capture-wrapper * {
+    font-family: 'Certificate Unified', sans-serif !important;
+}
 /* Hide the non-requested certificate when both exist (fully paid donors) */
 body.cert-headless-mode[data-cert="progress"] .fc-capture-wrapper,
 body.cert-headless-mode[data-cert="progress"] .fc-capture-wrapper * { visibility: hidden !important; display: none !important; }
