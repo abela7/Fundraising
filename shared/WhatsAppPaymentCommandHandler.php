@@ -24,6 +24,7 @@ class WhatsAppPaymentCommandHandler
 {
     private const SESSION_TTL_MINUTES = 10;
     private const MAX_AMOUNT = 100000.0;
+    private const DEFAULT_PAYMENT_METHOD = 'bank';
     private const KESIS_BIRHANU_PHONE = '07473822244';
     private const KESIS_BIRHANU_NAME = 'Kesis Birhanu';
 
@@ -698,15 +699,12 @@ class WhatsAppPaymentCommandHandler
     private function parsePayCommand(string $body): ?array
     {
         // With amount: PAY 0335 50 [method] [date]
-        if (preg_match('/^(?:PAY|APPROVE|ክፍያ)\s+(\d{4})\s+([0-9]+(?:\.[0-9]{1,2})?)(?:\s+(cash|card|bank|other))?(?:\s+(\d{4}-\d{2}-\d{2}))?\s*$/iu', $body, $m)) {
+        if (preg_match('/^(?:PAY|APPROVE|ክፍያ)\s+(\d{4})\s+([0-9]+(?:\.[0-9]{1,2})?)(?:\s+(cash|card|bank|bank_transfer|transfer|other))?(?:\s+(\d{4}-\d{2}-\d{2}))?\s*$/iu', $body, $m)) {
             $amount = (float)$m[2];
             if ($amount <= 0 || $amount > self::MAX_AMOUNT) {
                 return null;
             }
-            $method = strtolower($m[3] ?? 'cash');
-            if (!in_array($method, ['cash', 'card', 'bank', 'other'], true)) {
-                $method = 'cash';
-            }
+            $method = $this->normalizePaymentMethod(isset($m[3]) ? (string)$m[3] : null);
             $paymentDate = $m[4] ?? date('Y-m-d');
             if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $paymentDate)) {
                 $paymentDate = date('Y-m-d');
@@ -724,12 +722,25 @@ class WhatsAppPaymentCommandHandler
             return [
                 'reference' => $m[1],
                 'amount' => null,
-                'method' => 'cash',
+                'method' => self::DEFAULT_PAYMENT_METHOD,
                 'payment_date' => date('Y-m-d'),
             ];
         }
 
         return null;
+    }
+
+    private function normalizePaymentMethod(?string $method): string
+    {
+        $method = strtolower(trim((string)($method ?? '')));
+        if ($method === 'transfer' || $method === 'bank_transfer') {
+            return 'bank';
+        }
+        if (in_array($method, ['cash', 'card', 'bank', 'other'], true)) {
+            return $method;
+        }
+
+        return self::DEFAULT_PAYMENT_METHOD;
     }
 
     private function parseAmountOnly(string $body): ?float
@@ -884,7 +895,7 @@ class WhatsAppPaymentCommandHandler
         $payload = $this->payloadFromSession($pending);
         $payload['amount'] = $amount;
         if (empty($payload['method'])) {
-            $payload['method'] = 'cash';
+            $payload['method'] = self::DEFAULT_PAYMENT_METHOD;
         }
         if (empty($payload['payment_date'])) {
             $payload['payment_date'] = date('Y-m-d');
@@ -1123,7 +1134,7 @@ class WhatsAppPaymentCommandHandler
         $donorId = (int)$payload['donor_id'];
         $pledgeId = (int)$payload['pledge_id'];
         $amount = (float)$payload['amount'];
-        $method = (string)($payload['method'] ?? 'cash');
+        $method = $this->normalizePaymentMethod((string)($payload['method'] ?? ''));
         $paymentDate = (string)($payload['payment_date'] ?? date('Y-m-d'));
         $reference = (string)($payload['reference'] ?? '');
         $operatorId = (int)$operator['id'];
@@ -2084,7 +2095,7 @@ class WhatsAppPaymentCommandHandler
             'donor_phone' => (string)($payload['donor_phone'] ?? ''),
             'reference' => (string)($payload['reference'] ?? ''),
             'amount' => $hasAmount ? number_format((float)$rawAmount, 2) : '',
-            'method' => (string)($payload['method'] ?? 'cash'),
+            'method' => $this->normalizePaymentMethod((string)($payload['method'] ?? '')),
             'payment_date' => $dayLabel,
             'day' => $dayLabel,
             'balance' => number_format((float)($payload['balance'] ?? 0), 2),
@@ -2220,7 +2231,7 @@ class WhatsAppPaymentCommandHandler
                 'label' => 'Help / Usage',
                 'description' => 'Sent when staff type PAY/HELP incorrectly',
                 'placeholders' => '{expires_minutes}',
-                'body' => "📌 *የWhatsApp ክፍያ ትዕዛዝ*\n\nክፍያ ለመመዝገብ፦\n*PAY 0335*\nወይም\n*PAY 0335 50*\n\nየለጋሽ መረጃን ብቻ ለማየት፦\n*CHECK 0335*\n\nማረጋገጫ ለመሞከር (ወደ እርስዎ ይላካል)፦\n*CONFIRM 0335*\n\nከPAY ትዕዛዝ በኋላ፦\n• መጠን ካልላኩ — የክፍያ መጠን ይላኩ ወይም *ይቅር*\n• መጠን ካላኩ — *አዎ* ለማረጋገጥ ወይም *አይደለም* ትክክለኛው ሰው ካልሆነ",
+                'body' => "📌 *የWhatsApp ክፍያ ትዕዛዝ*\n\nክፍያ ለመመዝገብ፦\n*PAY 0335*\nወይም\n*PAY 0335 50*\n\nየለጋሽ መረጃን ብቻ ለማየት፦\n*CHECK 0335*\n\nማረጋገጫ ለመሞከር (ወደ እርስዎ ይላካል)፦\n*CONFIRM 0335*\n\nከPAY ትዕዛዝ በኋላ፦\n• መጠን ካልላኩ — የክፍያ መጠን ይላኩ ወይም *ይቅር*\n• መጠን ካላኩ — *አዎ* ወይም *yes* ለማረጋገጥ ወይም *አይደለም* ትክክለኛው ሰው ካልሆነ",
             ],
             'confirm_pick_list' => [
                 'label' => 'Confirm Resend — Payment List',
@@ -2280,7 +2291,7 @@ class WhatsAppPaymentCommandHandler
                 'label' => 'Confirm Request (identity)',
                 'description' => 'Ask if this is the correct donor. Preview already includes payment amount when provided.',
                 'placeholders' => '{preview}',
-                'body' => "{preview}\n\nይህ ትክክለኛው ሰው ነው?\nከሆነ *አዎ* ብለው ይላኩ።\nካልሆነ *አይደለም* ብለው ይላኩ።",
+                'body' => "{preview}\n\nይህ ትክክለኛው ሰው ነው?\nከሆነ *አዎ* ወይም *yes* ብለው ይላኩ።\nካልሆነ *አይደለም* ብለው ይላኩ።",
             ],
             'preview_block' => [
                 'label' => 'Preview (reference only)',
@@ -2298,7 +2309,7 @@ class WhatsAppPaymentCommandHandler
                 'label' => 'Pending Reminder',
                 'description' => 'Reminder when identity confirmation is still waiting',
                 'placeholders' => '{preview}',
-                'body' => "⏳ ገና ማረጋገጫ እየጠበቁ ነው።\n\n{preview}\n\nይህ ትክክለኛው ሰው ነው?\nከሆነ *አዎ* ብለው ይላኩ።\nካልሆነ *አይደለም* ብለው ይላኩ።",
+                'body' => "⏳ ገና ማረጋገጫ እየጠበቁ ነው።\n\n{preview}\n\nይህ ትክክለኛው ሰው ነው?\nከሆነ *አዎ* ወይም *yes* ብለው ይላኩ።\nካልሆነ *አይደለም* ብለው ይላኩ።",
             ],
             'cancelled' => [
                 'label' => 'Wrong Person (አይደለም)',
@@ -2320,7 +2331,7 @@ class WhatsAppPaymentCommandHandler
             ],
             'pay_processing' => [
                 'label' => 'PAY Processing',
-                'description' => 'Sent immediately after staff confirms with አዎ',
+                'description' => 'Sent immediately after staff confirms with አዎ or yes',
                 'placeholders' => '',
                 'body' => "⏳ *በሂደት ላይ...*\n\nማረጋገጫው እየተዘጋጀ ነው።",
             ],
@@ -2455,7 +2466,7 @@ class WhatsAppPaymentCommandHandler
 
         // Apply copy corrections once without overwriting unrelated
         // administrator-customized templates.
-        $copyVersion = 1;
+        $copyVersion = 2;
         $copyVersionKey = '_amharic_copy_version';
         $currentCopyVersion = 0;
         $copyVersionResult = $this->db->prepare("
@@ -2508,6 +2519,21 @@ class WhatsAppPaymentCommandHandler
                     'multiple_matches',
                     'ከአስተዳዳሪ ገጽ ይጠቀሙ።',
                     'የአስተዳዳሪውን ገጽ ይጠቀሙ።',
+                ],
+                [
+                    'help',
+                    '• መጠን ካላኩ — *አዎ* ለማረጋገጥ',
+                    '• መጠን ካላኩ — *አዎ* ወይም *yes* ለማረጋገጥ',
+                ],
+                [
+                    'confirm_request',
+                    'ከሆነ *አዎ* ብለው ይላኩ።',
+                    'ከሆነ *አዎ* ወይም *yes* ብለው ይላኩ።',
+                ],
+                [
+                    'pending_reminder',
+                    'ከሆነ *አዎ* ብለው ይላኩ።',
+                    'ከሆነ *አዎ* ወይም *yes* ብለው ይላኩ።',
                 ],
             ];
             $copyUpdate = $this->db->prepare("

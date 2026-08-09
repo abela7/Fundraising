@@ -443,7 +443,8 @@ if ($editId > 0) {
                         1. Add the person’s WhatsApp number here (must match the phone they text from).<br>
                         2. Link them to a registrar/admin user.<br>
                         3. From that WhatsApp send: <code>PAY 0335</code> then the amount, or <code>PAY 0335 50</code> directly.<br>
-                        4. Confirm with <code>አዎ</code> / cancel with <code>አይደለም</code> or <code>ይቅር</code>.
+                        4. Confirm with <code>አዎ</code> or <code>yes</code> / cancel with <code>አይደለም</code> or <code>ይቅር</code>.<br>
+                        5. If no method is given, payments default to <strong>bank transfer</strong>.
                     </div>
                 </div>
             </div>
