@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/SimpleXlsxReader.php';
+require_once __DIR__ . '/BankStatementAmounts.php';
 
 /**
  * Relates donors-bank-data.xlsx rows to members. Excel list is the source.
@@ -96,11 +97,17 @@ final class BankStatementMembers
         }
 
         $donors = [];
+        $overrides = [];
         if ($db instanceof mysqli) {
             try {
                 $donors = self::loadDonors($db);
             } catch (Throwable $e) {
                 error_log('Bank members donor lookup failed: ' . $e->getMessage());
+            }
+            try {
+                $overrides = BankStatementAmounts::all($db);
+            } catch (Throwable $e) {
+                error_log('Bank members amount overrides failed: ' . $e->getMessage());
             }
         }
         $byRef = [];
@@ -137,6 +144,13 @@ final class BankStatementMembers
             if ($isBankAccount) {
                 $totals['bank_lump'] += $excelPaid;
             } else {
+                $rowKey = BankStatementAmounts::rowKey($r + 1, $excelName, $excelRef);
+                $originalPaid = $excelPaid;
+                if (isset($overrides[$rowKey])) {
+                    $excelPaid = $overrides[$rowKey];
+                }
+                $bankPaidEdited = abs($excelPaid - $originalPaid) >= 0.01;
+
                 if ($excelRef !== '' && isset($byRef[$excelRef])) {
                     $donor = $donors[$byRef[$excelRef][0]];
                     $matchBy = 'reference';
@@ -177,6 +191,9 @@ final class BankStatementMembers
                     'excel_name' => $excelName,
                     'excel_ref' => $excelRef,
                     'excel_paid' => $excelPaid,
+                    'original_paid' => $originalPaid,
+                    'row_key' => $rowKey,
+                    'bank_paid_edited' => $bankPaidEdited,
                     'is_bank_account' => false,
                     'donor_id' => is_array($donor) ? (int) $donor['id'] : null,
                     'donor_name' => is_array($donor) ? (string) $donor['name'] : '',

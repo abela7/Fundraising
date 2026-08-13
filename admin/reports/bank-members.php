@@ -5,6 +5,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/../../shared/auth.php';
 require_once __DIR__ . '/../../config/db.php';
 require_once __DIR__ . '/../../shared/url.php';
+require_once __DIR__ . '/../../shared/csrf.php';
 require_once __DIR__ . '/../../shared/BankStatementMembers.php';
 
 require_login();
@@ -102,6 +103,7 @@ function bsm_h(string $value): string
     return htmlspecialchars($value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
 }
 
+$csrfToken = csrf_token();
 $cssVersion = (int) (filemtime(__DIR__ . '/assets/bank-members.css') ?: time());
 ?>
 <!DOCTYPE html>
@@ -156,8 +158,9 @@ $cssVersion = (int) (filemtime(__DIR__ . '/assets/bank-members.css') ?: time());
                         <i class="fas fa-info-circle me-1" style="color: var(--primary);"></i>
                         This page shows only the <?php echo (int) $totals['excel_members']; ?> people from
                         <strong>donors-bank-data.xlsx</strong>
-                        (<?php echo bsm_h(bsm_money((float) $totals['excel_paid'], $currency)); ?>).
+                        (<span id="bsmExcelPaidTotal"><?php echo bsm_h(bsm_money((float) $totals['excel_paid'], $currency)); ?></span>).
                         Other members in the database are not listed.
+                        Double-click a <strong>Bank paid</strong> amount to correct it.
                         <?php if ((float) $totals['bank_lump'] > 0): ?>
                             A bank lump of <?php echo bsm_h(bsm_money((float) $totals['bank_lump'], $currency)); ?> is excluded.
                         <?php endif; ?>
@@ -199,6 +202,8 @@ $cssVersion = (int) (filemtime(__DIR__ . '/assets/bank-members.css') ?: time());
                         <input type="search" class="form-control form-control-sm" id="bsmSearch" placeholder="Name or reference" autocomplete="off">
                     </div>
 
+                    <div id="bsmFlash" class="alert d-none" role="status"></div>
+
                     <div class="bsm-card">
                         <div class="bsm-card-head">
                             <h6>Excel people</h6>
@@ -210,7 +215,7 @@ $cssVersion = (int) (filemtime(__DIR__ . '/assets/bank-members.css') ?: time());
                                     <tr>
                                         <th>Excel name</th>
                                         <th>Ref</th>
-                                        <th class="text-end">Bank paid</th>
+                                        <th class="text-end">Bank paid<span class="bsm-th-hint">Double-click to edit</span></th>
                                         <th>Member</th>
                                         <th class="text-end">System paid</th>
                                         <th class="text-end">Difference<span class="bsm-th-hint">Bank − System</span></th>
@@ -232,6 +237,10 @@ $cssVersion = (int) (filemtime(__DIR__ . '/assets/bank-members.css') ?: time());
                                                 (string) ($row['donor_name'] ?? '')
                                             );
                                             $donorId = isset($row['donor_id']) ? (int) $row['donor_id'] : 0;
+                                            $bankPaid = (float) ($row['excel_paid'] ?? 0);
+                                            $originalPaid = (float) ($row['original_paid'] ?? $bankPaid);
+                                            $paidEdited = !empty($row['bank_paid_edited']);
+                                            $donorPaid = $row['donor_paid'] ?? null;
                                             ?>
                                             <tr data-status="<?php echo bsm_h($status); ?>" data-search="<?php echo bsm_h($search); ?>">
                                                 <td>
@@ -240,7 +249,17 @@ $cssVersion = (int) (filemtime(__DIR__ . '/assets/bank-members.css') ?: time());
                                                     </div>
                                                 </td>
                                                 <td class="bsm-ref"><?php echo ($row['excel_ref'] ?? '') !== '' ? bsm_h((string) $row['excel_ref']) : '—'; ?></td>
-                                                <td class="text-end"><?php echo bsm_h(bsm_money((float) ($row['excel_paid'] ?? 0), $currency)); ?></td>
+                                                <td class="text-end bsm-paid-cell<?php echo $paidEdited ? ' is-edited' : ''; ?>"
+                                                    title="Double-click to edit"
+                                                    data-row-key="<?php echo bsm_h((string) ($row['row_key'] ?? '')); ?>"
+                                                    data-excel-row="<?php echo (int) ($row['excel_row'] ?? 0); ?>"
+                                                    data-excel-name="<?php echo bsm_h((string) ($row['excel_name'] ?? '')); ?>"
+                                                    data-excel-ref="<?php echo bsm_h((string) ($row['excel_ref'] ?? '')); ?>"
+                                                    data-bank-paid="<?php echo bsm_h(number_format($bankPaid, 2, '.', '')); ?>"
+                                                    data-original-paid="<?php echo bsm_h(number_format($originalPaid, 2, '.', '')); ?>"
+                                                    data-donor-paid="<?php echo $donorPaid === null ? '' : bsm_h(number_format((float) $donorPaid, 2, '.', '')); ?>">
+                                                    <span class="bsm-paid-value"><?php echo bsm_h(bsm_money($bankPaid, $currency)); ?></span>
+                                                </td>
                                                 <td>
                                                     <?php
                                                     $memberName = trim((string) ($row['donor_name'] ?? ''));
@@ -264,7 +283,7 @@ $cssVersion = (int) (filemtime(__DIR__ . '/assets/bank-members.css') ?: time());
                                                 <td class="text-end">
                                                     <?php echo $row['donor_paid'] !== null ? bsm_h(bsm_money((float) $row['donor_paid'], $currency)) : '—'; ?>
                                                 </td>
-                                                <td class="text-end">
+                                                <td class="text-end bsm-diff-cell">
                                                     <?php
                                                     $diff = $row['paid_diff'] ?? null;
                                                     if ($diff === null) {
@@ -278,7 +297,7 @@ $cssVersion = (int) (filemtime(__DIR__ . '/assets/bank-members.css') ?: time());
                                                     }
                                                     ?>
                                                 </td>
-                                                <td>
+                                                <td class="bsm-status-cell">
                                                     <?php if ($status === 'linked'): ?>
                                                         <span class="bsm-badge bsm-badge-match"><i class="fas fa-check"></i> Match</span>
                                                     <?php elseif ($status === 'amount_diff'): ?>
@@ -310,9 +329,15 @@ $cssVersion = (int) (filemtime(__DIR__ . '/assets/bank-members.css') ?: time());
   const rows = Array.from(document.querySelectorAll('#bsmBody tr[data-status]'));
   const empty = document.getElementById('bsmEmpty');
   const count = document.getElementById('bsmCount');
+  const flash = document.getElementById('bsmFlash');
+  const csrf = <?php echo json_encode($csrfToken, JSON_UNESCAPED_SLASHES); ?>;
+  const currency = <?php echo json_encode($currency, JSON_UNESCAPED_SLASHES); ?>;
+  const saveUrl = <?php echo json_encode(url_for('admin/reports/api/bank-member-amount.php'), JSON_UNESCAPED_SLASHES); ?>;
   if (!chips.length || !search) return;
 
   let filter = 'all';
+  let editing = null;
+  let saving = false;
 
   function apply() {
     const q = search.value.toLowerCase().trim();
@@ -329,6 +354,233 @@ $cssVersion = (int) (filemtime(__DIR__ . '/assets/bank-members.css') ?: time());
     });
     if (empty) empty.classList.toggle('d-none', shown > 0 || rows.length === 0);
     if (count) count.textContent = shown + ' shown';
+  }
+
+  function formatMoney(amount) {
+    const formatted = Math.abs(amount).toLocaleString('en-GB', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    });
+    return currency === 'GBP' ? '\u00A3' + formatted : currency + ' ' + formatted;
+  }
+
+  function formatSigned(amount) {
+    const formatted = formatMoney(amount);
+    if (amount > 0.009) return '+' + formatted;
+    if (amount < -0.009) return '-' + formatted;
+    return formatted;
+  }
+
+  function showFlash(message, isError) {
+    if (!flash) return;
+    flash.textContent = message;
+    flash.classList.remove('d-none', 'alert-warning', 'alert-success');
+    flash.classList.add(isError ? 'alert-warning' : 'alert-success');
+    window.clearTimeout(showFlash._t);
+    showFlash._t = window.setTimeout(function () {
+      flash.classList.add('d-none');
+    }, 3200);
+  }
+
+  function setChip(name, value) {
+    const el = document.querySelector('.bsm-chip[data-filter="' + name + '"] .bsm-chip-val');
+    if (el) el.textContent = String(value);
+  }
+
+  function recount() {
+    let found = 0;
+    let diff = 0;
+    let missing = 0;
+    let excelPaid = 0;
+    rows.forEach(function (row) {
+      const status = row.getAttribute('data-status') || '';
+      const cell = row.querySelector('.bsm-paid-cell');
+      const paid = parseFloat(cell ? cell.getAttribute('data-bank-paid') : '0');
+      if (isFinite(paid)) excelPaid += paid;
+      if (status === 'linked' || status === 'amount_diff') found += 1;
+      if (status === 'amount_diff') diff += 1;
+      if (status === 'not_found') missing += 1;
+    });
+    setChip('found', found);
+    setChip('amount_diff', diff);
+    setChip('not_found', missing);
+    const totalEl = document.getElementById('bsmExcelPaidTotal');
+    if (totalEl) totalEl.textContent = formatMoney(excelPaid);
+  }
+
+  function renderDiff(cell, donorPaidRaw, bankPaid) {
+    if (!cell) return;
+    if (donorPaidRaw === '') {
+      cell.textContent = '—';
+      return;
+    }
+    const donorPaid = parseFloat(donorPaidRaw);
+    const diff = Math.round((bankPaid - donorPaid) * 100) / 100;
+    if (Math.abs(diff) < 0.01) {
+      cell.innerHTML = '<span class="bsm-ok">Same</span>';
+      return;
+    }
+    const cls = diff > 0 ? 'bsm-diff bsm-diff-plus' : 'bsm-diff bsm-diff-minus';
+    cell.innerHTML = '<span class="' + cls + '"></span>';
+    cell.firstChild.textContent = formatSigned(diff);
+  }
+
+  function renderStatus(cell, status) {
+    if (!cell) return;
+    if (status === 'linked') {
+      cell.innerHTML = '<span class="bsm-badge bsm-badge-match"><i class="fas fa-check"></i> Match</span>';
+    } else if (status === 'amount_diff') {
+      cell.innerHTML = '<span class="bsm-badge bsm-badge-diff"><i class="fas fa-triangle-exclamation"></i> Differs</span>';
+    } else {
+      cell.innerHTML = '<span class="bsm-badge bsm-badge-missing"><i class="fas fa-xmark"></i> Not found</span>';
+    }
+  }
+
+  function rowStatus(donorPaidRaw, bankPaid) {
+    if (donorPaidRaw === '') return 'not_found';
+    const donorPaid = parseFloat(donorPaidRaw);
+    const diff = Math.round((bankPaid - donorPaid) * 100) / 100;
+    return Math.abs(diff) < 0.01 ? 'linked' : 'amount_diff';
+  }
+
+  function closeEditor(cell, restore) {
+    if (!cell) return;
+    const input = cell.querySelector('.bsm-paid-input');
+    if (input) input.remove();
+    let valueEl = cell.querySelector('.bsm-paid-value');
+    if (!valueEl) {
+      valueEl = document.createElement('span');
+      valueEl.className = 'bsm-paid-value';
+      cell.appendChild(valueEl);
+    }
+    if (restore) {
+      const paid = parseFloat(cell.getAttribute('data-bank-paid') || '0');
+      valueEl.textContent = formatMoney(isFinite(paid) ? paid : 0);
+    }
+    valueEl.hidden = false;
+    cell.classList.remove('is-editing');
+    if (editing === cell) editing = null;
+  }
+
+  function applyPaid(cell, bankPaid) {
+    const row = cell.closest('tr');
+    const original = parseFloat(cell.getAttribute('data-original-paid') || '0');
+    const donorPaidRaw = cell.getAttribute('data-donor-paid') || '';
+    const status = rowStatus(donorPaidRaw, bankPaid);
+    cell.setAttribute('data-bank-paid', bankPaid.toFixed(2));
+    cell.classList.toggle('is-edited', Math.abs(bankPaid - original) >= 0.01);
+    const valueEl = cell.querySelector('.bsm-paid-value');
+    if (valueEl) valueEl.textContent = formatMoney(bankPaid);
+    if (row) {
+      row.setAttribute('data-status', status);
+      renderDiff(row.querySelector('.bsm-diff-cell'), donorPaidRaw, bankPaid);
+      renderStatus(row.querySelector('.bsm-status-cell'), status);
+    }
+    cell.classList.remove('bsm-paid-flash');
+    void cell.offsetWidth;
+    cell.classList.add('bsm-paid-flash');
+    recount();
+    apply();
+  }
+
+  async function savePaid(cell, raw) {
+    const parsed = parseFloat(raw);
+    const current = parseFloat(cell.getAttribute('data-bank-paid') || '0');
+    if (!isFinite(parsed) || parsed < 0) {
+      showFlash('Enter a valid amount.', true);
+      closeEditor(cell, true);
+      return;
+    }
+    const bankPaid = Math.round(parsed * 100) / 100;
+    if (Math.abs(bankPaid - current) < 0.001) {
+      closeEditor(cell, true);
+      return;
+    }
+    if (saving) return;
+    saving = true;
+    cell.classList.add('is-saving');
+    const body = new URLSearchParams({
+      csrf_token: csrf,
+      row_key: cell.getAttribute('data-row-key') || '',
+      excel_row: cell.getAttribute('data-excel-row') || '',
+      excel_name: cell.getAttribute('data-excel-name') || '',
+      excel_ref: cell.getAttribute('data-excel-ref') || '',
+      original_paid: cell.getAttribute('data-original-paid') || '0.00',
+      bank_paid: bankPaid.toFixed(2)
+    });
+    try {
+      const res = await fetch(saveUrl, {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded', Accept: 'application/json' },
+        body: body.toString()
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || 'Could not save Bank paid amount.');
+      }
+      closeEditor(cell, false);
+      applyPaid(cell, typeof data.bank_paid === 'number' ? data.bank_paid : bankPaid);
+    } catch (err) {
+      showFlash(err.message || 'Could not save Bank paid amount.', true);
+      closeEditor(cell, true);
+    } finally {
+      saving = false;
+      cell.classList.remove('is-saving');
+    }
+  }
+
+  async function startEdit(cell) {
+    if (saving || !cell || cell.classList.contains('is-editing')) return;
+    if (editing && editing !== cell) {
+      const prev = editing;
+      const prevInput = prev.querySelector('.bsm-paid-input');
+      await savePaid(prev, prevInput ? prevInput.value : '');
+      if (saving || editing) return;
+    }
+    const current = cell.getAttribute('data-bank-paid') || '0.00';
+    const valueEl = cell.querySelector('.bsm-paid-value');
+    if (valueEl) valueEl.hidden = true;
+    const input = document.createElement('input');
+    input.type = 'number';
+    input.className = 'form-control form-control-sm bsm-paid-input';
+    input.step = '0.01';
+    input.min = '0';
+    input.inputMode = 'decimal';
+    input.autocomplete = 'off';
+    input.setAttribute('aria-label', 'Bank paid amount');
+    input.value = current;
+    cell.classList.add('is-editing');
+    cell.appendChild(input);
+    editing = cell;
+    input.focus();
+    input.select();
+    input.addEventListener('keydown', function (event) {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        savePaid(cell, input.value);
+      } else if (event.key === 'Escape') {
+        event.preventDefault();
+        closeEditor(cell, true);
+      }
+    });
+    input.addEventListener('blur', function () {
+      window.setTimeout(function () {
+        if (editing === cell && document.activeElement !== input) {
+          savePaid(cell, input.value);
+        }
+      }, 0);
+    });
+  }
+
+  const tableBody = document.getElementById('bsmBody');
+  if (tableBody) {
+    tableBody.addEventListener('dblclick', function (event) {
+      const cell = event.target.closest('.bsm-paid-cell');
+      if (!cell || !tableBody.contains(cell)) return;
+      event.preventDefault();
+      startEdit(cell);
+    });
   }
 
   chips.forEach(function (chip) {

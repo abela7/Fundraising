@@ -208,6 +208,62 @@
 .bsm-muted {
   color: var(--gray-400);
 }
+#bsmFlash {
+  font-size: 0.875rem;
+  color: var(--gray-800);
+}
+.bsm-paid-cell {
+  cursor: text;
+  user-select: none;
+  white-space: nowrap;
+}
+.bsm-paid-value {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 8px;
+  margin: -4px -8px;
+  border-radius: 6px;
+  border: 1px dashed transparent;
+  font-variant-numeric: tabular-nums;
+  color: var(--gray-800);
+  font-weight: 600;
+}
+.bsm-paid-cell:hover .bsm-paid-value,
+.bsm-paid-cell.is-editing .bsm-paid-value {
+  border-color: var(--gray-300);
+  background: var(--white);
+}
+.bsm-paid-cell.is-edited .bsm-paid-value {
+  border-color: rgba(10, 98, 134, 0.35);
+  color: var(--primary);
+}
+.bsm-paid-input {
+  width: 7.5rem;
+  margin-left: auto;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  color: var(--gray-800);
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(10, 98, 134, 0.12);
+}
+.bsm-paid-cell.is-saving {
+  opacity: 0.6;
+  pointer-events: none;
+}
+.bsm-paid-cell.bsm-paid-flash .bsm-paid-value {
+  animation: bsmPaidFlash 0.8s ease;
+}
+@keyframes bsmPaidFlash {
+  from {
+    background: rgba(16, 185, 129, 0.22);
+    border-color: rgba(16, 185, 129, 0.45);
+  }
+  to {
+    background: transparent;
+    border-color: transparent;
+  }
+}
 @media (max-width: 768px) {
   .bsm-name { max-width: 160px; }
   .bsm-table thead th,
