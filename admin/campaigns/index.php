@@ -106,12 +106,16 @@ $page_title = 'WhatsApp Donor Campaign';
                             <div class="dvc-stat-meta" id="metaNotStarted">Promised, paid nothing</div>
                         </div>
                     </a>
+                    <a href="#" class="dvc-stat-chip" id="chipReview" data-group="unclassified">
+                        <div class="dvc-stat-icon review"><i class="fas fa-clipboard-check"></i></div>
+                        <div>
+                            <div class="dvc-stat-value" id="countReview">—</div>
+                            <div class="dvc-stat-label">Needs review</div>
+                            <div class="dvc-stat-meta" id="metaReview">No pledge and no payment</div>
+                        </div>
+                    </a>
                 </div>
                 <div class="text-muted small mb-3" id="summaryLine">—</div>
-                <button type="button" class="dvc-unclassified-link d-none" id="unclassifiedLink">
-                    <i class="fas fa-exclamation-circle me-1"></i>
-                    <span id="unclassifiedLinkText">Needs review</span>
-                </button>
 
                 <ul class="nav nav-tabs dvc-tabs mb-3" role="tablist">
                     <li class="nav-item" role="presentation">
@@ -124,6 +128,12 @@ $page_title = 'WhatsApp Donor Campaign';
                         <button class="nav-link" type="button" id="tabPledgeBtn" data-family="pledge">
                             <i class="fas fa-hand-holding-heart me-1"></i>Pledge donors
                             <span class="dvc-tab-count" id="tabCountPledge">0</span>
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" type="button" id="tabReviewBtn" data-family="review">
+                            <i class="fas fa-clipboard-check me-1"></i>Needs review
+                            <span class="dvc-tab-count" id="tabCountReview">0</span>
                         </button>
                     </li>
                 </ul>
@@ -266,14 +276,13 @@ $page_title = 'WhatsApp Donor Campaign';
     const family = familyFromGroup(currentGroup);
     document.getElementById('tabImmediateBtn').classList.toggle('active', family === 'immediate');
     document.getElementById('tabPledgeBtn').classList.toggle('active', family === 'pledge');
+    document.getElementById('tabReviewBtn').classList.toggle('active', family === 'review');
     document.getElementById('pledgeSubtabs').classList.toggle('d-none', family !== 'pledge');
     document.querySelectorAll('#pledgeSubtabs .dvc-subtab').forEach((btn) => {
       btn.classList.toggle('active', btn.dataset.group === currentGroup);
     });
     document.getElementById('tableTitle').innerHTML =
       '<i class="fas fa-users me-2" style="color: var(--primary);"></i>' + (TITLES[currentGroup] || 'Donors');
-    const unclassifiedLink = document.getElementById('unclassifiedLink');
-    unclassifiedLink.classList.toggle('active', currentGroup === 'unclassified');
   }
 
   function renderSummary(summary) {
@@ -289,15 +298,13 @@ $page_title = 'WhatsApp Donor Campaign';
     document.getElementById('metaCompleted').textContent = fmtMoney(completed.paid) + ' received';
     document.getElementById('metaPaying').textContent = fmtMoney(paying.remaining) + ' remaining';
     document.getElementById('metaNotStarted').textContent = fmtMoney(notStarted.pledged) + ' pledged';
+    const review = summary.unclassified || {};
+    document.getElementById('countReview').textContent = Number(review.donors || 0).toLocaleString();
     document.getElementById('tabCountImmediate').textContent = Number(immediate.donors || 0).toLocaleString();
     document.getElementById('tabCountPledge').textContent = Number(summary.pledge_donors || 0).toLocaleString();
-    const unclassified = Number((summary.unclassified || {}).donors || 0);
+    document.getElementById('tabCountReview').textContent = Number(review.donors || 0).toLocaleString();
     document.getElementById('summaryLine').textContent =
       Number(summary.total_donors || 0).toLocaleString() + ' donors in total (old and new).';
-    const unclassifiedLink = document.getElementById('unclassifiedLink');
-    unclassifiedLink.classList.toggle('d-none', unclassified === 0);
-    document.getElementById('unclassifiedLinkText').textContent =
-      unclassified + ' need review (no pledge and no payment).';
   }
 
   function sourceBadge(source) {
@@ -392,8 +399,8 @@ $page_title = 'WhatsApp Donor Campaign';
       setGroup(chip.dataset.group);
     });
   });
-  document.getElementById('unclassifiedLink').addEventListener('click', () => setGroup('unclassified'));
   document.getElementById('tabImmediateBtn').addEventListener('click', () => setGroup('immediate'));
+  document.getElementById('tabReviewBtn').addEventListener('click', () => setGroup('unclassified'));
   document.getElementById('tabPledgeBtn').addEventListener('click', () => {
     if (familyFromGroup(currentGroup) !== 'pledge') {
       setGroup('pledge_not_started');

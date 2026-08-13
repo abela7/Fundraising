@@ -61,6 +61,7 @@
 .dvc-stat-icon.completed { background: rgba(16, 185, 129, 0.1); color: var(--success); }
 .dvc-stat-icon.paying { background: rgba(10, 98, 134, 0.1); color: var(--primary); }
 .dvc-stat-icon.not-started { background: rgba(245, 158, 11, 0.1); color: var(--warning); }
+.dvc-stat-icon.review { background: rgba(239, 68, 68, 0.1); color: var(--danger); }
 .dvc-stat-value {
   font-size: 1.25rem;
   font-weight: 700;
@@ -78,6 +79,10 @@
   font-size: 0.75rem;
   color: var(--gray-400);
   margin-top: 2px;
+}
+.dvc-tabs {
+  flex-wrap: wrap;
+  gap: 0;
 }
 .dvc-tabs .nav-link {
   font-weight: 500;
@@ -106,23 +111,6 @@
 .dvc-tabs .nav-link.active .dvc-tab-count {
   background: rgba(10, 98, 134, 0.1);
   color: var(--primary);
-}
-.dvc-unclassified-link {
-  display: inline-flex;
-  align-items: center;
-  border: none;
-  background: rgba(239, 68, 68, 0.08);
-  color: var(--danger);
-  border-radius: 8px;
-  padding: 8px 12px;
-  font-size: 0.8125rem;
-  font-weight: 600;
-  min-height: 44px;
-  margin-bottom: 16px;
-  cursor: pointer;
-}
-.dvc-unclassified-link.active {
-  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.2);
 }
 .dvc-subtabs {
   display: flex;
