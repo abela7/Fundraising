@@ -151,10 +151,7 @@ class LiveGridIntegration {
                 break;
         }
         
-        // Add hover info
-        if (cellData.donor) {
-            element.title = `${cellData.donor} - £${cellData.amount} (${status})`;
-        }
+        element.title = status === 'available' ? '' : status;
         
         // Add visual feedback
         element.style.transition = 'background-color 0.3s ease';

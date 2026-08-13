@@ -192,12 +192,9 @@ class AdvancedGridSync {
                 break;
         }
         
-        // Update title with info
-        const donor = cellData.donor || 'Unknown';
-        const amount = cellData.amount || 0;
-        element.title = status === 'available' 
+        element.title = status === 'available'
             ? `Cell ${cellId}`
-            : `Cell ${cellId} - ${status.toUpperCase()} by ${donor} (£${amount})`;
+            : `Cell ${cellId} - ${status.toUpperCase()}`;
     }
     
     resetAllCells() {

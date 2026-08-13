@@ -174,6 +174,16 @@ $target = (float)($settings['target_amount'] ?? 100000);
         displayMode: null // Will be set from API: amount, sqm, both
     };
 
+    function escapeHtml(value) {
+        return String(value ?? '').replace(/[&<>"']/g, (ch) => ({
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#39;'
+        }[ch]));
+    }
+
     // Format currency
     function formatCurrency(amount) {
         return new Intl.NumberFormat('en-US', {
@@ -478,7 +488,7 @@ $target = (float)($settings['target_amount'] ?? 100000);
         
         // Format text based on display mode
         console.log('🔄 About to call formatContributionText...');
-        let displayText = await formatContributionText(item.text, amount);
+        let displayText = escapeHtml(await formatContributionText(item.text, amount));
         console.log('📝 Final display text:', displayText);
         
         // Highlight the amount or square meter info in the text and mark anonymous names

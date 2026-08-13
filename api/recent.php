@@ -40,36 +40,29 @@ try {
     
     // Use the exact same SQL structure as admin/approved page
     $sql = "
-    (SELECT 
+    (SELECT
         p.amount,
         'pledge' AS type,
-        p.anonymous,
-        p.donor_name,
         p.approved_at
       FROM pledges p
       WHERE p.status = 'approved')
     UNION ALL
-    (SELECT 
+    (SELECT
         pay.amount,
         'paid' AS type,
-        0 AS anonymous,
-        pay.donor_name,
         pay.received_at AS approved_at
       FROM payments pay
       WHERE pay.status = 'approved')
     ";
-    
+
     if ($has_pp) {
         $sql .= "
         UNION ALL
-        (SELECT 
+        (SELECT
             pp.amount,
             'paid' AS type,
-            0 AS anonymous,
-            COALESCE(d.name, 'Unknown') as donor_name,
             pp.created_at AS approved_at
           FROM pledge_payments pp
-          LEFT JOIN donors d ON pp.donor_id = d.id
           WHERE pp.status = 'confirmed')
         ";
     }

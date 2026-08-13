@@ -28,10 +28,8 @@ try {
     $amount = (float)($_GET['amount'] ?? 0);
     if ($amount <= 0) {
         echo json_encode([
-            'success' => false, 
-            'error' => 'Invalid amount', 
-            'received_amount' => $amount,
-            'debug' => 'Amount must be greater than 0'
+            'success' => false,
+            'error' => 'Invalid amount',
         ]);
         exit();
     }
