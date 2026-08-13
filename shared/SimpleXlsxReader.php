@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 /**
  * Minimal .xlsx reader for the first worksheet.
+ * Uses raw ZIP + zlib so ZipArchive and Phar are not required.
  */
 final class SimpleXlsxReader
 {
@@ -12,14 +13,19 @@ final class SimpleXlsxReader
      */
     public static function rows(string $path): array
     {
-        if (!is_file($path)) {
+        if (!is_file($path) || !is_readable($path)) {
             throw new RuntimeException('Spreadsheet file not found.');
         }
 
         $shared = self::sharedStrings($path);
         $sheetXml = self::readEntry($path, 'xl/worksheets/sheet1.xml');
-        if ($sheetXml === null) {
-            $sheetXml = self::firstWorksheetXml($path);
+        if ($sheetXml === null || $sheetXml === '') {
+            foreach (self::zipEntryNames($path) as $name) {
+                if (preg_match('#^xl/worksheets/sheet\d+\.xml$#', $name) === 1) {
+                    $sheetXml = self::readEntry($path, $name);
+                    break;
+                }
+            }
         }
         if ($sheetXml === null || $sheetXml === '') {
             throw new RuntimeException('Spreadsheet has no worksheet.');
@@ -56,27 +62,6 @@ final class SimpleXlsxReader
         return $strings;
     }
 
-    private static function firstWorksheetXml(string $path): ?string
-    {
-        $pharPath = self::pharPath($path);
-        try {
-            $phar = new PharData($path);
-            foreach (new RecursiveIteratorIterator($phar) as $file) {
-                $name = str_replace('\\', '/', (string) $file->getPathname());
-                $rel = ltrim(str_replace($pharPath, '', $name), '/');
-                if (preg_match('#^xl/worksheets/sheet\d+\.xml$#', $rel) === 1) {
-                    $xml = file_get_contents($name);
-
-                    return is_string($xml) ? $xml : null;
-                }
-            }
-        } catch (Throwable $e) {
-            error_log('SimpleXlsxReader worksheet scan failed: ' . $e->getMessage());
-        }
-
-        return null;
-    }
-
     /**
      * @param list<string> $shared
      * @return list<list<string>>
@@ -84,6 +69,10 @@ final class SimpleXlsxReader
     private static function parseSheet(string $sheetXml, array $shared): array
     {
         $root = self::loadXml($sheetXml);
+        if (!isset($root->sheetData) || !isset($root->sheetData->row)) {
+            return [];
+        }
+
         $rows = [];
         $maxCols = 0;
 
@@ -170,17 +159,157 @@ final class SimpleXlsxReader
 
     private static function readEntry(string $path, string $inner): ?string
     {
-        $stream = self::pharPath($path) . '/' . ltrim($inner, '/');
-        if (!is_file($stream)) {
-            return null;
-        }
-        $data = file_get_contents($stream);
-
-        return is_string($data) ? $data : null;
+        return self::readZipEntry($path, str_replace('\\', '/', $inner));
     }
 
-    private static function pharPath(string $path): string
+    /**
+     * @return list<string>
+     */
+    private static function zipEntryNames(string $path): array
     {
-        return 'phar://' . str_replace('\\', '/', $path);
+        $names = [];
+        self::walkZipCentralDirectory($path, static function (string $name) use (&$names): bool {
+            $names[] = $name;
+
+            return true;
+        });
+
+        return $names;
+    }
+
+    private static function readZipEntry(string $path, string $inner): ?string
+    {
+        $found = null;
+        self::walkZipCentralDirectory($path, static function (string $name, int $localOff) use ($path, $inner, &$found): bool {
+            if ($name !== $inner) {
+                return true;
+            }
+            $found = self::readLocalZipFile($path, $localOff);
+
+            return false;
+        });
+
+        return $found;
+    }
+
+    /**
+     * @param callable(string, int): bool $visitor Return false to stop.
+     */
+    private static function walkZipCentralDirectory(string $path, callable $visitor): void
+    {
+        $size = filesize($path);
+        if ($size === false || $size < 22) {
+            return;
+        }
+        $fh = fopen($path, 'rb');
+        if ($fh === false) {
+            return;
+        }
+        try {
+            $eocdMax = (int) min($size, 65557);
+            if (fseek($fh, $size - $eocdMax) !== 0) {
+                return;
+            }
+            $tail = fread($fh, $eocdMax);
+            if (!is_string($tail)) {
+                return;
+            }
+            $pos = strrpos($tail, "PK\x05\x06");
+            if ($pos === false) {
+                return;
+            }
+            $eocd = substr($tail, $pos);
+            if (strlen($eocd) < 22) {
+                return;
+            }
+            $cdSize = self::unpackUint32(substr($eocd, 12, 4));
+            $cdOffset = self::unpackUint32(substr($eocd, 16, 4));
+            $cdCount = self::unpackUint16(substr($eocd, 10, 2));
+            if (fseek($fh, $cdOffset) !== 0) {
+                return;
+            }
+            $cd = fread($fh, $cdSize);
+            if (!is_string($cd) || $cd === '') {
+                return;
+            }
+            $offset = 0;
+            $length = strlen($cd);
+            for ($i = 0; $i < $cdCount && ($offset + 46) <= $length; $i++) {
+                if (substr($cd, $offset, 4) !== "PK\x01\x02") {
+                    return;
+                }
+                $nameLen = self::unpackUint16(substr($cd, $offset + 28, 2));
+                $extraLen = self::unpackUint16(substr($cd, $offset + 30, 2));
+                $commentLen = self::unpackUint16(substr($cd, $offset + 32, 2));
+                $localOff = self::unpackUint32(substr($cd, $offset + 42, 4));
+                $name = substr($cd, $offset + 46, $nameLen);
+                $offset += 46 + $nameLen + $extraLen + $commentLen;
+                if ($visitor($name, $localOff) === false) {
+                    return;
+                }
+            }
+        } finally {
+            fclose($fh);
+        }
+    }
+
+    private static function readLocalZipFile(string $path, int $localOff): ?string
+    {
+        $fh = fopen($path, 'rb');
+        if ($fh === false) {
+            return null;
+        }
+        try {
+            if (fseek($fh, $localOff) !== 0) {
+                return null;
+            }
+            $local = fread($fh, 30);
+            if (!is_string($local) || strlen($local) < 30 || substr($local, 0, 4) !== "PK\x03\x04") {
+                return null;
+            }
+            $method = self::unpackUint16(substr($local, 8, 2));
+            $compSize = self::unpackUint32(substr($local, 18, 4));
+            $nameLen = self::unpackUint16(substr($local, 26, 2));
+            $extraLen = self::unpackUint16(substr($local, 28, 2));
+            if (fseek($fh, $localOff + 30 + $nameLen + $extraLen) !== 0) {
+                return null;
+            }
+            $payload = $compSize > 0 ? fread($fh, $compSize) : '';
+            if (!is_string($payload)) {
+                return null;
+            }
+            if ($method === 0) {
+                return $payload;
+            }
+            if ($method === 8) {
+                $out = @gzinflate($payload);
+
+                return is_string($out) ? $out : null;
+            }
+
+            return null;
+        } finally {
+            fclose($fh);
+        }
+    }
+
+    private static function unpackUint16(string $bytes): int
+    {
+        if (strlen($bytes) < 2) {
+            return 0;
+        }
+        $data = unpack('v', $bytes);
+
+        return is_array($data) ? (int) $data[1] : 0;
+    }
+
+    private static function unpackUint32(string $bytes): int
+    {
+        if (strlen($bytes) < 4) {
+            return 0;
+        }
+        $data = unpack('V', $bytes);
+
+        return is_array($data) ? (int) $data[1] : 0;
     }
 }

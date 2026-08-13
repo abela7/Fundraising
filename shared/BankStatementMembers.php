@@ -16,6 +16,36 @@ final class BankStatementMembers
         return dirname(__DIR__) . DIRECTORY_SEPARATOR . self::FILENAME;
     }
 
+    public static function snapshotPath(): string
+    {
+        return __DIR__ . DIRECTORY_SEPARATOR . 'data' . DIRECTORY_SEPARATOR . 'donors-bank-rows.php';
+    }
+
+    /**
+     * @return list<list<string>>
+     */
+    private static function loadGrid(string $path): array
+    {
+        if (is_file($path) && is_readable($path)) {
+            try {
+                $grid = SimpleXlsxReader::rows($path);
+                if ($grid !== []) {
+                    return $grid;
+                }
+            } catch (Throwable $e) {
+                error_log('Bank statement Excel parse failed: ' . $e->getMessage());
+            }
+        }
+
+        $snapshot = self::snapshotPath();
+        if (!is_file($snapshot)) {
+            return [];
+        }
+        $grid = require $snapshot;
+
+        return is_array($grid) ? $grid : [];
+    }
+
     /**
      * @return array{
      *     file_found: bool,
@@ -25,7 +55,7 @@ final class BankStatementMembers
      *     donors_available?: bool
      * }
      */
-    public static function relate(mysqli $db, ?string $path = null): array
+    public static function relate(?mysqli $db = null, ?string $path = null): array
     {
         $path = $path ?? self::defaultPath();
         $emptyTotals = [
@@ -38,38 +68,20 @@ final class BankStatementMembers
             'bank_lump' => 0.0,
         ];
 
-        if (!is_file($path)) {
-            return [
-                'file_found' => false,
-                'error' => 'Bank Excel file was not found on the server.',
-                'rows' => [],
-                'totals' => $emptyTotals,
-            ];
-        }
-
-        try {
-            $grid = SimpleXlsxReader::rows($path);
-        } catch (Throwable $e) {
-            error_log('Bank statement Excel parse failed: ' . $e->getMessage());
-
-            return [
-                'file_found' => true,
-                'error' => 'Could not read the bank Excel file.',
-                'rows' => [],
-                'totals' => $emptyTotals,
-            ];
-        }
-
+        $grid = self::loadGrid($path);
         if ($grid === []) {
             return [
-                'file_found' => true,
-                'error' => 'The bank Excel file has no rows.',
+                'file_found' => is_file($path),
+                'error' => 'Could not load the bank member list.',
                 'rows' => [],
                 'totals' => $emptyTotals,
             ];
         }
 
-        $headers = array_map(static fn (string $h): string => strtolower(trim($h)), $grid[0]);
+        $headers = [];
+        foreach ($grid[0] as $header) {
+            $headers[] = strtolower(trim((string) $header));
+        }
         $nameCol = self::headerIndex($headers, ['donor name', 'name', 'donor']);
         $refCol = self::headerIndex($headers, ['reference number', 'reference', 'ref']);
         $paidCol = self::headerIndex($headers, ['total paid amount', 'amount paid', 'paid', 'total paid']);
@@ -83,7 +95,14 @@ final class BankStatementMembers
             ];
         }
 
-        $donors = self::loadDonors($db);
+        $donors = [];
+        if ($db instanceof mysqli) {
+            try {
+                $donors = self::loadDonors($db);
+            } catch (Throwable $e) {
+                error_log('Bank members donor lookup failed: ' . $e->getMessage());
+            }
+        }
         $byRef = [];
         $byName = [];
         foreach ($donors as $i => $donor) {

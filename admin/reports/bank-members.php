@@ -40,28 +40,50 @@ try {
     }
     $result = BankStatementMembers::relate($db);
 } catch (Throwable $e) {
-    $db_error = 'Could not load bank members.';
+    $db_error = 'Could not link members. Showing the Excel list only.';
     error_log('Bank members page error: ' . $e->getMessage());
+    try {
+        $result = BankStatementMembers::relate(null);
+    } catch (Throwable $fallbackError) {
+        error_log('Bank members Excel fallback failed: ' . $fallbackError->getMessage());
+    }
 }
 
 $currency = (string) ($settings['currency_code'] ?? 'GBP');
-$totals = $result['totals'];
+$totals = $result['totals'] ?? [
+    'excel_members' => 0,
+    'found' => 0,
+    'same_amount' => 0,
+    'amount_diff' => 0,
+    'not_found' => 0,
+    'excel_paid' => 0.0,
+    'bank_lump' => 0.0,
+];
+$loadError = $db_error !== '' ? $db_error : trim((string) ($result['error'] ?? ''));
 $memberRows = [];
-foreach ($result['rows'] as $row) {
-    if (($row['status'] ?? '') === 'bank_account') {
+foreach ($result['rows'] ?? [] as $row) {
+    if (!is_array($row) || ($row['status'] ?? '') === 'bank_account') {
         continue;
     }
     $memberRows[] = $row;
 }
 
 /**
- * @param float $amount
+ * Format a money amount for display.
  */
 function bsm_money(float $amount, string $currency): string
 {
-    $symbol = $currency === 'GBP' ? '£' : $currency . ' ';
+    $symbol = $currency === 'GBP' ? "\u{00A3}" : $currency . ' ';
 
     return $symbol . number_format($amount, 2);
+}
+
+/**
+ * Escape text for HTML.
+ */
+function bsm_h(string $value): string
+{
+    return htmlspecialchars($value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
 }
 
 $cssVersion = (int) (filemtime(__DIR__ . '/assets/bank-members.css') ?: time());
@@ -101,30 +123,27 @@ $cssVersion = (int) (filemtime(__DIR__ . '/assets/bank-members.css') ?: time());
                     </div>
                 </div>
 
-                <?php if ($db_error !== ''): ?>
-                    <div class="alert alert-danger" role="alert">
-                        <i class="fas fa-exclamation-triangle me-2"></i><?php echo htmlspecialchars($db_error, ENT_QUOTES, 'UTF-8'); ?>
+                <?php if ($loadError !== ''): ?>
+                    <div class="alert alert-warning" role="alert" style="color: var(--gray-800);">
+                        <i class="fas fa-info-circle me-2"></i><?php echo bsm_h($loadError); ?>
                     </div>
-                <?php elseif ($result['error'] !== ''): ?>
-                    <div class="alert alert-warning" role="alert">
-                        <i class="fas fa-info-circle me-2"></i><?php echo htmlspecialchars((string) $result['error'], ENT_QUOTES, 'UTF-8'); ?>
+                <?php endif; ?>
+
+                <?php if (empty($result['donors_available']) && $memberRows !== []): ?>
+                    <div class="alert alert-warning" role="alert" style="color: var(--gray-800);">
+                        <i class="fas fa-triangle-exclamation me-2"></i>
+                        This database has no member records to link against. Excel people are listed below as not in the system.
                     </div>
-                <?php else: ?>
-                    <?php if (empty($result['donors_available'])): ?>
-                        <div class="alert alert-warning" role="alert">
-                            <i class="fas fa-triangle-exclamation me-2"></i>
-                            This database has no members to link against. Excel people are listed below as not in the system.
-                        </div>
-                    <?php endif; ?>
+                <?php endif; ?>
 
                     <div class="bsm-note">
                         <i class="fas fa-info-circle me-1" style="color: var(--primary);"></i>
                         This page shows only the <?php echo (int) $totals['excel_members']; ?> people from
                         <strong>donors-bank-data.xlsx</strong>
-                        (<?php echo htmlspecialchars(bsm_money((float) $totals['excel_paid'], $currency), ENT_QUOTES, 'UTF-8'); ?>).
+                        (<?php echo bsm_h(bsm_money((float) $totals['excel_paid'], $currency)); ?>).
                         Other members in the database are not listed.
                         <?php if ((float) $totals['bank_lump'] > 0): ?>
-                            A bank lump of <?php echo htmlspecialchars(bsm_money((float) $totals['bank_lump'], $currency), ENT_QUOTES, 'UTF-8'); ?> is excluded.
+                            A bank lump of <?php echo bsm_h(bsm_money((float) $totals['bank_lump'], $currency)); ?> is excluded.
                         <?php endif; ?>
                     </div>
 
@@ -190,55 +209,55 @@ $cssVersion = (int) (filemtime(__DIR__ . '/assets/bank-members.css') ?: time());
                                     <?php else: ?>
                                         <?php foreach ($memberRows as $row): ?>
                                             <?php
-                                            $status = (string) $row['status'];
+                                            $status = (string) ($row['status'] ?? '');
                                             $search = strtolower(
-                                                (string) $row['excel_name'] . ' ' .
-                                                (string) $row['excel_ref'] . ' ' .
-                                                (string) $row['donor_name']
+                                                (string) ($row['excel_name'] ?? '') . ' ' .
+                                                (string) ($row['excel_ref'] ?? '') . ' ' .
+                                                (string) ($row['donor_name'] ?? '')
                                             );
-                                            $donorId = $row['donor_id'] !== null ? (int) $row['donor_id'] : 0;
+                                            $donorId = isset($row['donor_id']) ? (int) $row['donor_id'] : 0;
                                             ?>
-                                            <tr data-status="<?php echo htmlspecialchars($status, ENT_QUOTES, 'UTF-8'); ?>" data-search="<?php echo htmlspecialchars($search, ENT_QUOTES, 'UTF-8'); ?>">
+                                            <tr data-status="<?php echo bsm_h($status); ?>" data-search="<?php echo bsm_h($search); ?>">
                                                 <td>
-                                                    <div class="bsm-name" title="<?php echo htmlspecialchars((string) $row['excel_name'], ENT_QUOTES, 'UTF-8'); ?>">
-                                                        <?php echo htmlspecialchars((string) $row['excel_name'], ENT_QUOTES, 'UTF-8'); ?>
+                                                    <div class="bsm-name" title="<?php echo bsm_h((string) ($row['excel_name'] ?? '')); ?>">
+                                                        <?php echo bsm_h((string) ($row['excel_name'] ?? '')); ?>
                                                     </div>
                                                 </td>
-                                                <td class="bsm-ref"><?php echo $row['excel_ref'] !== '' ? htmlspecialchars((string) $row['excel_ref'], ENT_QUOTES, 'UTF-8') : '—'; ?></td>
-                                                <td class="text-end"><?php echo htmlspecialchars(bsm_money((float) $row['excel_paid'], $currency), ENT_QUOTES, 'UTF-8'); ?></td>
+                                                <td class="bsm-ref"><?php echo ($row['excel_ref'] ?? '') !== '' ? bsm_h((string) $row['excel_ref']) : '—'; ?></td>
+                                                <td class="text-end"><?php echo bsm_h(bsm_money((float) ($row['excel_paid'] ?? 0), $currency)); ?></td>
                                                 <td>
                                                     <?php
-                                                    $memberName = trim((string) $row['donor_name']);
+                                                    $memberName = trim((string) ($row['donor_name'] ?? ''));
                                                     $matchHint = '';
-                                                    if ((string) $row['match_by'] === 'reference') {
+                                                    if ((string) ($row['match_by'] ?? '') === 'reference') {
                                                         $matchHint = ' <span class="bsm-muted" title="Matched by reference"> · ref</span>';
-                                                    } elseif ((string) $row['match_by'] === 'name') {
+                                                    } elseif ((string) ($row['match_by'] ?? '') === 'name') {
                                                         $matchHint = ' <span class="bsm-muted" title="Matched by name"> · name</span>';
                                                     }
                                                     if ($donorId > 0) {
                                                         echo '<a class="bsm-link" href="../donor-management/view-donor.php?id=' . $donorId . '">';
-                                                        echo htmlspecialchars($memberName, ENT_QUOTES, 'UTF-8');
+                                                        echo bsm_h($memberName);
                                                         echo '</a>' . $matchHint;
                                                     } elseif ($memberName !== '') {
-                                                        echo '<span class="bsm-name">' . htmlspecialchars($memberName, ENT_QUOTES, 'UTF-8') . '</span>' . $matchHint;
+                                                        echo '<span class="bsm-name">' . bsm_h($memberName) . '</span>' . $matchHint;
                                                     } else {
                                                         echo '<span class="bsm-muted">Not in system</span>';
                                                     }
                                                     ?>
                                                 </td>
                                                 <td class="text-end">
-                                                    <?php echo $row['donor_paid'] !== null ? htmlspecialchars(bsm_money((float) $row['donor_paid'], $currency), ENT_QUOTES, 'UTF-8') : '—'; ?>
+                                                    <?php echo $row['donor_paid'] !== null ? bsm_h(bsm_money((float) $row['donor_paid'], $currency)) : '—'; ?>
                                                 </td>
                                                 <td class="text-end">
                                                     <?php
-                                                    $diff = $row['paid_diff'];
+                                                    $diff = $row['paid_diff'] ?? null;
                                                     if ($diff === null) {
                                                         echo '—';
                                                     } elseif (abs((float) $diff) < 0.01) {
                                                         echo '<span class="bsm-ok">Same</span>';
                                                     } else {
                                                         $sign = (float) $diff > 0 ? '+' : '';
-                                                        echo '<span class="bsm-diff">' . htmlspecialchars($sign . bsm_money((float) $diff, $currency), ENT_QUOTES, 'UTF-8') . '</span>';
+                                                        echo '<span class="bsm-diff">' . bsm_h($sign . bsm_money((float) $diff, $currency)) . '</span>';
                                                     }
                                                     ?>
                                                 </td>
@@ -261,7 +280,6 @@ $cssVersion = (int) (filemtime(__DIR__ . '/assets/bank-members.css') ?: time());
                             </table>
                         </div>
                     </div>
-                <?php endif; ?>
             </div>
         </main>
     </div>
