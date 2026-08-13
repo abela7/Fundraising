@@ -20,6 +20,8 @@ try {
 } catch (Exception $e) {}
 
 $currency = htmlspecialchars($settings['currency_code'] ?? 'GBP', ENT_QUOTES, 'UTF-8');
+$bankStatementPath = dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . 'donors-bank-data.xlsx';
+$hasBankStatementFile = is_file($bankStatementPath);
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -109,6 +111,8 @@ $currency = htmlspecialchars($settings['currency_code'] ?? 'GBP', ENT_QUOTES, 'U
         /* Diff values */
         .dc-val-diff { font-weight:600; color:var(--danger); }
         .dc-val-ok { color:var(--success); }
+        .dc-donor-link { font-weight:600; color:var(--primary); text-decoration:none; }
+        .dc-donor-link:hover { color:var(--primary-dark); text-decoration:underline; }
 
         /* Financial summary */
         .dc-summary-table { font-size:0.8125rem; }
@@ -167,7 +171,7 @@ $currency = htmlspecialchars($settings['currency_code'] ?? 'GBP', ENT_QUOTES, 'U
                 <div class="dc-header">
                     <div>
                         <h1><i class="fas fa-code-compare me-2" style="color:var(--primary);"></i>Data Comparison</h1>
-                        <p>Upload your Excel file to compare against the live database instantly.</p>
+                        <p>Match bank statement rows to donors by 4-digit reference, then compare paid amounts.</p>
                     </div>
                     <div class="d-flex gap-2">
                         <a class="btn btn-outline-secondary" href="financial-dashboard.php#tab-pledge"><i class="fas fa-arrow-left me-1"></i>Back to Dashboard</a>
@@ -184,9 +188,16 @@ $currency = htmlspecialchars($settings['currency_code'] ?? 'GBP', ENT_QUOTES, 'U
                         <div class="dc-upload" id="dropZone">
                             <div class="dc-upload-icon"><i class="fas fa-cloud-arrow-up"></i></div>
                             <div class="dc-upload-title">Drop your Excel file here or click to browse</div>
-                            <div class="dc-upload-sub">Supports .xlsx and .xls — columns are detected automatically</div>
+                            <div class="dc-upload-sub">Supports .xlsx and .xls — match by reference number, name, or phone</div>
                             <input type="file" id="fileInput" accept=".xlsx,.xls,.csv" style="display:none">
                         </div>
+                        <?php if ($hasBankStatementFile): ?>
+                            <div class="d-flex justify-content-center mt-3">
+                                <button class="btn btn-primary btn-sm" type="button" id="loadBankFileBtn">
+                                    <i class="fas fa-building-columns me-1"></i>Compare donors-bank-data.xlsx
+                                </button>
+                            </div>
+                        <?php endif; ?>
 
                         <div class="dc-file-bar d-none" id="fileBar">
                             <div class="dc-file-icon"><i class="fas fa-file-excel"></i></div>
@@ -256,7 +267,7 @@ $currency = htmlspecialchars($settings['currency_code'] ?? 'GBP', ENT_QUOTES, 'U
                             </div>
                             <div class="col-12 col-md-3">
                                 <label class="form-label">Search</label>
-                                <input type="text" class="form-control form-control-sm" id="filterSearch" placeholder="Name or phone...">
+                                <input type="text" class="form-control form-control-sm" id="filterSearch" placeholder="Name, phone, or reference...">
                             </div>
                             <div class="col-12 col-md-3 d-flex gap-2">
                                 <button class="btn btn-sm flex-fill" id="applyBtn" style="background:var(--primary); color:var(--white); border-radius:8px;"><i class="fas fa-search me-1"></i>Apply</button>
@@ -284,6 +295,7 @@ $currency = htmlspecialchars($settings['currency_code'] ?? 'GBP', ENT_QUOTES, 'U
                                     <tr>
                                         <th>#</th>
                                         <th>Status</th>
+                                        <th>Reference</th>
                                         <th>Name (Excel)</th>
                                         <th>Name (DB)</th>
                                         <th>Phone</th>
@@ -299,7 +311,7 @@ $currency = htmlspecialchars($settings['currency_code'] ?? 'GBP', ENT_QUOTES, 'U
                                     </tr>
                                 </thead>
                                 <tbody id="tableBody">
-                                    <tr><td colspan="14" class="text-center py-4" style="color:var(--gray-400);">Upload a file to begin</td></tr>
+                                    <tr><td colspan="15" class="text-center py-4" style="color:var(--gray-400);">Upload a file to begin</td></tr>
                                 </tbody>
                             </table>
                         </div>
@@ -327,6 +339,7 @@ $currency = htmlspecialchars($settings['currency_code'] ?? 'GBP', ENT_QUOTES, 'U
 <script>
 (function(){
   const CURRENCY = <?php echo json_encode($currency); ?>;
+  const HAS_BANK_FILE = <?php echo $hasBankStatementFile ? 'true' : 'false'; ?>;
   const el = id => document.getElementById(id);
 
   function fmtMoney(n) {
@@ -341,6 +354,15 @@ $currency = htmlspecialchars($settings['currency_code'] ?? 'GBP', ENT_QUOTES, 'U
     if (p.length === 10 && p.startsWith('7')) p = '0' + p;
     return p;
   }
+  function normalizeRef(raw) {
+    const s = String(raw || '').trim();
+    if (/^\d{1,4}$/.test(s)) return s.padStart(4, '0');
+    const m = s.match(/\b(\d{4})\b/);
+    return m ? m[1] : '';
+  }
+  function isBankAccountRow(name) {
+    return /account ending/i.test(String(name || ''));
+  }
   function normalizeName(n) { return String(n || '').toLowerCase().replace(/[^a-z0-9]/g, ' ').replace(/\s+/g, ' ').trim(); }
   function parseAmount(v) {
     if (v === null || v === undefined) return 0;
@@ -351,17 +373,18 @@ $currency = htmlspecialchars($settings['currency_code'] ?? 'GBP', ENT_QUOTES, 'U
   }
 
   let xlData = [], dbData = [], comparisonResults = [], filteredResults = [];
-  let columnMap = { name:'', phone:'', amount:'', paid:'', city:'', method:'', sn:'' };
+  let columnMap = { name:'', phone:'', amount:'', paid:'', city:'', method:'', sn:'', reference:'' };
 
   // Auto-detect columns
   const COL_MAP = {
-    name:   ['Name','name','Donor','donor','Full Name','Donor Name'],
+    name:   ['Name','name','Donor','donor','Full Name','Donor Name','Donor name'],
     phone:  ['Mobile','mobile','Phone','phone','Telephone','Tel','Contact','Phone Number'],
-    amount: ['Amount','amount','Pledged','pledged','Pledge','Pledge Amount','Total'],
-    paid:   ['Amount Paid','amount paid','Paid','paid','Total Paid','Payment','Received'],
+    amount: ['Amount','amount','Pledged','pledged','Pledge','Pledge Amount'],
+    paid:   ['Amount Paid','amount paid','Paid','paid','Total Paid','Total paid amount','Total Paid Amount','Payment','Received'],
     city:   ['City','city','Town','Location'],
     method: ['Payment Method','payment method','Method','method'],
     sn:     ['S.N.','s.n.','SN','No.','no.','No','#','Serial Number'],
+    reference: ['Reference number','Reference Number','Reference','Ref','Ref No','Ref Number','Payment Reference'],
   };
 
   function autoDetect(headers) {
@@ -386,7 +409,7 @@ $currency = htmlspecialchars($settings['currency_code'] ?? 'GBP', ENT_QUOTES, 'U
         if (cell && cell.v != null && String(cell.v).trim()) {
           count++;
           const v = String(cell.v).trim().toLowerCase();
-          if (['name','donor','mobile','phone','amount','paid','amount paid'].includes(v)) hasKey = true;
+          if (['name','donor','donor name','mobile','phone','amount','paid','amount paid','total paid amount','reference','reference number'].includes(v)) hasKey = true;
         }
       }
       if (count >= 3 && hasKey) return r;
@@ -402,8 +425,9 @@ $currency = htmlspecialchars($settings['currency_code'] ?? 'GBP', ENT_QUOTES, 'U
       const cell = ws[XLSX.utils.encode_cell({r:hIdx, c})];
       headers.push((cell && cell.v != null) ? String(cell.v).trim() : ('Col_' + c));
     }
-    const nameCol = headers.find(h => h.toLowerCase() === 'name' || h.toLowerCase() === 'donor');
-    const phoneCol = headers.find(h => h.toLowerCase() === 'mobile' || h.toLowerCase() === 'phone');
+    const nameCol = headers.find(h => ['name','donor','donor name'].includes(h.toLowerCase()));
+    const phoneCol = headers.find(h => ['mobile','phone'].includes(h.toLowerCase()));
+    const refCol = headers.find(h => h.toLowerCase().includes('reference'));
     const rows = [];
     for (let r = hIdx + 1; r <= range.e.r; r++) {
       const row = {};
@@ -416,7 +440,8 @@ $currency = htmlspecialchars($settings['currency_code'] ?? 'GBP', ENT_QUOTES, 'U
       }
       const hasName = nameCol && row[nameCol] && String(row[nameCol]).trim();
       const hasPhone = phoneCol && row[phoneCol] && String(row[phoneCol]).trim();
-      if (hasData && (hasName || hasPhone)) rows.push(row);
+      const hasRef = refCol && row[refCol] && String(row[refCol]).trim();
+      if (hasData && (hasName || hasPhone || hasRef)) rows.push(row);
     }
     return { headers, rows, headerRow: hIdx + 1 };
   }
@@ -436,6 +461,42 @@ $currency = htmlspecialchars($settings['currency_code'] ?? 'GBP', ENT_QUOTES, 'U
     if (show) { el('progressText').textContent = text || ''; el('progressFill').style.width = (pct||0)+'%'; }
   }
 
+  async function processWorkbook(arrayBuffer, fileName, sizeKb) {
+    setProgress(true, 'Parsing spreadsheet...', 30);
+    const wb = XLSX.read(arrayBuffer, { type:'array' });
+    const parsed = parseSheet(wb.Sheets[wb.SheetNames[0]]);
+    if (!parsed.rows.length) { alert('No data rows found.'); setProgress(false); return; }
+
+    xlData = parsed.rows;
+    columnMap = autoDetect(parsed.headers);
+    if (!columnMap.name && !columnMap.phone && !columnMap.reference) {
+      alert('Could not find Name, Phone, or Reference columns.\nHeaders found: ' + parsed.headers.join(', '));
+      setProgress(false);
+      return;
+    }
+
+    el('detectBadge').classList.remove('d-none');
+    el('fileName').textContent = fileName;
+    el('fileMeta').textContent = sizeKb.toFixed(1) + ' KB · ' + parsed.rows.length + ' rows · Header row ' + parsed.headerRow;
+
+    setProgress(true, 'Loading database...', 50);
+    const res = await fetch('api/data-comparison.php', { credentials:'same-origin', headers:{'Accept':'application/json'} });
+    const json = await res.json();
+    if (!json.success) throw new Error(json.error || 'API error');
+    dbData = json.donors;
+
+    setProgress(true, 'Comparing ' + parsed.rows.length + ' rows vs ' + dbData.length + ' donors...', 80);
+    await new Promise(r => setTimeout(r, 80));
+    compare();
+
+    setProgress(true, 'Done!', 100);
+    await new Promise(r => setTimeout(r, 250));
+    setProgress(false);
+
+    el('resultsSection').style.display = '';
+    el('resultsSection').scrollIntoView({ behavior:'smooth', block:'start' });
+  }
+
   function handleFile(file) {
     if (!file) return;
     el('fileName').textContent = file.name;
@@ -448,41 +509,36 @@ $currency = htmlspecialchars($settings['currency_code'] ?? 'GBP', ENT_QUOTES, 'U
     const reader = new FileReader();
     reader.onload = async function(e) {
       try {
-        setProgress(true, 'Parsing spreadsheet...', 30);
-        const wb = XLSX.read(e.target.result, { type:'array' });
-        const parsed = parseSheet(wb.Sheets[wb.SheetNames[0]]);
-        if (!parsed.rows.length) { alert('No data rows found.'); setProgress(false); return; }
-
-        xlData = parsed.rows;
-        columnMap = autoDetect(parsed.headers);
-        const detected = Object.entries(columnMap).filter(([,v]) => v).map(([k]) => k);
-        if (!columnMap.name && !columnMap.phone) { alert('Could not find Name or Phone columns.\nHeaders found: ' + parsed.headers.join(', ')); setProgress(false); return; }
-
-        el('detectBadge').classList.remove('d-none');
-        el('fileMeta').textContent = (file.size/1024).toFixed(1) + ' KB · ' + parsed.rows.length + ' rows · Header row ' + parsed.headerRow;
-
-        setProgress(true, 'Loading database...', 50);
-        const res = await fetch('api/data-comparison.php', { credentials:'same-origin', headers:{'Accept':'application/json'} });
-        const json = await res.json();
-        if (!json.success) throw new Error(json.error || 'API error');
-        dbData = json.donors;
-
-        setProgress(true, 'Comparing ' + parsed.rows.length + ' rows vs ' + dbData.length + ' donors...', 80);
-        await new Promise(r => setTimeout(r, 80));
-        compare();
-
-        setProgress(true, 'Done!', 100);
-        await new Promise(r => setTimeout(r, 250));
-        setProgress(false);
-
-        el('resultsSection').style.display = '';
-        el('resultsSection').scrollIntoView({ behavior:'smooth', block:'start' });
+        await processWorkbook(e.target.result, file.name, file.size / 1024);
       } catch(err) {
         setProgress(false);
         alert('Error: ' + err.message);
       }
     };
     reader.readAsArrayBuffer(file);
+  }
+
+  const bankBtn = el('loadBankFileBtn');
+  if (bankBtn) {
+    bankBtn.addEventListener('click', async () => {
+      dropZone.style.display = 'none';
+      el('fileBar').classList.remove('d-none');
+      el('detectBadge').classList.add('d-none');
+      el('fileName').textContent = 'donors-bank-data.xlsx';
+      el('fileMeta').textContent = 'Loading...';
+      setProgress(true, 'Loading bank statement...', 10);
+      try {
+        const res = await fetch('api/bank-statement-file.php', { credentials: 'same-origin' });
+        if (!res.ok) throw new Error('Could not load donors-bank-data.xlsx');
+        const buf = await res.arrayBuffer();
+        await processWorkbook(buf, 'donors-bank-data.xlsx', buf.byteLength / 1024);
+      } catch (err) {
+        setProgress(false);
+        dropZone.style.display = '';
+        el('fileBar').classList.add('d-none');
+        alert('Error: ' + err.message);
+      }
+    });
   }
 
   function resetAll() {
@@ -498,12 +554,17 @@ $currency = htmlspecialchars($settings['currency_code'] ?? 'GBP', ENT_QUOTES, 'U
   // --- Compare ---
   function compare() {
     const results = [];
-    const dbByPhone = {}, dbByName = {}, dbMatched = new Set();
+    const dbByPhone = {}, dbByName = {}, dbByRef = {}, dbMatched = new Set();
 
     dbData.forEach((d, i) => {
       if (d.phone_normalized) { (dbByPhone[d.phone_normalized] = dbByPhone[d.phone_normalized] || []).push(i); }
       const n = normalizeName(d.name);
       if (n) { (dbByName[n] = dbByName[n] || []).push(i); }
+      const refs = Array.isArray(d.references) && d.references.length ? d.references : (d.reference ? [d.reference] : []);
+      refs.forEach(ref => {
+        const key = normalizeRef(ref);
+        if (key) { (dbByRef[key] = dbByRef[key] || []).push(i); }
+      });
     });
 
     xlData.forEach((xlRow, xlIdx) => {
@@ -512,18 +573,24 @@ $currency = htmlspecialchars($settings['currency_code'] ?? 'GBP', ENT_QUOTES, 'U
       const xlAmount = columnMap.amount ? parseAmount(xlRow[columnMap.amount]) : null;
       const xlPaid = columnMap.paid ? parseAmount(xlRow[columnMap.paid]) : null;
       const xlCity = columnMap.city ? String(xlRow[columnMap.city] || '') : '';
-      if (!xlName && !xlPhone) return;
+      const xlRef = columnMap.reference ? normalizeRef(xlRow[columnMap.reference]) : (normalizeRef(xlName));
+      if (!xlName && !xlPhone && !xlRef) return;
 
       let dbIdx = -1, matchType = '';
-      if (xlPhone && dbByPhone[xlPhone]) { dbIdx = dbByPhone[xlPhone][0]; matchType = 'phone'; }
-      if (dbIdx === -1 && xlName) {
-        const nn = normalizeName(xlName);
-        if (dbByName[nn]) { dbIdx = dbByName[nn][0]; matchType = 'name'; }
-        else {
-          for (let i = 0; i < dbData.length; i++) {
-            if (dbMatched.has(i)) continue;
-            const dn = normalizeName(dbData[i].name);
-            if (dn && nn && (dn.includes(nn) || nn.includes(dn))) { dbIdx = i; matchType = 'fuzzy'; break; }
+      if (isBankAccountRow(xlName)) {
+        matchType = 'account';
+      } else {
+        if (xlRef && dbByRef[xlRef]) { dbIdx = dbByRef[xlRef][0]; matchType = 'reference'; }
+        if (dbIdx === -1 && xlPhone && dbByPhone[xlPhone]) { dbIdx = dbByPhone[xlPhone][0]; matchType = 'phone'; }
+        if (dbIdx === -1 && xlName) {
+          const nn = normalizeName(xlName);
+          if (dbByName[nn]) { dbIdx = dbByName[nn][0]; matchType = 'name'; }
+          else {
+            for (let i = 0; i < dbData.length; i++) {
+              if (dbMatched.has(i)) continue;
+              const dn = normalizeName(dbData[i].name);
+              if (dn && nn && (dn.includes(nn) || nn.includes(dn))) { dbIdx = i; matchType = 'fuzzy'; break; }
+            }
           }
         }
       }
@@ -540,20 +607,22 @@ $currency = htmlspecialchars($settings['currency_code'] ?? 'GBP', ENT_QUOTES, 'U
         status = (pOk && dOk) ? 'match' : 'mismatch';
       }
 
-      results.push({ status, matchType, xlIdx:xlIdx+1, xlName, xlPhone, xlAmount, xlPaid, xlCity,
-        dbId:db?.id||null, dbName:db?.name||'', dbPhone:db?.phone||'',
+      results.push({ status, matchType, xlIdx:xlIdx+1, xlName, xlPhone, xlAmount, xlPaid, xlCity, xlRef,
+        dbId:db?.id||null, dbName:db?.name||'', dbPhone:db?.phone||'', dbRef:db?.reference||'',
         dbPledged:db?.total_pledged??null, dbPaid:db?.total_paid??null, dbBalance:db?.balance??null,
         dbStatus:db?.payment_status||'', dbSource:db?.data_source||'', dbCity:db?.city||'',
         pledgeDiff, paidDiff });
     });
 
-    dbData.forEach((d, i) => {
-      if (!dbMatched.has(i)) {
-        results.push({ status:'db_only', matchType:'', xlIdx:null, xlName:'', xlPhone:'', xlAmount:null, xlPaid:null, xlCity:'',
-          dbId:d.id, dbName:d.name, dbPhone:d.phone, dbPledged:d.total_pledged, dbPaid:d.total_paid, dbBalance:d.balance,
-          dbStatus:d.payment_status, dbSource:d.data_source, dbCity:d.city, pledgeDiff:null, paidDiff:null });
-      }
-    });
+    if (!columnMap.reference) {
+      dbData.forEach((d, i) => {
+        if (!dbMatched.has(i)) {
+          results.push({ status:'db_only', matchType:'', xlIdx:null, xlName:'', xlPhone:'', xlAmount:null, xlPaid:null, xlCity:'', xlRef:'',
+            dbId:d.id, dbName:d.name, dbPhone:d.phone, dbRef:d.reference||'', dbPledged:d.total_pledged, dbPaid:d.total_paid, dbBalance:d.balance,
+            dbStatus:d.payment_status, dbSource:d.data_source, dbCity:d.city, pledgeDiff:null, paidDiff:null });
+        }
+      });
+    }
 
     comparisonResults = results;
     applyFilters();
@@ -568,7 +637,7 @@ $currency = htmlspecialchars($settings['currency_code'] ?? 'GBP', ENT_QUOTES, 'U
     filteredResults = comparisonResults.filter(r => {
       if (st && r.status !== st) return false;
       if (ds && r.dbSource !== ds) return false;
-      if (q && ![r.xlName, r.dbName, r.xlPhone, r.dbPhone].join(' ').toLowerCase().includes(q)) return false;
+      if (q && ![r.xlName, r.dbName, r.xlPhone, r.dbPhone, r.xlRef, r.dbRef].join(' ').toLowerCase().includes(q)) return false;
       if (ad === 'pledge_diff' && (r.pledgeDiff === null || Math.abs(r.pledgeDiff) < 0.01)) return false;
       if (ad === 'paid_diff' && (r.paidDiff === null || Math.abs(r.paidDiff) < 0.01)) return false;
       if (ad === 'both_diff' && (r.pledgeDiff === null || Math.abs(r.pledgeDiff) < 0.01) && (r.paidDiff === null || Math.abs(r.paidDiff) < 0.01)) return false;
@@ -624,7 +693,7 @@ $currency = htmlspecialchars($settings['currency_code'] ?? 'GBP', ENT_QUOTES, 'U
     const body = el('tableBody');
     el('resultCount').textContent = filteredResults.length + ' of ' + comparisonResults.length;
     if (!filteredResults.length) {
-      body.innerHTML = '<tr><td colspan="14" class="text-center py-4" style="color:var(--gray-400);"><i class="fas fa-inbox me-2"></i>No records match your filters.</td></tr>';
+      body.innerHTML = '<tr><td colspan="15" class="text-center py-4" style="color:var(--gray-400);"><i class="fas fa-inbox me-2"></i>No records match your filters.</td></tr>';
       return;
     }
     const badges = {
@@ -646,12 +715,16 @@ $currency = htmlspecialchars($settings['currency_code'] ?? 'GBP', ENT_QUOTES, 'U
         : r.dbSource === 'new_system' ? '<span class="dc-badge dc-badge-new">New</span>' : '';
       const st = r.dbStatus ? `<span class="dc-badge dc-badge-status">${esc(r.dbStatus)}</span>` : '';
       const fuzzy = r.matchType === 'fuzzy' ? ' <i class="fas fa-question-circle" style="color:var(--warning);font-size:0.7rem;" title="Fuzzy name match"></i>' : '';
+      const byRef = r.matchType === 'reference' ? ' <i class="fas fa-hashtag" style="color:var(--primary);font-size:0.7rem;" title="Matched by reference"></i>' : '';
+      const account = r.matchType === 'account' ? ' <span class="dc-badge dc-badge-xl">Bank account</span>' : '';
+      const refLabel = r.xlRef || r.dbRef || '—';
 
       return `<tr class="${rowCls[r.status]||''}">
         <td style="color:var(--gray-400);font-size:0.75rem;">${r.xlIdx || (r.dbId ? '#'+r.dbId : '')}</td>
-        <td>${badges[r.status]||''}</td>
+        <td>${badges[r.status]||''}${account}</td>
+        <td><code class="small">${esc(refLabel)}</code></td>
         <td style="font-weight:500;color:var(--gray-800);">${esc(r.xlName)}</td>
-        <td>${esc(r.dbName)}${fuzzy}</td>
+        <td>${r.dbId ? `<a class="dc-donor-link" href="../donor-management/view-donor.php?id=${r.dbId}">${esc(r.dbName)}</a>` : esc(r.dbName)}${fuzzy}${byRef}</td>
         <td class="text-nowrap" style="font-family:monospace;font-size:0.75rem;color:var(--gray-500);">${esc(r.xlPhone || r.dbPhone)}</td>
         <td class="text-end">${r.xlAmount !== null ? fmtMoney(r.xlAmount) : ''}</td>
         <td class="text-end">${r.dbPledged !== null ? fmtMoney(r.dbPledged) : ''}</td>
@@ -858,11 +931,11 @@ $currency = htmlspecialchars($settings['currency_code'] ?? 'GBP', ENT_QUOTES, 'U
   // --- Export ---
   el('exportBtn').addEventListener('click', () => {
     if (!filteredResults.length) { alert('No data to export.'); return; }
-    const h = ['#','Status','Name (XL)','Name (DB)','Phone','Pledged (XL)','Pledged (DB)','Pledge Diff','Paid (XL)','Paid (DB)','Paid Diff','City','Data Source','DB Status'];
+    const h = ['#','Status','Reference','Name (XL)','Name (DB)','Phone','Pledged (XL)','Pledged (DB)','Pledge Diff','Paid (XL)','Paid (DB)','Paid Diff','City','Data Source','DB Status','Match type'];
     const rows = filteredResults.map(r => [
-      r.xlIdx||(r.dbId?'#'+r.dbId:''), r.status, r.xlName, r.dbName, r.xlPhone||r.dbPhone,
+      r.xlIdx||(r.dbId?'#'+r.dbId:''), r.status, r.xlRef||r.dbRef||'', r.xlName, r.dbName, r.xlPhone||r.dbPhone,
       r.xlAmount??'', r.dbPledged??'', r.pledgeDiff??'', r.xlPaid??'', r.dbPaid??'', r.paidDiff??'',
-      r.xlCity||r.dbCity, r.dbSource, r.dbStatus
+      r.xlCity||r.dbCity, r.dbSource, r.dbStatus, r.matchType||''
     ]);
     const csv = [h.join(','), ...rows.map(r => r.map(c => '"'+String(c).replace(/"/g,'""')+'"').join(','))].join('\n');
     const a = document.createElement('a');

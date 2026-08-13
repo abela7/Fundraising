@@ -76,8 +76,73 @@ try {
             'city' => (string)($row['city'] ?? ''),
             'payment_method' => (string)($row['preferred_payment_method'] ?? ''),
             'created_at' => (string)($row['created_at'] ?? ''),
+            'reference' => '',
+            'references' => [],
         ];
     }
+
+    $refsByDonor = [];
+    $pledgeCheck = $db->query("SHOW TABLES LIKE 'pledges'");
+    if ($pledgeCheck && $pledgeCheck->num_rows > 0) {
+        $pledgeRes = $db->query("SELECT donor_id, notes FROM pledges WHERE donor_id IS NOT NULL AND notes IS NOT NULL AND notes <> ''");
+        if ($pledgeRes) {
+            while ($row = $pledgeRes->fetch_assoc()) {
+                if (preg_match('/\b(\d{4})\b/', (string)($row['notes'] ?? ''), $matches)) {
+                    $refsByDonor[(int)$row['donor_id']][$matches[1]] = true;
+                }
+            }
+        }
+    }
+
+    $payRefCol = '';
+    $payCols = $db->query("SHOW COLUMNS FROM payments");
+    if ($payCols) {
+        $colNames = [];
+        while ($col = $payCols->fetch_assoc()) {
+            $colNames[] = (string)($col['Field'] ?? '');
+        }
+        if (in_array('reference', $colNames, true)) {
+            $payRefCol = 'reference';
+        } elseif (in_array('reference_number', $colNames, true)) {
+            $payRefCol = 'reference_number';
+        } elseif (in_array('transaction_ref', $colNames, true)) {
+            $payRefCol = 'transaction_ref';
+        }
+    }
+    if ($payRefCol !== '') {
+        $payRes = $db->query("SELECT donor_id, `{$payRefCol}` AS ref_val FROM payments WHERE donor_id IS NOT NULL AND `{$payRefCol}` IS NOT NULL AND `{$payRefCol}` <> ''");
+        if ($payRes) {
+            while ($row = $payRes->fetch_assoc()) {
+                if (preg_match('/\b(\d{4})\b/', (string)($row['ref_val'] ?? ''), $matches)) {
+                    $refsByDonor[(int)$row['donor_id']][$matches[1]] = true;
+                }
+            }
+        }
+    }
+
+    $ppCheck = $db->query("SHOW TABLES LIKE 'pledge_payments'");
+    if ($ppCheck && $ppCheck->num_rows > 0) {
+        $ppRes = $db->query("SELECT donor_id, reference_number FROM pledge_payments WHERE donor_id IS NOT NULL AND reference_number IS NOT NULL AND reference_number <> ''");
+        if ($ppRes) {
+            while ($row = $ppRes->fetch_assoc()) {
+                if (preg_match('/\b(\d{4})\b/', (string)($row['reference_number'] ?? ''), $matches)) {
+                    $refsByDonor[(int)$row['donor_id']][$matches[1]] = true;
+                }
+            }
+        }
+    }
+
+    foreach ($donors as &$donor) {
+        $id = (int)$donor['id'];
+        if (!isset($refsByDonor[$id])) {
+            continue;
+        }
+        $refs = array_keys($refsByDonor[$id]);
+        sort($refs);
+        $donor['references'] = $refs;
+        $donor['reference'] = $refs[0] ?? '';
+    }
+    unset($donor);
 
     echo json_encode([
         'success' => true,
@@ -90,6 +155,7 @@ try {
     http_response_code(500);
     echo json_encode([
         'success' => false,
-        'error' => $e->getMessage(),
+        'error' => 'Failed to load donors.',
     ]);
+    error_log('Data comparison API error: ' . $e->getMessage());
 }
