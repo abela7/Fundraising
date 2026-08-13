@@ -68,6 +68,7 @@
 .bsm-chip-icon.excel { background: rgba(10, 98, 134, 0.1); color: var(--primary); }
 .bsm-chip-icon.found { background: rgba(16, 185, 129, 0.1); color: var(--success); }
 .bsm-chip-icon.diff { background: rgba(245, 158, 11, 0.1); color: var(--warning); }
+.bsm-chip-icon.pending { background: rgba(245, 158, 11, 0.1); color: var(--warning); }
 .bsm-chip-icon.missing { background: rgba(239, 68, 68, 0.1); color: var(--danger); }
 .bsm-chip-val {
   font-size: 1.25rem;
@@ -98,9 +99,32 @@
   letter-spacing: 0.3px;
   margin-bottom: 4px;
 }
-.bsm-filters .form-control:focus {
+.bsm-filters .form-control:focus,
+.bsm-filters .form-select:focus,
+.bsm-review:focus {
   border-color: var(--primary);
   box-shadow: 0 0 0 3px rgba(10, 98, 134, 0.1);
+}
+.bsm-review {
+  min-width: 148px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border-radius: 8px;
+}
+.bsm-review-pending {
+  border-color: var(--warning);
+  color: #92400e;
+  background: rgba(245, 158, 11, 0.08);
+}
+.bsm-review-identified {
+  border-color: var(--success);
+  color: #065f46;
+  background: rgba(16, 185, 129, 0.08);
+}
+.bsm-review-not_identified {
+  border-color: var(--danger);
+  color: #991b1b;
+  background: rgba(239, 68, 68, 0.08);
 }
 .bsm-card {
   background: var(--white);
