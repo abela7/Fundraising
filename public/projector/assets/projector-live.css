@@ -190,6 +190,31 @@ body {
     min-height: 0;
 }
 
+.total-card[data-filter] {
+    cursor: pointer;
+}
+
+.total-card[data-filter]:focus-visible {
+    outline: 2px solid var(--primary-light);
+    outline-offset: 2px;
+}
+
+.total-card.is-filter-active {
+    border-color: rgba(255, 255, 255, 0.28);
+}
+
+.paid-card.is-filter-active {
+    box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.45);
+}
+
+.pledged-card.is-filter-active {
+    box-shadow: 0 0 0 2px rgba(255, 140, 0, 0.45);
+}
+
+.grand-card.is-filter-active {
+    box-shadow: 0 0 0 2px rgba(255, 215, 0, 0.4);
+}
+
 .total-card.flash {
     animation: cardFlash 0.5s ease-out;
 }
@@ -315,11 +340,87 @@ body {
     overflow: hidden;
 }
 
+.contribution-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    padding: 1rem 2rem 0;
+    flex-shrink: 0;
+}
+
+.contrib-filter {
+    background: var(--bg-card);
+    color: var(--text-secondary);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 999px;
+    padding: 0.4rem 0.9rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+
+.contrib-filter:hover {
+    color: var(--text-primary);
+    border-color: rgba(255, 255, 255, 0.28);
+}
+
+.contrib-filter.is-active {
+    color: var(--text-primary);
+    background: rgba(11, 120, 166, 0.35);
+    border-color: var(--primary);
+}
+
+.contrib-filter[data-filter="paid"].is-active {
+    background: rgba(34, 197, 94, 0.2);
+    border-color: var(--success);
+}
+
+.contrib-filter[data-filter="pledge"].is-active {
+    background: rgba(255, 140, 0, 0.2);
+    border-color: var(--pledge-border);
+}
+
 .contributions-list {
     flex: 1;
     overflow-y: auto;
     padding: 1.5rem 2rem;
     scroll-behavior: smooth;
+}
+
+.contribution-more-wrap {
+    flex-shrink: 0;
+    display: flex;
+    justify-content: center;
+    padding: 0.75rem 2rem 1.25rem;
+}
+
+.contrib-load-more {
+    background: var(--bg-card);
+    color: var(--text-primary);
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    border-radius: 999px;
+    padding: 0.55rem 1.25rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s ease, border-color 0.2s ease;
+}
+
+.contrib-load-more:hover:not(:disabled) {
+    border-color: var(--primary-light);
+    background: rgba(11, 120, 166, 0.25);
+}
+
+.contrib-load-more:disabled {
+    opacity: 0.6;
+    cursor: wait;
+}
+
+.contrib-load-more[hidden] {
+    display: none;
 }
 
 /* Contribution Items */
@@ -416,11 +517,27 @@ body {
     box-shadow: none;
 }
 
+.contribution-meta {
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 0.45rem;
+}
+
 .contribution-time {
     font-size: 0.875rem;
     color: var(--text-muted);
 }
 
+.contribution-date {
+    font-size: 0.68rem;
+    line-height: 1.2;
+    color: var(--text-muted);
+    letter-spacing: 0.02em;
+    opacity: 0.8;
+}
+
+/* NEW badge temporarily disabled
 .contribution-new {
     position: absolute;
     top: -8px;
@@ -434,6 +551,7 @@ body {
     letter-spacing: 0.05em;
     animation: bounce 0.5s ease-out;
 }
+*/
 
 .loading-message {
     text-align: center;
@@ -760,17 +878,45 @@ body {
         font-weight: 800;
     }
     
+    .contribution-toolbar {
+        padding: 0.5rem 0.5rem 0;
+        gap: 0.35rem;
+    }
+
+    .contrib-filter {
+        flex: 1;
+        text-align: center;
+        padding: 0.35rem 0.45rem;
+        font-size: 0.68rem;
+    }
+
+    .contribution-more-wrap {
+        padding: 0.45rem 0.5rem 0.7rem;
+    }
+
+    .contrib-load-more {
+        width: 100%;
+        padding: 0.5rem 0.75rem;
+        font-size: 0.8rem;
+    }
+
     .contribution-time {
         font-size: 0.75rem;
         opacity: 0.8;
     }
-    
+
+    .contribution-date {
+        font-size: 0.6rem;
+    }
+
+    /* NEW badge temporarily disabled
     .contribution-new {
         top: -5px;
         right: 10px;
         padding: 0.15rem 0.5rem;
         font-size: 0.65rem;
     }
+    */
     
     /* Compact mobile footer ticker */
     .footer-content::before {

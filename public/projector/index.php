@@ -63,7 +63,7 @@ $target = (float)($settings['target_amount'] ?? 100000);
     <main class="main-content">
         <!-- Fixed Left Panel - Totals -->
         <aside class="totals-panel">
-            <div class="total-card paid-card">
+            <div class="total-card paid-card" data-filter="paid" role="button" tabindex="0" title="Show paid donations">
                 <div class="card-header">
                     <i class="fas fa-check-circle"></i>
                     <h3>Total Paid</h3>
@@ -77,7 +77,7 @@ $target = (float)($settings['target_amount'] ?? 100000);
                 </div>
             </div>
 
-            <div class="total-card pledged-card">
+            <div class="total-card pledged-card" data-filter="pledge" role="button" tabindex="0" title="Show pledges">
                 <div class="card-header">
                     <i class="fas fa-church"></i>
                     <h3>Total Pledged</h3>
@@ -91,7 +91,7 @@ $target = (float)($settings['target_amount'] ?? 100000);
                 </div>
             </div>
 
-            <div class="total-card grand-card">
+            <div class="total-card grand-card is-filter-active" data-filter="all" role="button" tabindex="0" title="Show all donations">
                 <div class="card-header">
                     <i class="fas fa-trophy"></i>
                     <h3>Grand Total</h3>
@@ -120,13 +120,20 @@ $target = (float)($settings['target_amount'] ?? 100000);
 
         <!-- Scrollable Right Panel - Recent Contributions -->
         <section class="contributions-panel">
-
+            <div class="contribution-toolbar" role="group" aria-label="Donation filters">
+                <button type="button" class="contrib-filter is-active" data-filter="all" aria-pressed="true">All</button>
+                <button type="button" class="contrib-filter" data-filter="paid" aria-pressed="false">Paid</button>
+                <button type="button" class="contrib-filter" data-filter="pledge" aria-pressed="false">Pledged</button>
+            </div>
             <div class="contributions-list" id="contributionsList">
                 <div class="loading-message">
                     <i class="fas fa-spinner fa-spin"></i>
                     <span>Waiting for contributions...</span>
-    </div>
-  </div>
+                </div>
+            </div>
+            <div class="contribution-more-wrap">
+                <button type="button" class="contrib-load-more" id="loadMoreBtn" hidden>Load more</button>
+            </div>
         </section>
     </main>
 
@@ -171,7 +178,11 @@ $target = (float)($settings['target_amount'] ?? 100000);
         userScrolled: false,
         scrollTimeout: null,
         isUpdating: false,
-        displayMode: null // Will be set from API: amount, sqm, both
+        displayMode: null, // Will be set from API: amount, sqm, both
+        filter: 'all',
+        pageSize: 20,
+        hasMore: false,
+        loadingFeed: false
     };
 
     function escapeHtml(value) {
@@ -318,59 +329,92 @@ $target = (float)($settings['target_amount'] ?? 100000);
         });
     }
 
-    // Update contributions list
-    function updateContributions(items) {
+    function itemKey(item) {
+        return `${item.type || ''}|${item.approved_at || ''}|${item.text || ''}`;
+    }
+
+    function updateLoadMoreButton() {
+        const btn = document.getElementById('loadMoreBtn');
+        if (!btn) return;
+        btn.hidden = !state.hasMore;
+        btn.disabled = state.loadingFeed;
+        btn.textContent = state.loadingFeed ? 'Loading...' : 'Load more';
+    }
+
+    function setFilter(filter) {
+        let next = (filter === 'paid' || filter === 'pledge') ? filter : 'all';
+        if (next === state.filter && next !== 'all') {
+            next = 'all';
+        }
+        if (next === state.filter && state.contributions.length > 0) return;
+        state.filter = next;
+        document.querySelectorAll('.contrib-filter').forEach((btn) => {
+            const active = btn.dataset.filter === next;
+            btn.classList.toggle('is-active', active);
+            btn.setAttribute('aria-pressed', active ? 'true' : 'false');
+        });
+        document.querySelectorAll('.total-card[data-filter]').forEach((card) => {
+            card.classList.toggle('is-filter-active', card.dataset.filter === next);
+        });
+        fetchRecent('reset');
+    }
+
+    async function renderContributionItems(items, mode) {
         const container = document.getElementById('contributionsList');
+        const loadingMsg = container.querySelector('.loading-message');
+        if (loadingMsg) loadingMsg.remove();
+
+        if (mode === 'reset') {
+            container.querySelectorAll('.contribution-item').forEach((el) => el.remove());
+        }
+
+        if (items.length === 0 && container.querySelectorAll('.contribution-item').length === 0) {
+            const empty = document.createElement('div');
+            empty.className = 'loading-message';
+            empty.innerHTML = '<i class="fas fa-inbox"></i><span>No contributions in this filter.</span>';
+            container.appendChild(empty);
+            return;
+        }
+
         const isNearTop = container.scrollTop < 100;
-        
-        // Check if this is the first time we're loading contributions and display mode is not 'amount'
-        const isFirstLoad = state.contributions.length === 0 && items.length > 0;
-        const needsRefresh = isFirstLoad && state.displayMode && state.displayMode !== 'amount';
-        
-        // Find new contributions
-        const newItems = items.filter(item => 
-            !state.contributions.find(c => c.text === item.text && c.approved_at === item.approved_at)
-        );
-        
-        if (newItems.length > 0) {
-            // Remove loading message if exists
-            const loadingMsg = container.querySelector('.loading-message');
-            if (loadingMsg) loadingMsg.remove();
-            
-            // Add new items at the top (handle async)
-            newItems.reverse().forEach(async item => {
-                const contributionEl = await createContributionElement(item);
+        const batch = mode === 'prepend' ? [...items].reverse() : items;
+        for (const item of batch) {
+            const contributionEl = await createContributionElement(item);
+            if (mode === 'prepend') {
                 container.insertBefore(contributionEl, container.firstChild);
-                
-                // Animate in
-                setTimeout(() => contributionEl.classList.add('show'), 10);
-            });
-            
-            // Keep only last 50 items
-            while (container.children.length > 50) {
-                container.removeChild(container.lastChild);
+            } else {
+                container.appendChild(contributionEl);
             }
-            
-            // Smart auto-scroll: only if user is near top or hasn't manually scrolled recently
-            if (!state.userScrolled || isNearTop) {
-                container.scrollTo({
-                    top: 0,
-                    behavior: 'smooth'
-                });
-                
-                // Show scroll hint if user has scrolled down
-                if (state.userScrolled && !isNearTop) {
-                    showScrollHint();
-                }
+            setTimeout(() => contributionEl.classList.add('show'), 10);
+        }
+
+        if (mode !== 'append' && (!state.userScrolled || isNearTop)) {
+            container.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+    }
+
+    async function updateContributions(items, mode) {
+        const incoming = Array.isArray(items) ? items : [];
+        if (mode === 'reset') {
+            state.contributions = incoming;
+            await renderContributionItems(incoming, 'reset');
+        } else if (mode === 'append') {
+            const existing = new Set(state.contributions.map(itemKey));
+            const extra = incoming.filter((item) => !existing.has(itemKey(item)));
+            state.contributions = state.contributions.concat(extra);
+            await renderContributionItems(extra, 'append');
+        } else {
+            const existing = new Set(state.contributions.map(itemKey));
+            const fresh = incoming.filter((item) => !existing.has(itemKey(item)));
+            state.contributions = fresh.concat(state.contributions);
+            await renderContributionItems(fresh, 'prepend');
+            if (fresh.length > 0 && state.userScrolled) {
+                showScrollHint();
             }
         }
-        
-        state.contributions = items;
-        
-        // If this is first load and we need to apply non-amount formatting, refresh all
-        if (needsRefresh) {
-            console.log('First load with display mode:', state.displayMode, '- refreshing all contributions');
-            setTimeout(() => refreshAllContributions(), 100); // Small delay to ensure DOM is ready
+
+        if (state.displayMode && state.displayMode !== 'amount' && mode === 'reset') {
+            setTimeout(() => refreshAllContributions(), 100);
         }
     }
 
@@ -463,9 +507,8 @@ $target = (float)($settings['target_amount'] ?? 100000);
         console.log('🎨 createContributionElement called for:', item.text);
     const div = document.createElement('div');
         
-        // Determine type from the text content
-        const isPayment = item.text.toLowerCase().includes('paid');
-        const isPledge = item.text.toLowerCase().includes('pledged');
+        const isPayment = item.type === 'paid' || (item.text || '').toLowerCase().includes('paid');
+        const isPledge = item.type === 'pledge' || (item.text || '').toLowerCase().includes('pledged');
         
         // Add appropriate class and icon
         let className = 'contribution-item';
@@ -480,6 +523,7 @@ $target = (float)($settings['target_amount'] ?? 100000);
         }
         
         div.className = className;
+        const donationDate = formatDonationDate(item.approved_at);
         
         // Extract amount from the original text
         const amountMatch = item.text.match(/GBP\s+([\d,]+)|£([\d,]+)/);
@@ -525,30 +569,51 @@ $target = (float)($settings['target_amount'] ?? 100000);
             </div>
             <div class="contribution-content">
                 <div class="contribution-text">${highlightedText}</div>
-                <div class="contribution-time">${formatTime(item.approved_at)}</div>
+                <div class="contribution-meta">
+                    <span class="contribution-time">${formatTime(item.approved_at)}</span>
+                    ${donationDate ? `<span class="contribution-date">${donationDate}</span>` : ''}
+                </div>
             </div>
-            <div class="contribution-new">NEW</div>
         `;
-        
-        // Remove NEW badge after 30 seconds
-        setTimeout(() => {
-            const newBadge = div.querySelector('.contribution-new');
-            if (newBadge) newBadge.style.display = 'none';
-        }, 30000);
+        // NEW badge temporarily disabled
+        // <div class="contribution-new">NEW</div>
+        // setTimeout(() => {
+        //     const newBadge = div.querySelector('.contribution-new');
+        //     if (newBadge) newBadge.style.display = 'none';
+        // }, 30000);
         
         return div;
     }
 
     // Format time
     function formatTime(timestamp) {
-        const date = new Date(timestamp);
+        const date = parseDonationDate(timestamp);
+        if (!date) return '';
         const now = new Date();
         const diff = Math.floor((now - date) / 1000);
         
         if (diff < 60) return 'just now';
         if (diff < 3600) return Math.floor(diff / 60) + 'm ago';
         if (diff < 86400) return Math.floor(diff / 3600) + 'h ago';
-        return date.toLocaleDateString();
+        return date.toLocaleDateString('en-GB', { timeZone: 'Europe/London' });
+    }
+
+    function parseDonationDate(timestamp) {
+        if (!timestamp) return null;
+        const raw = String(timestamp).trim();
+        const date = new Date(raw.includes('T') ? raw : raw.replace(' ', 'T'));
+        return Number.isNaN(date.getTime()) ? null : date;
+    }
+
+    function formatDonationDate(timestamp) {
+        const date = parseDonationDate(timestamp);
+        if (!date) return '';
+        return date.toLocaleDateString('en-GB', {
+            day: 'numeric',
+            month: 'short',
+            year: 'numeric',
+            timeZone: 'Europe/London'
+        });
     }
 
     // Fetch totals
@@ -569,19 +634,44 @@ $target = (float)($settings['target_amount'] ?? 100000);
         }
     }
 
-    // Fetch recent contributions
-    async function fetchRecent() {
+    async function fetchRecent(mode = 'poll') {
+        if (state.loadingFeed) return;
+        if (mode === 'append' && !state.hasMore) return;
+        state.loadingFeed = true;
+        updateLoadMoreButton();
+
+        const offset = mode === 'append' ? state.contributions.length : 0;
+        const params = new URLSearchParams({
+            type: state.filter,
+            limit: String(state.pageSize),
+            offset: String(offset)
+        });
+
         try {
-            const response = await fetch(`../../api/recent.php`);
+            const response = await fetch(`../../api/recent.php?${params.toString()}`);
             if (response.ok) {
                 const data = await response.json();
-                console.log('Recent API response:', data);
-                updateContributions(data.items);
+                const items = Array.isArray(data.items) ? data.items : [];
+                if (mode === 'append') {
+                    state.hasMore = !!data.has_more;
+                    await updateContributions(items, 'append');
+                } else if (mode === 'reset') {
+                    state.hasMore = !!data.has_more;
+                    await updateContributions(items, 'reset');
+                } else {
+                    if (typeof data.has_more === 'boolean' && state.contributions.length <= state.pageSize) {
+                        state.hasMore = data.has_more;
+                    }
+                    await updateContributions(items, 'poll');
+                }
             } else {
                 console.error('API response not ok:', response.status, response.statusText);
             }
         } catch (error) {
             console.error('Error fetching recent:', error);
+        } finally {
+            state.loadingFeed = false;
+            updateLoadMoreButton();
         }
     }
 
@@ -710,12 +800,12 @@ $target = (float)($settings['target_amount'] ?? 100000);
         
         // Fetch initial data
         fetchTotals();
-        fetchRecent();
+        fetchRecent('reset');
         fetchFooterMessage();
         
         // Set up polling
         setInterval(fetchTotals, config.refresh);
-        setInterval(fetchRecent, config.refresh);
+        setInterval(() => fetchRecent('poll'), config.refresh);
         setInterval(fetchFooterMessage, config.refresh * 2); // Check footer less frequently
         
         // Initialize admin communication
@@ -723,15 +813,32 @@ $target = (float)($settings['target_amount'] ?? 100000);
         
         // Setup scroll detection
         setupScrollDetection();
+        setupFeedControls();
         
         // Handle visibility change
         document.addEventListener('visibilitychange', () => {
             if (!document.hidden) {
                 fetchTotals();
-                fetchRecent();
+                fetchRecent('poll');
                 fetchFooterMessage();
             }
         });
+    }
+
+    function setupFeedControls() {
+        document.querySelectorAll('.contrib-filter, .total-card[data-filter]').forEach((el) => {
+            el.addEventListener('click', () => setFilter(el.dataset.filter || 'all'));
+            el.addEventListener('keydown', (event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    setFilter(el.dataset.filter || 'all');
+                }
+            });
+        });
+        const loadMoreBtn = document.getElementById('loadMoreBtn');
+        if (loadMoreBtn) {
+            loadMoreBtn.addEventListener('click', () => fetchRecent('append'));
+        }
     }
 
     // Start the application
