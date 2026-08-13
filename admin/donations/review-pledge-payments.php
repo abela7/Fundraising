@@ -917,6 +917,32 @@ $clientCertUploadTargetBytes = max(350 * 1024, min($clientCertUploadTargetBytes,
             border-color: #6366f1;
             box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
         }
+        .wa-phone-field {
+            margin-bottom: 0.85rem;
+        }
+        .wa-phone-field label {
+            display: block;
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: var(--gray-500, #6b7280);
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+            margin-bottom: 4px;
+        }
+        .wa-phone-field input {
+            width: 100%;
+            padding: 0.65rem 0.75rem;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 0.875rem;
+            font-family: inherit;
+            color: var(--gray-800, #1f2937);
+        }
+        .wa-phone-field input:focus {
+            outline: none;
+            border-color: #6366f1;
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+        }
         .sending-spinner {
             display: none;
         }
@@ -1660,6 +1686,10 @@ $clientCertUploadTargetBytes = max(350 * 1024, min($clientCertUploadTargetBytes,
                     Notification will be sent to <strong id="notifyRoutingAgent">-</strong>
                     (<strong id="notifyRoutingPhone">-</strong>)
                 </div>
+                <div class="wa-phone-field">
+                    <label for="notifySendPhone">WhatsApp number</label>
+                    <input type="tel" id="notifySendPhone" autocomplete="off" placeholder="e.g. 07... or +44...">
+                </div>
                 
                 <!-- Certificate Info -->
                 <div class="cert-toggle-section">
@@ -1755,6 +1785,10 @@ $clientCertUploadTargetBytes = max(350 * 1024, min($clientCertUploadTargetBytes,
                     <i class="fas fa-user-shield me-1"></i>
                     Notification will be sent to <strong id="fpRoutingAgent">-</strong>
                     (<strong id="fpRoutingPhone">-</strong>)
+                </div>
+                <div class="wa-phone-field">
+                    <label for="fpSendPhone">WhatsApp number</label>
+                    <input type="tel" id="fpSendPhone" autocomplete="off" placeholder="e.g. 07... or +44...">
                 </div>
 
                 <!-- Certificate Info -->
@@ -1924,6 +1958,20 @@ function getRoutingTarget(data) {
         assignedName,
         destinationPhone: routedToKesis ? KESIS_BIRHANU_PHONE : (data?.donor_phone || '')
     };
+}
+
+function fillSendPhoneInput(inputId, data) {
+    const el = document.getElementById(inputId);
+    if (!el) return;
+    const routing = getRoutingTarget(data);
+    el.value = routing.destinationPhone || '';
+}
+
+function getSendPhone(inputId) {
+    const el = document.getElementById(inputId);
+    const typed = el ? String(el.value || '').trim() : '';
+    if (typed) return typed;
+    return getRoutingTarget(currentNotificationData).destinationPhone || '';
 }
 
 function renderRoutingNotice(data, noticeId, agentId, phoneId) {
@@ -2187,6 +2235,7 @@ function showNotificationModal(data) {
     document.getElementById('notifyAmount').textContent = '£' + data.payment_amount;
     document.getElementById('notifyBalance').textContent = '£' + data.outstanding_balance;
     renderRoutingNotice(data, 'notifyRoutingNotice', 'notifyRoutingAgent', 'notifyRoutingPhone');
+    fillSendPhoneInput('notifySendPhone', data);
     
     // Always use Amharic from DB template, fallback to hardcoded Amharic
     const lang = 'am';
@@ -2295,7 +2344,7 @@ function sendNotification() {
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({
             donor_id: currentNotificationData.donor_id,
-            phone: currentNotificationData.donor_phone,
+            phone: getSendPhone('notifySendPhone'),
             message: message,
             language: paymentTemplateMode === 'sms' ? 'en' : 'am',
             template_mode: currentNotificationData.template_mode || paymentTemplateMode,
@@ -2668,6 +2717,10 @@ sendNotification = async function() {
             ? document.getElementById('messageTextarea').value
             : currentNotificationData.message;
         const routing = getRoutingTarget(currentNotificationData);
+        const sendPhone = getSendPhone('notifySendPhone');
+        if (!sendPhone) {
+            throw new Error('Enter a WhatsApp number');
+        }
 
         // Step 1: Load canonical donor certificate data
         document.getElementById('sendBtnText').textContent = 'Generating certificate...';
@@ -2684,7 +2737,7 @@ sendNotification = async function() {
 
         const formData = new FormData();
         formData.append('certificate', blob, getCertificateFileName('certificate', d.name, blob));
-        formData.append('phone', routing.destinationPhone);
+        formData.append('phone', sendPhone);
         formData.append('donor_id', currentNotificationData.donor_id);
         formData.append('donor_name', d.name);
         formData.append('sqm_value', d.sqm_value);
@@ -2747,6 +2800,7 @@ function showFullyPaidModal(data) {
     document.getElementById('fpThisPayment').textContent = '£' + data.payment_amount;
     document.getElementById('fpArea').textContent = (data.sqm_value || '0') + ' m²';
     renderRoutingNotice(data, 'fpRoutingNotice', 'fpRoutingAgent', 'fpRoutingPhone');
+    fillSendPhoneInput('fpSendPhone', data);
 
     // Always use Amharic from DB template, fallback to hardcoded Amharic
     const lang = 'am';
@@ -2849,6 +2903,11 @@ async function sendFullyPaidNotification() {
         ? document.getElementById('fpMessageEdit').value
         : currentNotificationData.fullyPaidMessage;
     const routing = getRoutingTarget(currentNotificationData);
+    const sendPhone = getSendPhone('fpSendPhone');
+    if (!sendPhone) {
+        alert('Enter a WhatsApp number');
+        return;
+    }
 
     // SMS-only mode: send text notification only (no WhatsApp certificate media flow).
     if ((currentNotificationData.fully_paid_template_mode || fullyPaidTemplateMode) === 'sms') {
@@ -2862,7 +2921,7 @@ async function sendFullyPaidNotification() {
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({
                     donor_id: currentNotificationData.donor_id,
-                    phone: routing.destinationPhone,
+                    phone: sendPhone,
                     message: message,
                     language: 'en',
                     template_mode: 'sms',
@@ -2912,7 +2971,7 @@ async function sendFullyPaidNotification() {
 
         const formData = new FormData();
         formData.append('certificate', blob, getCertificateFileName('certificate_final', d.name, blob));
-        formData.append('phone', routing.destinationPhone);
+        formData.append('phone', sendPhone);
         formData.append('donor_id', currentNotificationData.donor_id);
         formData.append('donor_name', d.name);
         formData.append('sqm_value', d.sqm_value);
@@ -2964,13 +3023,14 @@ async function sendFullyPaidNotification() {
 async function sendTextFallback() {
     const message = currentNotificationData.message;
     const routing = getRoutingTarget(currentNotificationData);
+    const sendPhone = getSendPhone('notifySendPhone');
 
     const res = await fetch('send-payment-notification.php', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({
             donor_id: currentNotificationData.donor_id,
-            phone: routing.destinationPhone,
+            phone: sendPhone,
             message: message,
             language: paymentTemplateMode === 'sms' ? 'en' : 'am',
             template_mode: currentNotificationData.template_mode || paymentTemplateMode,
