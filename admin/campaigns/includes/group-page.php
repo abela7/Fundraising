@@ -45,6 +45,7 @@ $pageConfig = [
     'sort_order' => (string)$meta['sort_order'],
     'currency' => $settings['currency_code'] ?? 'GBP',
 ];
+$cssVersion = (int) (filemtime(__DIR__ . '/../assets/campaigns.css') ?: time());
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -57,7 +58,7 @@ $pageConfig = [
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link rel="stylesheet" href="../../assets/theme.css">
     <link rel="stylesheet" href="../assets/admin.css">
-    <link rel="stylesheet" href="assets/campaigns.css">
+    <link rel="stylesheet" href="assets/campaigns.css?v=<?php echo $cssVersion; ?>">
 </head>
 <body>
 <div class="admin-wrapper">

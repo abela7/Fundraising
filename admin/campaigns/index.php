@@ -30,6 +30,7 @@ $catalog = dvc_campaign_group_catalog();
 $immediate = $catalog['immediate'];
 $review = $catalog['unclassified'];
 $pledgeNav = dvc_pledge_group_nav();
+$cssVersion = (int) (filemtime(__DIR__ . '/assets/campaigns.css') ?: time());
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -42,7 +43,7 @@ $pledgeNav = dvc_pledge_group_nav();
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link rel="stylesheet" href="../../assets/theme.css">
     <link rel="stylesheet" href="../assets/admin.css">
-    <link rel="stylesheet" href="assets/campaigns.css">
+    <link rel="stylesheet" href="assets/campaigns.css?v=<?php echo $cssVersion; ?>">
 </head>
 <body>
 <div class="admin-wrapper">
@@ -80,31 +81,35 @@ $pledgeNav = dvc_pledge_group_nav();
 
                 <div class="text-muted small mb-3" id="summaryLine">Loading donors...</div>
 
-                <div class="dvc-hub-grid animate-fade-in">
-                    <a class="dvc-group-card" href="<?php echo htmlspecialchars((string)$immediate['file'], ENT_QUOTES, 'UTF-8'); ?>">
-                        <div class="dvc-stat-icon immediate"><i class="fas fa-bolt"></i></div>
-                        <div class="dvc-group-card-body">
-                            <div class="dvc-group-card-title">Immediate payers</div>
-                            <div class="dvc-group-card-count" id="hubCountImmediate">—</div>
-                            <div class="dvc-group-card-meta" id="hubMetaImmediate">Paid on the spot</div>
-                        </div>
-                        <i class="fas fa-chevron-right dvc-group-card-arrow"></i>
-                    </a>
-                    <a class="dvc-group-card" href="<?php echo htmlspecialchars((string)$review['file'], ENT_QUOTES, 'UTF-8'); ?>">
-                        <div class="dvc-stat-icon review"><i class="fas fa-clipboard-check"></i></div>
-                        <div class="dvc-group-card-body">
-                            <div class="dvc-group-card-title">Needs review</div>
-                            <div class="dvc-group-card-count" id="hubCountReview">—</div>
-                            <div class="dvc-group-card-meta" id="hubMetaReview">No pledge and no payment</div>
-                        </div>
-                        <i class="fas fa-chevron-right dvc-group-card-arrow"></i>
-                    </a>
+                <div class="row g-3 mb-4 animate-fade-in">
+                    <div class="col-12 col-md-6">
+                        <a class="dvc-group-card d-flex align-items-center text-decoration-none" href="<?php echo htmlspecialchars((string)$immediate['file'], ENT_QUOTES, 'UTF-8'); ?>">
+                            <div class="dvc-stat-icon immediate"><i class="fas fa-bolt"></i></div>
+                            <div class="dvc-group-card-body">
+                                <div class="dvc-group-card-title">Immediate payers</div>
+                                <div class="dvc-group-card-count" id="hubCountImmediate">—</div>
+                                <div class="dvc-group-card-meta" id="hubMetaImmediate">Paid on the spot</div>
+                            </div>
+                            <i class="fas fa-chevron-right dvc-group-card-arrow"></i>
+                        </a>
+                    </div>
+                    <div class="col-12 col-md-6">
+                        <a class="dvc-group-card d-flex align-items-center text-decoration-none" href="<?php echo htmlspecialchars((string)$review['file'], ENT_QUOTES, 'UTF-8'); ?>">
+                            <div class="dvc-stat-icon review"><i class="fas fa-clipboard-check"></i></div>
+                            <div class="dvc-group-card-body">
+                                <div class="dvc-group-card-title">Needs review</div>
+                                <div class="dvc-group-card-count" id="hubCountReview">—</div>
+                                <div class="dvc-group-card-meta" id="hubMetaReview">No pledge and no payment</div>
+                            </div>
+                            <i class="fas fa-chevron-right dvc-group-card-arrow"></i>
+                        </a>
+                    </div>
                 </div>
 
                 <div class="dvc-section-title">Pledge donors</div>
                 <p class="dvc-section-sub">Three standalone pages — completed, still paying, and not started.</p>
 
-                <div class="dvc-hub-grid dvc-hub-grid-3 animate-fade-in">
+                <div class="row g-3 mb-4 animate-fade-in">
                     <?php foreach ($pledgeNav as $item): ?>
                         <?php
                         $file = htmlspecialchars((string)$item['file'], ENT_QUOTES, 'UTF-8');
@@ -116,15 +121,17 @@ $pledgeNav = dvc_pledge_group_nav();
                         $countId = 'hubCount-' . $groupKey;
                         $metaId = 'hubMeta-' . $groupKey;
                         ?>
-                        <a class="dvc-group-card" href="<?php echo $file; ?>" data-group="<?php echo $groupKey; ?>">
-                            <div class="dvc-stat-icon <?php echo $tone; ?>"><i class="fas <?php echo $icon; ?>"></i></div>
-                            <div class="dvc-group-card-body">
-                                <div class="dvc-group-card-title"><?php echo $short; ?></div>
-                                <div class="dvc-group-card-count" id="<?php echo $countId; ?>">—</div>
-                                <div class="dvc-group-card-meta" id="<?php echo $metaId; ?>"><?php echo $desc; ?></div>
-                            </div>
-                            <i class="fas fa-chevron-right dvc-group-card-arrow"></i>
-                        </a>
+                        <div class="col-12 col-md-6 col-lg-4">
+                            <a class="dvc-group-card d-flex align-items-center text-decoration-none" href="<?php echo $file; ?>" data-group="<?php echo $groupKey; ?>">
+                                <div class="dvc-stat-icon <?php echo $tone; ?>"><i class="fas <?php echo $icon; ?>"></i></div>
+                                <div class="dvc-group-card-body">
+                                    <div class="dvc-group-card-title"><?php echo $short; ?></div>
+                                    <div class="dvc-group-card-count" id="<?php echo $countId; ?>">—</div>
+                                    <div class="dvc-group-card-meta" id="<?php echo $metaId; ?>"><?php echo $desc; ?></div>
+                                </div>
+                                <i class="fas fa-chevron-right dvc-group-card-arrow"></i>
+                            </a>
+                        </div>
                     <?php endforeach; ?>
                 </div>
             </div>
