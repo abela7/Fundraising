@@ -19,85 +19,213 @@ if (!$member) { http_response_code(404); echo 'Member not found'; exit; }
 $page_title = htmlspecialchars($member['name']) . ' — Report';
 $currency = '£';
 
-// ══════════════════════════════════════════════════════════════════
-// REAL DATA — We query the actual source tables, not cached donor fields
-// ══════════════════════════════════════════════════════════════════
+/**
+ * Format a pound amount with two decimals.
+ */
+function rpt_money(string $currency, float $amount): string
+{
+    return $currency . number_format($amount, 2);
+}
 
-// ─── 1. Pledges logged by this member ───
+/**
+ * @return array<string, mixed>
+ */
+function rpt_empty_counts(): array
+{
+    return [
+        'total' => 0,
+        'pending' => 0,
+        'approved' => 0,
+        'confirmed' => 0,
+        'rejected' => 0,
+        'cancelled' => 0,
+        'voided' => 0,
+        'approved_amount' => 0.0,
+        'pending_amount' => 0.0,
+        'confirmed_amount' => 0.0,
+    ];
+}
+
+function rpt_table_exists(mysqli $db, string $table): bool
+{
+    $safe = preg_replace('/[^a-z0-9_]/i', '', $table);
+    if ($safe === '') {
+        return false;
+    }
+    $result = $db->query("SHOW TABLES LIKE '" . $db->real_escape_string($safe) . "'");
+    return $result instanceof mysqli_result && $result->num_rows > 0;
+}
+
+function rpt_column_exists(mysqli $db, string $table, string $column): bool
+{
+    $safeTable = preg_replace('/[^a-z0-9_]/i', '', $table);
+    $safeColumn = preg_replace('/[^a-z0-9_]/i', '', $column);
+    if ($safeTable === '' || $safeColumn === '') {
+        return false;
+    }
+    $result = $db->query("SHOW COLUMNS FROM `{$safeTable}` LIKE '" . $db->real_escape_string($safeColumn) . "'");
+    return $result instanceof mysqli_result && $result->num_rows > 0;
+}
+
+// Activity cards and Financial use this registrar's own rows only.
+// Outstanding is computed: pledged by him minus cash he collected.
+
+$pledgeStats = rpt_empty_counts();
 $pl = $db->prepare("
     SELECT
-        COUNT(*)                                           AS total,
-        SUM(status='pending')                              AS pending,
-        SUM(status='approved')                             AS approved,
-        SUM(status='rejected')                             AS rejected,
-        SUM(status='cancelled')                            AS cancelled,
-        COALESCE(SUM(amount),0)                            AS total_amount,
+        COUNT(*) AS total,
+        SUM(status='pending') AS pending,
+        SUM(status='approved') AS approved,
+        SUM(status='rejected') AS rejected,
+        SUM(status='cancelled') AS cancelled,
         COALESCE(SUM(CASE WHEN status='approved' THEN amount ELSE 0 END),0) AS approved_amount,
-        COALESCE(SUM(CASE WHEN status='pending'  THEN amount ELSE 0 END),0) AS pending_amount
-    FROM pledges WHERE created_by_user_id = ?
+        COALESCE(SUM(CASE WHEN status='pending' THEN amount ELSE 0 END),0) AS pending_amount
+    FROM pledges
+    WHERE created_by_user_id = ? AND type = 'pledge'
 ");
 $pl->bind_param('i', $memberId);
 $pl->execute();
-$pledgeStats = $pl->get_result()->fetch_assoc();
+$pledgeStats = array_merge($pledgeStats, $pl->get_result()->fetch_assoc() ?: []);
 $pl->close();
 
-// ─── 2. Immediate payments logged by this member ───
+$paymentStats = rpt_empty_counts();
 $py = $db->prepare("
     SELECT
-        COUNT(*)                                           AS total,
-        SUM(status='pending')                              AS pending,
-        SUM(status='approved')                             AS approved,
-        SUM(status='voided')                               AS voided,
-        COALESCE(SUM(amount),0)                            AS total_amount,
+        COUNT(*) AS total,
+        SUM(status='pending') AS pending,
+        SUM(status='approved') AS approved,
+        SUM(status='voided') AS voided,
         COALESCE(SUM(CASE WHEN status='approved' THEN amount ELSE 0 END),0) AS approved_amount,
-        COALESCE(SUM(CASE WHEN status='pending'  THEN amount ELSE 0 END),0) AS pending_amount
-    FROM payments WHERE received_by_user_id = ?
+        COALESCE(SUM(CASE WHEN status='pending' THEN amount ELSE 0 END),0) AS pending_amount
+    FROM payments
+    WHERE received_by_user_id = ?
 ");
 $py->bind_param('i', $memberId);
 $py->execute();
-$paymentStats = $py->get_result()->fetch_assoc();
+$paymentStats = array_merge($paymentStats, $py->get_result()->fetch_assoc() ?: []);
 $py->close();
 
-// ─── 3. Unique donors linked to this member ───
-// Path A: donor has a pledge created by this member (approved, so donor_id is set)
-// Path B: donor has a payment received by this member (approved, so donor_id is set)
-// Path C: donor.registered_by_user_id = memberId (direct registration)
+$paidNowStats = rpt_empty_counts();
+$pn = $db->prepare("
+    SELECT
+        COUNT(*) AS total,
+        SUM(status='pending') AS pending,
+        SUM(status='approved') AS approved,
+        SUM(status='rejected') AS rejected,
+        COALESCE(SUM(CASE WHEN status='approved' THEN amount ELSE 0 END),0) AS approved_amount,
+        COALESCE(SUM(CASE WHEN status='pending' THEN amount ELSE 0 END),0) AS pending_amount
+    FROM pledges
+    WHERE created_by_user_id = ? AND type = 'paid'
+");
+$pn->bind_param('i', $memberId);
+$pn->execute();
+$paidNowStats = array_merge($paidNowStats, $pn->get_result()->fetch_assoc() ?: []);
+$pn->close();
+
+$installmentStats = rpt_empty_counts();
+if (rpt_table_exists($db, 'pledge_payments')) {
+    $ppWhere = [];
+    $ppTypes = '';
+    $ppParams = [];
+    if (rpt_column_exists($db, 'pledge_payments', 'processed_by_user_id')) {
+        $ppWhere[] = 'processed_by_user_id = ?';
+        $ppTypes .= 'i';
+        $ppParams[] = $memberId;
+    }
+    if (rpt_column_exists($db, 'pledge_payments', 'approved_by_user_id')) {
+        $ppWhere[] = 'approved_by_user_id = ?';
+        $ppTypes .= 'i';
+        $ppParams[] = $memberId;
+    }
+    if ($ppWhere !== []) {
+        $pp = $db->prepare("
+            SELECT
+                COUNT(*) AS total,
+                SUM(status='pending') AS pending,
+                SUM(status='confirmed') AS confirmed,
+                SUM(status='voided') AS voided,
+                COALESCE(SUM(CASE WHEN status='confirmed' THEN amount ELSE 0 END),0) AS confirmed_amount,
+                COALESCE(SUM(CASE WHEN status='pending' THEN amount ELSE 0 END),0) AS pending_amount
+            FROM pledge_payments
+            WHERE " . implode(' OR ', $ppWhere) . "
+        ");
+        $pp->bind_param($ppTypes, ...$ppParams);
+        $pp->execute();
+        $installmentStats = array_merge($installmentStats, $pp->get_result()->fetch_assoc() ?: []);
+        $pp->close();
+    }
+}
+
+$immediateCount = (int)($paymentStats['total'] ?? 0) + (int)($paidNowStats['total'] ?? 0);
+$immediateApproved = (int)($paymentStats['approved'] ?? 0) + (int)($paidNowStats['approved'] ?? 0);
+$immediatePending = (int)($paymentStats['pending'] ?? 0) + (int)($paidNowStats['pending'] ?? 0);
+$immediateVoided = (int)($paymentStats['voided'] ?? 0) + (int)($paidNowStats['rejected'] ?? 0);
+$immediateApprovedAmount = (float)($paymentStats['approved_amount'] ?? 0) + (float)($paidNowStats['approved_amount'] ?? 0);
+$immediatePendingAmount = (float)($paymentStats['pending_amount'] ?? 0) + (float)($paidNowStats['pending_amount'] ?? 0);
+
+$installmentCount = (int)($installmentStats['total'] ?? 0);
+$installmentConfirmed = (int)($installmentStats['confirmed'] ?? 0);
+$installmentPending = (int)($installmentStats['pending'] ?? 0);
+$installmentVoided = (int)($installmentStats['voided'] ?? 0);
+$installmentConfirmedAmount = (float)($installmentStats['confirmed_amount'] ?? 0);
+$installmentPendingAmount = (float)($installmentStats['pending_amount'] ?? 0);
+
+$paymentsLoggedCount = $immediateCount + $installmentCount;
+$paymentsApprovedCount = $immediateApproved + $installmentConfirmed;
+$paymentsApprovedAmount = $immediateApprovedAmount + $installmentConfirmedAmount;
+$paymentsPendingCount = $immediatePending + $installmentPending;
+$paymentsPendingAmount = $immediatePendingAmount + $installmentPendingAmount;
+$paymentsVoidedCount = $immediateVoided + $installmentVoided;
+
 $donorScope = "(
     d.id IN (SELECT DISTINCT pl.donor_id FROM pledges pl WHERE pl.created_by_user_id = ? AND pl.donor_id IS NOT NULL)
     OR d.id IN (SELECT DISTINCT pa.donor_id FROM payments pa WHERE pa.received_by_user_id = ? AND pa.donor_id IS NOT NULL)
     OR d.registered_by_user_id = ?
 )";
 
-$ds = $db->prepare("
-    SELECT
-        COUNT(*)                                           AS total_donors,
-        SUM(donor_type='pledge')                           AS pledge_donors,
-        SUM(donor_type='immediate_payment')                AS immediate_donors,
-        SUM(payment_status='not_started')                  AS st_not_started,
-        SUM(payment_status='paying')                       AS st_paying,
-        SUM(payment_status='overdue')                      AS st_overdue,
-        SUM(payment_status='completed')                    AS st_completed,
-        SUM(payment_status='defaulted')                    AS st_defaulted,
-        SUM(payment_status='no_pledge')                    AS st_no_pledge,
-        COALESCE(SUM(total_pledged),0)                     AS sum_pledged,
-        COALESCE(SUM(total_paid),0)                        AS sum_paid,
-        COALESCE(SUM(balance),0)                           AS sum_balance
-    FROM donors d WHERE $donorScope
-");
-$ds->bind_param('iii', $memberId, $memberId, $memberId);
-$ds->execute();
-$donorStats = $ds->get_result()->fetch_assoc();
-$ds->close();
+$donorStats = [
+    'total_donors' => 0,
+    'pledge_donors' => 0,
+    'immediate_donors' => 0,
+    'st_not_started' => 0,
+    'st_paying' => 0,
+    'st_overdue' => 0,
+    'st_completed' => 0,
+    'st_defaulted' => 0,
+    'st_no_pledge' => 0,
+];
+if (rpt_table_exists($db, 'donors')) {
+    $ds = $db->prepare("
+        SELECT
+            COUNT(*) AS total_donors,
+            SUM(donor_type='pledge') AS pledge_donors,
+            SUM(donor_type='immediate_payment') AS immediate_donors,
+            SUM(payment_status='not_started') AS st_not_started,
+            SUM(payment_status='paying') AS st_paying,
+            SUM(payment_status='overdue') AS st_overdue,
+            SUM(payment_status='completed') AS st_completed,
+            SUM(payment_status='defaulted') AS st_defaulted,
+            SUM(payment_status='no_pledge') AS st_no_pledge
+        FROM donors d WHERE $donorScope
+    ");
+    $ds->bind_param('iii', $memberId, $memberId, $memberId);
+    $ds->execute();
+    $donorStats = array_merge($donorStats, $ds->get_result()->fetch_assoc() ?: []);
+    $ds->close();
+}
 
-// Grand totals
-$grandPledges  = (int)($pledgeStats['total'] ?? 0);
-$grandPayments = (int)($paymentStats['total'] ?? 0);
-$grandDonors   = (int)($donorStats['total_donors'] ?? 0);
-$approvalRate  = $grandPledges > 0
-    ? round(((int)$pledgeStats['approved'] / $grandPledges) * 100)
-    : 0;
-$collectionRate = (float)$donorStats['sum_pledged'] > 0
-    ? round(((float)$donorStats['sum_paid'] / (float)$donorStats['sum_pledged']) * 100)
+$grandPledges = (int)($pledgeStats['total'] ?? 0);
+$grandPayments = $paymentsLoggedCount;
+$grandDonors = (int)($donorStats['total_donors'] ?? 0);
+$grandLogged = $grandPledges + $grandPayments;
+$grandApproved = (int)($pledgeStats['approved'] ?? 0) + $paymentsApprovedCount;
+$approvalRate = $grandLogged > 0 ? (int)round(($grandApproved / $grandLogged) * 100) : 0;
+
+$pledgedByHim = (float)($pledgeStats['approved_amount'] ?? 0);
+$collectedByHim = $paymentsApprovedAmount;
+$outstandingByHim = max(0.0, $pledgedByHim - $collectedByHim);
+$collectionRate = $pledgedByHim > 0
+    ? (int)round(($collectedByHim / $pledgedByHim) * 100)
     : 0;
 
 // ─── 4. Donor list with filters ───
@@ -142,24 +270,29 @@ $orderMap = [
 ];
 $orderSQL = $orderMap[$sort] ?? 'd.created_at DESC';
 
-$st = $db->prepare("SELECT COUNT(*) AS cnt FROM donors d $whereSQL");
-$st->bind_param($types, ...$params);
-$st->execute();
-$totalRows = (int)$st->get_result()->fetch_assoc()['cnt'];
-$st->close();
+$totalRows = 0;
+$donors = [];
+if (rpt_table_exists($db, 'donors')) {
+    $st = $db->prepare("SELECT COUNT(*) AS cnt FROM donors d $whereSQL");
+    $st->bind_param($types, ...$params);
+    $st->execute();
+    $totalRows = (int)$st->get_result()->fetch_assoc()['cnt'];
+    $st->close();
 
+    $totalPages = max(1, (int)ceil($totalRows / $perPage));
+    $offset = ($page - 1) * $perPage;
+
+    $st = $db->prepare("
+        SELECT d.id, d.name, d.phone, d.donor_type, d.total_pledged, d.total_paid,
+               d.balance, d.payment_status, d.has_active_plan, d.created_at, d.last_payment_date
+        FROM donors d $whereSQL ORDER BY $orderSQL LIMIT $perPage OFFSET $offset
+    ");
+    $st->bind_param($types, ...$params);
+    $st->execute();
+    $donors = $st->get_result()->fetch_all(MYSQLI_ASSOC);
+    $st->close();
+}
 $totalPages = max(1, (int)ceil($totalRows / $perPage));
-$offset     = ($page - 1) * $perPage;
-
-$st = $db->prepare("
-    SELECT d.id, d.name, d.phone, d.donor_type, d.total_pledged, d.total_paid,
-           d.balance, d.payment_status, d.has_active_plan, d.created_at, d.last_payment_date
-    FROM donors d $whereSQL ORDER BY $orderSQL LIMIT $perPage OFFSET $offset
-");
-$st->bind_param($types, ...$params);
-$st->execute();
-$donors = $st->get_result()->fetch_all(MYSQLI_ASSOC);
-$st->close();
 
 function qsReplace(array $o): string {
     $q = array_merge($_GET, $o);
@@ -413,7 +546,7 @@ $statusCfg = [
               <div class="pl">Donors</div>
             </div>
             <div class="rpt-perf-item">
-              <div class="pv"><?= $grandPledges + $grandPayments ?></div>
+              <div class="pv"><?= $grandLogged ?></div>
               <div class="pl">Total Logged</div>
             </div>
             <div class="rpt-perf-item">
@@ -437,15 +570,19 @@ $statusCfg = [
             <div style="margin-top:10px">
               <div class="rpt-row">
                 <span class="rpt-row-label"><i class="fas fa-circle" style="font-size:.4rem;color:#10b981;vertical-align:middle"></i> Approved</span>
-                <span class="rpt-row-val" style="color:#10b981"><?= (int)$pledgeStats['approved'] ?> &middot; <?= $currency . number_format((float)$pledgeStats['approved_amount']) ?></span>
+                <span class="rpt-row-val" style="color:#10b981"><?= (int)$pledgeStats['approved'] ?> &middot; <?= rpt_money($currency, (float)$pledgeStats['approved_amount']) ?></span>
               </div>
               <div class="rpt-row">
                 <span class="rpt-row-label"><i class="fas fa-circle" style="font-size:.4rem;color:#f59e0b;vertical-align:middle"></i> Pending</span>
-                <span class="rpt-row-val" style="color:#f59e0b"><?= (int)$pledgeStats['pending'] ?> &middot; <?= $currency . number_format((float)$pledgeStats['pending_amount']) ?></span>
+                <span class="rpt-row-val" style="color:#f59e0b"><?= (int)$pledgeStats['pending'] ?> &middot; <?= rpt_money($currency, (float)$pledgeStats['pending_amount']) ?></span>
               </div>
               <div class="rpt-row">
                 <span class="rpt-row-label"><i class="fas fa-circle" style="font-size:.4rem;color:#ef4444;vertical-align:middle"></i> Rejected</span>
                 <span class="rpt-row-val" style="color:#ef4444"><?= (int)$pledgeStats['rejected'] ?></span>
+              </div>
+              <div class="rpt-row">
+                <span class="rpt-row-label"><i class="fas fa-circle" style="font-size:.4rem;color:#6b7280;vertical-align:middle"></i> Cancelled</span>
+                <span class="rpt-row-val" style="color:#6b7280"><?= (int)$pledgeStats['cancelled'] ?></span>
               </div>
             </div>
             <?php $plPct = (int)$pledgeStats['total'] > 0 ? round(((int)$pledgeStats['approved'] / (int)$pledgeStats['total'])*100) : 0; ?>
@@ -455,23 +592,27 @@ $statusCfg = [
           <!-- Payments Card -->
           <div class="rpt-card">
             <div class="rpt-card-title" style="color:#10b981"><i class="fas fa-money-bill-wave"></i> Payments Logged</div>
-            <div class="rpt-num" style="color:#10b981"><?= (int)$paymentStats['total'] ?></div>
-            <div class="rpt-label">Total payments</div>
+            <div class="rpt-num" style="color:#10b981"><?= $paymentsLoggedCount ?></div>
+            <div class="rpt-label">Immediate + installments</div>
             <div style="margin-top:10px">
               <div class="rpt-row">
-                <span class="rpt-row-label"><i class="fas fa-circle" style="font-size:.4rem;color:#10b981;vertical-align:middle"></i> Approved</span>
-                <span class="rpt-row-val" style="color:#10b981"><?= (int)$paymentStats['approved'] ?> &middot; <?= $currency . number_format((float)$paymentStats['approved_amount']) ?></span>
+                <span class="rpt-row-label"><i class="fas fa-circle" style="font-size:.4rem;color:#10b981;vertical-align:middle"></i> Immediate</span>
+                <span class="rpt-row-val" style="color:#10b981"><?= $immediateApproved ?> &middot; <?= rpt_money($currency, $immediateApprovedAmount) ?></span>
+              </div>
+              <div class="rpt-row">
+                <span class="rpt-row-label"><i class="fas fa-circle" style="font-size:.4rem;color:#0a6286;vertical-align:middle"></i> Installments</span>
+                <span class="rpt-row-val" style="color:#0a6286"><?= $installmentConfirmed ?> &middot; <?= rpt_money($currency, $installmentConfirmedAmount) ?></span>
               </div>
               <div class="rpt-row">
                 <span class="rpt-row-label"><i class="fas fa-circle" style="font-size:.4rem;color:#f59e0b;vertical-align:middle"></i> Pending</span>
-                <span class="rpt-row-val" style="color:#f59e0b"><?= (int)$paymentStats['pending'] ?> &middot; <?= $currency . number_format((float)$paymentStats['pending_amount']) ?></span>
+                <span class="rpt-row-val" style="color:#f59e0b"><?= $paymentsPendingCount ?> &middot; <?= rpt_money($currency, $paymentsPendingAmount) ?></span>
               </div>
               <div class="rpt-row">
                 <span class="rpt-row-label"><i class="fas fa-circle" style="font-size:.4rem;color:#6b7280;vertical-align:middle"></i> Voided</span>
-                <span class="rpt-row-val" style="color:#6b7280"><?= (int)$paymentStats['voided'] ?></span>
+                <span class="rpt-row-val" style="color:#6b7280"><?= $paymentsVoidedCount ?></span>
               </div>
             </div>
-            <?php $pyPct = (int)$paymentStats['total'] > 0 ? round(((int)$paymentStats['approved'] / (int)$paymentStats['total'])*100) : 0; ?>
+            <?php $pyPct = $paymentsLoggedCount > 0 ? (int)round(($paymentsApprovedCount / $paymentsLoggedCount) * 100) : 0; ?>
             <div class="rpt-bar"><div class="rpt-bar-fill" style="width:<?= $pyPct ?>%;background:#10b981"></div></div>
           </div>
         </div>
@@ -479,21 +620,21 @@ $statusCfg = [
         <!-- ═ Financial Summary ═ -->
         <div class="rpt-summary" style="margin-bottom:14px">
           <div class="rpt-card">
-            <div class="rpt-card-title" style="color:#1a73e8"><i class="fas fa-coins"></i> Financial (Donors)</div>
+            <div class="rpt-card-title" style="color:#1a73e8"><i class="fas fa-coins"></i> This Registrar</div>
             <div class="rpt-row">
-              <span class="rpt-row-label">Total Pledged</span>
-              <span class="rpt-row-val" style="color:#1a73e8"><?= $currency . number_format((float)$donorStats['sum_pledged']) ?></span>
+              <span class="rpt-row-label">Pledged by him</span>
+              <span class="rpt-row-val" style="color:#1a73e8"><?= rpt_money($currency, $pledgedByHim) ?></span>
             </div>
             <div class="rpt-row">
-              <span class="rpt-row-label">Total Paid</span>
-              <span class="rpt-row-val" style="color:#10b981"><?= $currency . number_format((float)$donorStats['sum_paid']) ?></span>
+              <span class="rpt-row-label">Collected by him</span>
+              <span class="rpt-row-val" style="color:#10b981"><?= rpt_money($currency, $collectedByHim) ?></span>
             </div>
             <div class="rpt-row">
               <span class="rpt-row-label">Outstanding</span>
-              <span class="rpt-row-val" style="color:#ef4444"><?= $currency . number_format((float)$donorStats['sum_balance']) ?></span>
+              <span class="rpt-row-val" style="color:#ef4444"><?= rpt_money($currency, $outstandingByHim) ?></span>
             </div>
-            <div class="rpt-bar"><div class="rpt-bar-fill" style="width:<?= $collectionRate ?>%;background:#10b981"></div></div>
-            <div style="text-align:right;font-size:.6rem;color:var(--gray-500);margin-top:3px"><?= $collectionRate ?>% collected</div>
+            <div class="rpt-bar"><div class="rpt-bar-fill" style="width:<?= min(100, $collectionRate) ?>%;background:#10b981"></div></div>
+            <div style="text-align:right;font-size:.6rem;color:var(--gray-500);margin-top:3px"><?= $collectionRate ?>% collected by him</div>
           </div>
           <div class="rpt-card">
             <div class="rpt-card-title" style="color:#8b5cf6"><i class="fas fa-users"></i> Donor Breakdown</div>
@@ -578,7 +719,7 @@ $statusCfg = [
           <?php foreach ($donors as $d):
               $pledged = (float)$d['total_pledged'];
               $paid    = (float)$d['total_paid'];
-              $bal     = (float)$d['balance'];
+              $bal     = max(0.0, $pledged - $paid);
               $pct     = $pledged > 0 ? min(100, round(($paid / $pledged) * 100)) : ($paid > 0 ? 100 : 0);
               $sc      = $statusCfg[$d['payment_status']] ?? $statusCfg['no_pledge'];
               $isP     = $d['donor_type'] === 'pledge';
@@ -595,9 +736,9 @@ $statusCfg = [
               </div>
             </div>
             <div class="rpt-d-money">
-              <div class="rpt-d-mi"><div class="v" style="color:#1a73e8"><?= $currency . number_format($pledged) ?></div><div class="l">Pledged</div></div>
-              <div class="rpt-d-mi"><div class="v" style="color:#10b981"><?= $currency . number_format($paid) ?></div><div class="l">Paid</div></div>
-              <div class="rpt-d-mi"><div class="v" style="color:<?= $bal > 0 ? '#ef4444' : '#10b981' ?>"><?= $currency . number_format($bal) ?></div><div class="l">Balance</div></div>
+              <div class="rpt-d-mi"><div class="v" style="color:#1a73e8"><?= rpt_money($currency, $pledged) ?></div><div class="l">Pledged</div></div>
+              <div class="rpt-d-mi"><div class="v" style="color:#10b981"><?= rpt_money($currency, $paid) ?></div><div class="l">Paid</div></div>
+              <div class="rpt-d-mi"><div class="v" style="color:<?= $bal > 0 ? '#ef4444' : '#10b981' ?>"><?= rpt_money($currency, $bal) ?></div><div class="l">Balance</div></div>
             </div>
             <?php if ($pledged > 0): ?>
             <div class="rpt-d-bar"><div class="rpt-d-bar-f" style="width:<?= $pct ?>%;background:<?= $barC ?>"></div></div>
