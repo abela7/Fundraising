@@ -307,11 +307,18 @@ try {
         <span class="nav-label">My Daily Report</span>
       </a>
       <a href="<?php echo url_for('admin/reports/'); ?>" 
-         class="nav-link <?php echo $current_dir === 'reports' ? 'active' : ''; ?>">
+         class="nav-link <?php echo ($current_dir === 'reports' && !in_array($current_page, ['bank-members', 'data-comparison'], true)) ? 'active' : ''; ?>">
         <span class="nav-icon">
           <i class="fas fa-chart-bar"></i>
         </span>
         <span class="nav-label">Reports</span>
+      </a>
+      <a href="<?php echo url_for('admin/reports/bank-members.php'); ?>"
+         class="nav-link <?php echo $current_page === 'bank-members' ? 'active' : ''; ?>">
+        <span class="nav-icon">
+          <i class="fas fa-building-columns"></i>
+        </span>
+        <span class="nav-label">Bank Members</span>
       </a>
       <a href="<?php echo url_for('admin/projector/'); ?>" 
          class="nav-link <?php echo $current_dir === 'projector' ? 'active' : ''; ?>">

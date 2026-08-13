@@ -1091,6 +1091,24 @@ if (isset($_GET['report'])) {
                                 <div class="card border-0 shadow-sm h-100 report-card">
                                     <div class="card-body text-center p-4">
                                         <div class="mb-3">
+                                            <div class="icon-circle bg-secondary mx-auto" style="width: 60px; height: 60px;">
+                                                <i class="fas fa-building-columns text-white fs-4"></i>
+                                            </div>
+                                        </div>
+                                        <h5 class="card-title">Bank Members</h5>
+                                        <p class="card-text text-muted">People listed on the bank Excel, linked to members in the system</p>
+                                        <div class="d-grid gap-2">
+                                            <a href="bank-members.php" class="btn btn-secondary">
+                                                <i class="fas fa-building-columns me-2"></i>Open Bank Members
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-lg-4 col-md-6">
+                                <div class="card border-0 shadow-sm h-100 report-card">
+                                    <div class="card-body text-center p-4">
+                                        <div class="mb-3">
                                             <div class="icon-circle bg-primary mx-auto" style="width: 60px; height: 60px;">
                                                 <i class="fas fa-chart-pie text-white fs-4"></i>
                                             </div>

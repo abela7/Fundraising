@@ -1,0 +1,201 @@
+.bsm-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+.bsm-header h1 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--gray-900);
+  margin: 0;
+}
+.bsm-header p {
+  color: var(--gray-500);
+  font-size: 0.875rem;
+  margin: 4px 0 0;
+}
+.bsm-note {
+  background: rgba(10, 98, 134, 0.06);
+  border: 1px solid var(--gray-200);
+  border-radius: 10px;
+  padding: 12px 16px;
+  font-size: 0.8125rem;
+  color: var(--gray-600);
+  margin-bottom: 16px;
+}
+.bsm-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.bsm-chip {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--white);
+  border: 1px solid var(--gray-200);
+  border-radius: 12px;
+  padding: 12px 16px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  min-height: 44px;
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+  transition: box-shadow 0.15s ease, transform 0.15s ease, border-color 0.15s ease;
+}
+.bsm-chip:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  transform: translateY(-1px);
+}
+.bsm-chip.is-active {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px rgba(10, 98, 134, 0.15);
+}
+.bsm-chip-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.9rem;
+  flex-shrink: 0;
+}
+.bsm-chip-icon.excel { background: rgba(10, 98, 134, 0.1); color: var(--primary); }
+.bsm-chip-icon.found { background: rgba(16, 185, 129, 0.1); color: var(--success); }
+.bsm-chip-icon.diff { background: rgba(245, 158, 11, 0.1); color: var(--warning); }
+.bsm-chip-icon.missing { background: rgba(239, 68, 68, 0.1); color: var(--danger); }
+.bsm-chip-val {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--gray-900);
+  line-height: 1.2;
+}
+.bsm-chip-lbl {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: var(--gray-500);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+.bsm-filters {
+  background: var(--white);
+  border: 1px solid var(--gray-200);
+  border-radius: 12px;
+  padding: 16px 20px;
+  margin-bottom: 16px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+.bsm-filters .form-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--gray-500);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  margin-bottom: 4px;
+}
+.bsm-filters .form-control:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(10, 98, 134, 0.1);
+}
+.bsm-card {
+  background: var(--white);
+  border: 1px solid var(--gray-200);
+  border-radius: 12px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  overflow: hidden;
+}
+.bsm-card-head {
+  padding: 14px 20px;
+  background: var(--gray-50);
+  border-bottom: 1px solid var(--gray-200);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.bsm-card-head h6 {
+  font-weight: 600;
+  color: var(--gray-800);
+  margin: 0;
+  font-size: 0.9375rem;
+}
+.bsm-count {
+  font-size: 0.75rem;
+  color: var(--gray-400);
+}
+.bsm-table thead th {
+  background: var(--white);
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--gray-500);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  border-bottom: 1px solid var(--gray-200);
+  padding: 10px 16px;
+  white-space: nowrap;
+}
+.bsm-table tbody td {
+  padding: 10px 16px;
+  vertical-align: middle;
+  font-size: 0.875rem;
+  color: var(--gray-600);
+  border-bottom: 1px solid var(--gray-50);
+}
+.bsm-table tbody tr:hover {
+  background: var(--gray-50);
+}
+.bsm-name {
+  font-weight: 500;
+  color: var(--gray-800);
+  max-width: 280px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.bsm-link {
+  font-weight: 600;
+  color: var(--primary);
+  text-decoration: none;
+}
+.bsm-link:hover {
+  color: var(--primary-dark);
+  text-decoration: underline;
+}
+.bsm-ref {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.75rem;
+  color: var(--gray-500);
+}
+.bsm-badge {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.bsm-badge-match { background: rgba(16, 185, 129, 0.1); color: #065f46; }
+.bsm-badge-diff { background: rgba(245, 158, 11, 0.1); color: #92400e; }
+.bsm-badge-missing { background: rgba(239, 68, 68, 0.1); color: #991b1b; }
+.bsm-diff {
+  font-weight: 600;
+  color: var(--danger);
+}
+.bsm-ok {
+  color: var(--success);
+}
+.bsm-muted {
+  color: var(--gray-400);
+}
+@media (max-width: 768px) {
+  .bsm-name { max-width: 160px; }
+  .bsm-table thead th,
+  .bsm-table tbody td { padding: 8px 10px; }
+}

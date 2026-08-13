@@ -1,0 +1,310 @@
+<?php
+
+declare(strict_types=1);
+
+require_once __DIR__ . '/../../shared/auth.php';
+require_once __DIR__ . '/../../config/db.php';
+require_once __DIR__ . '/../../shared/url.php';
+require_once __DIR__ . '/../../shared/BankStatementMembers.php';
+
+require_login();
+require_admin();
+
+$page_title = 'Bank Members';
+$settings = ['currency_code' => 'GBP'];
+$db_error = '';
+$result = [
+    'file_found' => false,
+    'error' => '',
+    'rows' => [],
+    'totals' => [
+        'excel_members' => 0,
+        'found' => 0,
+        'same_amount' => 0,
+        'amount_diff' => 0,
+        'not_found' => 0,
+        'excel_paid' => 0.0,
+        'bank_lump' => 0.0,
+    ],
+    'donors_available' => false,
+];
+
+try {
+    $db = db();
+    $settingsTable = $db->query("SHOW TABLES LIKE 'settings'");
+    if ($settingsTable && $settingsTable->num_rows > 0) {
+        $row = $db->query('SELECT currency_code FROM settings WHERE id = 1')->fetch_assoc();
+        if (is_array($row) && isset($row['currency_code'])) {
+            $settings['currency_code'] = (string) $row['currency_code'];
+        }
+    }
+    $result = BankStatementMembers::relate($db);
+} catch (Throwable $e) {
+    $db_error = 'Could not load bank members.';
+    error_log('Bank members page error: ' . $e->getMessage());
+}
+
+$currency = (string) ($settings['currency_code'] ?? 'GBP');
+$totals = $result['totals'];
+$memberRows = [];
+foreach ($result['rows'] as $row) {
+    if (($row['status'] ?? '') === 'bank_account') {
+        continue;
+    }
+    $memberRows[] = $row;
+}
+
+/**
+ * @param float $amount
+ */
+function bsm_money(float $amount, string $currency): string
+{
+    $symbol = $currency === 'GBP' ? '£' : $currency . ' ';
+
+    return $symbol . number_format($amount, 2);
+}
+
+$cssVersion = (int) (filemtime(__DIR__ . '/assets/bank-members.css') ?: time());
+?>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bank Members - Fundraising System</title>
+    <link rel="icon" type="image/svg+xml" href="../../assets/favicon.svg">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="../../assets/theme.css">
+    <link rel="stylesheet" href="../assets/admin.css">
+    <link rel="stylesheet" href="assets/bank-members.css?v=<?php echo $cssVersion; ?>">
+</head>
+<body>
+<div class="admin-wrapper">
+    <?php include __DIR__ . '/../includes/sidebar.php'; ?>
+    <div class="admin-content">
+        <?php include __DIR__ . '/../includes/topbar.php'; ?>
+        <main class="main-content">
+            <div class="container-fluid">
+                <div class="bsm-header">
+                    <div>
+                        <h1>
+                            <i class="fas fa-building-columns me-2" style="color: var(--primary);"></i>
+                            Bank Members
+                        </h1>
+                        <p>People listed on the bank Excel, linked to members in the system.</p>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <a class="btn btn-outline-secondary" href="<?php echo htmlspecialchars(url_for('admin/reports/'), ENT_QUOTES, 'UTF-8'); ?>">
+                            <i class="fas fa-arrow-left me-1"></i>Back to Reports
+                        </a>
+                    </div>
+                </div>
+
+                <?php if ($db_error !== ''): ?>
+                    <div class="alert alert-danger" role="alert">
+                        <i class="fas fa-exclamation-triangle me-2"></i><?php echo htmlspecialchars($db_error, ENT_QUOTES, 'UTF-8'); ?>
+                    </div>
+                <?php elseif ($result['error'] !== ''): ?>
+                    <div class="alert alert-warning" role="alert">
+                        <i class="fas fa-info-circle me-2"></i><?php echo htmlspecialchars((string) $result['error'], ENT_QUOTES, 'UTF-8'); ?>
+                    </div>
+                <?php else: ?>
+                    <?php if (empty($result['donors_available'])): ?>
+                        <div class="alert alert-warning" role="alert">
+                            <i class="fas fa-triangle-exclamation me-2"></i>
+                            This database has no members to link against. Excel people are listed below as not in the system.
+                        </div>
+                    <?php endif; ?>
+
+                    <div class="bsm-note">
+                        <i class="fas fa-info-circle me-1" style="color: var(--primary);"></i>
+                        This page shows only the <?php echo (int) $totals['excel_members']; ?> people from
+                        <strong>donors-bank-data.xlsx</strong>
+                        (<?php echo htmlspecialchars(bsm_money((float) $totals['excel_paid'], $currency), ENT_QUOTES, 'UTF-8'); ?>).
+                        Other members in the database are not listed.
+                        <?php if ((float) $totals['bank_lump'] > 0): ?>
+                            A bank lump of <?php echo htmlspecialchars(bsm_money((float) $totals['bank_lump'], $currency), ENT_QUOTES, 'UTF-8'); ?> is excluded.
+                        <?php endif; ?>
+                    </div>
+
+                    <div class="bsm-stats">
+                        <button type="button" class="bsm-chip is-active" data-filter="all">
+                            <span class="bsm-chip-icon excel"><i class="fas fa-file-excel"></i></span>
+                            <span>
+                                <span class="bsm-chip-val"><?php echo (int) $totals['excel_members']; ?></span>
+                                <span class="bsm-chip-lbl d-block">In Excel</span>
+                            </span>
+                        </button>
+                        <button type="button" class="bsm-chip" data-filter="found">
+                            <span class="bsm-chip-icon found"><i class="fas fa-link"></i></span>
+                            <span>
+                                <span class="bsm-chip-val"><?php echo (int) $totals['found']; ?></span>
+                                <span class="bsm-chip-lbl d-block">Found</span>
+                            </span>
+                        </button>
+                        <button type="button" class="bsm-chip" data-filter="amount_diff">
+                            <span class="bsm-chip-icon diff"><i class="fas fa-scale-unbalanced"></i></span>
+                            <span>
+                                <span class="bsm-chip-val"><?php echo (int) $totals['amount_diff']; ?></span>
+                                <span class="bsm-chip-lbl d-block">Amount differs</span>
+                            </span>
+                        </button>
+                        <button type="button" class="bsm-chip" data-filter="not_found">
+                            <span class="bsm-chip-icon missing"><i class="fas fa-user-slash"></i></span>
+                            <span>
+                                <span class="bsm-chip-val"><?php echo (int) $totals['not_found']; ?></span>
+                                <span class="bsm-chip-lbl d-block">Not in system</span>
+                            </span>
+                        </button>
+                    </div>
+
+                    <div class="bsm-filters">
+                        <label class="form-label" for="bsmSearch">Search</label>
+                        <input type="search" class="form-control form-control-sm" id="bsmSearch" placeholder="Name or reference" autocomplete="off">
+                    </div>
+
+                    <div class="bsm-card">
+                        <div class="bsm-card-head">
+                            <h6>Excel people</h6>
+                            <span class="bsm-count" id="bsmCount"><?php echo count($memberRows); ?> shown</span>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="table bsm-table mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>Excel name</th>
+                                        <th>Ref</th>
+                                        <th class="text-end">Bank paid</th>
+                                        <th>Member</th>
+                                        <th class="text-end">System paid</th>
+                                        <th class="text-end">Difference</th>
+                                        <th>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="bsmBody">
+                                    <?php if ($memberRows === []): ?>
+                                        <tr id="bsmEmpty">
+                                            <td colspan="7" class="text-center py-4 bsm-muted">No Excel members to show.</td>
+                                        </tr>
+                                    <?php else: ?>
+                                        <?php foreach ($memberRows as $row): ?>
+                                            <?php
+                                            $status = (string) $row['status'];
+                                            $search = strtolower(
+                                                (string) $row['excel_name'] . ' ' .
+                                                (string) $row['excel_ref'] . ' ' .
+                                                (string) $row['donor_name']
+                                            );
+                                            $donorId = $row['donor_id'] !== null ? (int) $row['donor_id'] : 0;
+                                            ?>
+                                            <tr data-status="<?php echo htmlspecialchars($status, ENT_QUOTES, 'UTF-8'); ?>" data-search="<?php echo htmlspecialchars($search, ENT_QUOTES, 'UTF-8'); ?>">
+                                                <td>
+                                                    <div class="bsm-name" title="<?php echo htmlspecialchars((string) $row['excel_name'], ENT_QUOTES, 'UTF-8'); ?>">
+                                                        <?php echo htmlspecialchars((string) $row['excel_name'], ENT_QUOTES, 'UTF-8'); ?>
+                                                    </div>
+                                                </td>
+                                                <td class="bsm-ref"><?php echo $row['excel_ref'] !== '' ? htmlspecialchars((string) $row['excel_ref'], ENT_QUOTES, 'UTF-8') : '—'; ?></td>
+                                                <td class="text-end"><?php echo htmlspecialchars(bsm_money((float) $row['excel_paid'], $currency), ENT_QUOTES, 'UTF-8'); ?></td>
+                                                <td>
+                                                    <?php
+                                                    $memberName = trim((string) $row['donor_name']);
+                                                    $matchHint = '';
+                                                    if ((string) $row['match_by'] === 'reference') {
+                                                        $matchHint = ' <span class="bsm-muted" title="Matched by reference"> · ref</span>';
+                                                    } elseif ((string) $row['match_by'] === 'name') {
+                                                        $matchHint = ' <span class="bsm-muted" title="Matched by name"> · name</span>';
+                                                    }
+                                                    if ($donorId > 0) {
+                                                        echo '<a class="bsm-link" href="../donor-management/view-donor.php?id=' . $donorId . '">';
+                                                        echo htmlspecialchars($memberName, ENT_QUOTES, 'UTF-8');
+                                                        echo '</a>' . $matchHint;
+                                                    } elseif ($memberName !== '') {
+                                                        echo '<span class="bsm-name">' . htmlspecialchars($memberName, ENT_QUOTES, 'UTF-8') . '</span>' . $matchHint;
+                                                    } else {
+                                                        echo '<span class="bsm-muted">Not in system</span>';
+                                                    }
+                                                    ?>
+                                                </td>
+                                                <td class="text-end">
+                                                    <?php echo $row['donor_paid'] !== null ? htmlspecialchars(bsm_money((float) $row['donor_paid'], $currency), ENT_QUOTES, 'UTF-8') : '—'; ?>
+                                                </td>
+                                                <td class="text-end">
+                                                    <?php
+                                                    $diff = $row['paid_diff'];
+                                                    if ($diff === null) {
+                                                        echo '—';
+                                                    } elseif (abs((float) $diff) < 0.01) {
+                                                        echo '<span class="bsm-ok">Same</span>';
+                                                    } else {
+                                                        $sign = (float) $diff > 0 ? '+' : '';
+                                                        echo '<span class="bsm-diff">' . htmlspecialchars($sign . bsm_money((float) $diff, $currency), ENT_QUOTES, 'UTF-8') . '</span>';
+                                                    }
+                                                    ?>
+                                                </td>
+                                                <td>
+                                                    <?php if ($status === 'linked'): ?>
+                                                        <span class="bsm-badge bsm-badge-match"><i class="fas fa-check"></i> Match</span>
+                                                    <?php elseif ($status === 'amount_diff'): ?>
+                                                        <span class="bsm-badge bsm-badge-diff"><i class="fas fa-triangle-exclamation"></i> Differs</span>
+                                                    <?php else: ?>
+                                                        <span class="bsm-badge bsm-badge-missing"><i class="fas fa-xmark"></i> Not found</span>
+                                                    <?php endif; ?>
+                                                </td>
+                                            </tr>
+                                        <?php endforeach; ?>
+                                        <tr id="bsmEmpty" class="d-none">
+                                            <td colspan="7" class="text-center py-4 bsm-muted">No people match this filter.</td>
+                                        </tr>
+                                    <?php endif; ?>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                <?php endif; ?>
+            </div>
+        </main>
+    </div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="../assets/admin.js"></script>
+<script>
+(function () {
+  const chips = document.querySelectorAll('.bsm-chip');
+  const search = document.getElementById('bsmSearch');
+  const rows = Array.from(document.querySelectorAll('#bsmBody tr[data-status]'));
+  const empty = document.getElementById('bsmEmpty');
+  const count = document.getElementById('bsmCount');
+  if (!chips.length || !search) return;
+
+  let filter = 'all';
+
+  function apply() {
+    const q = search.value.toLowerCase().trim();
+    let shown = 0;
+    rows.forEach(function (row) {
+      const status = row.getAttribute('data-status') || '';
+      const hay = row.getAttribute('data-search') || '';
+      let ok = true;
+      if (filter === 'found') ok = status === 'linked' || status === 'amount_diff';
+      else if (filter === 'amount_diff' || filter === 'not_found') ok = status === filter;
+      if (ok && q && hay.indexOf(q) === -1) ok = false;
+      row.classList.toggle('d-none', !ok);
+      if (ok) shown += 1;
+    });
+    if (empty) empty.classList.toggle('d-none', shown > 0 || rows.length === 0);
+    if (count) count.textContent = shown + ' shown';
+  }
+
+  chips.forEach(function (chip) {
+    chip.addEventListener('click', function () {
+      filter = chip.getAttribute('data-filter') || 'all';
+      chips.forEach(function (c) { c.classList.toggle('is-active', c === chip); });
+      apply();
+    });
+  });
+  search.addEventListener('input', apply);
+})();
+</script>
+</body>
+</html>
