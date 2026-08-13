@@ -817,31 +817,39 @@ $page_title = 'Financial Dashboard';
       const pct = Number(src.collection_rate || 0).toFixed(1);
       const progressWidth = Math.min(100, Number(src.collection_rate || 0));
 
+      const sourceParam = encodeURIComponent(src.source);
+      const detailUrl = 'data-source-detail.php?source=' + sourceParam;
       cardsHtml += `
         <div class="col-xl-6 col-md-6">
           <div class="card h-100" style="border-left: 4px solid ${c.border}; background: ${c.bg};">
             <div class="card-body p-3">
-              <div class="d-flex align-items-center mb-2">
+              <a href="${detailUrl}&view=donors" class="text-decoration-none d-flex align-items-center mb-2">
                 <div class="rounded-circle d-flex align-items-center justify-content-center me-2" style="width:36px;height:36px;background:${c.iconBg};color:#fff;font-size:0.85rem;">
                   <i class="${c.icon}"></i>
                 </div>
                 <div>
-                  <div class="fw-bold" style="color:${c.text};font-size:0.95rem;">${escapeHtml(src.label)}</div>
-                  <div class="text-muted" style="font-size:0.75rem;">${fmtInt(src.donor_count)} donors</div>
+                  <div class="fw-bold" style="color:${c.text};font-size:0.95rem;">${escapeHtml(src.label)} <i class="fas fa-external-link-alt ms-1 small opacity-75"></i></div>
+                  <div class="text-muted" style="font-size:0.75rem;">${fmtInt(src.donor_count)} donors · click for details</div>
                 </div>
-              </div>
+              </a>
               <div class="row g-2 mb-2">
                 <div class="col-4 text-center">
-                  <div class="fw-bold" style="font-size:1.05rem;">${escapeHtml(fmtMoney(src.total_pledged))}</div>
-                  <div class="text-muted" style="font-size:0.7rem;text-transform:uppercase;">Pledged</div>
+                  <a href="${detailUrl}&view=pledges" class="text-decoration-none text-body d-block">
+                    <div class="fw-bold" style="font-size:1.05rem;">${escapeHtml(fmtMoney(src.total_pledged))}</div>
+                    <div class="text-muted" style="font-size:0.7rem;text-transform:uppercase;">Pledged <i class="fas fa-external-link-alt small opacity-75"></i></div>
+                  </a>
                 </div>
                 <div class="col-4 text-center">
-                  <div class="fw-bold text-success" style="font-size:1.05rem;">${escapeHtml(fmtMoney(src.total_paid))}</div>
-                  <div class="text-muted" style="font-size:0.7rem;text-transform:uppercase;">Paid</div>
+                  <a href="${detailUrl}&view=payments" class="text-decoration-none text-body d-block">
+                    <div class="fw-bold text-success" style="font-size:1.05rem;">${escapeHtml(fmtMoney(src.total_paid))}</div>
+                    <div class="text-muted" style="font-size:0.7rem;text-transform:uppercase;">Paid <i class="fas fa-external-link-alt small opacity-75"></i></div>
+                  </a>
                 </div>
                 <div class="col-4 text-center">
-                  <div class="fw-bold text-danger" style="font-size:1.05rem;">${escapeHtml(fmtMoney(src.total_balance))}</div>
-                  <div class="text-muted" style="font-size:0.7rem;text-transform:uppercase;">Balance</div>
+                  <a href="${detailUrl}&view=outstanding" class="text-decoration-none text-body d-block">
+                    <div class="fw-bold text-danger" style="font-size:1.05rem;">${escapeHtml(fmtMoney(src.total_balance))}</div>
+                    <div class="text-muted" style="font-size:0.7rem;text-transform:uppercase;">Balance <i class="fas fa-external-link-alt small opacity-75"></i></div>
+                  </a>
                 </div>
               </div>
               <div class="progress" style="height:6px;background:rgba(0,0,0,0.1);">
