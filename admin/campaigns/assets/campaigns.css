@@ -253,9 +253,147 @@
   color: var(--gray-700);
   margin-bottom: 20px;
 }
+.dvc-section-title {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--gray-400);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin: 8px 0 4px;
+}
+.dvc-section-sub {
+  font-size: 0.875rem;
+  color: var(--gray-500);
+  margin: 0 0 12px;
+}
+.dvc-hub-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  margin-bottom: 24px;
+}
+.dvc-hub-grid-3 {
+  grid-template-columns: repeat(3, 1fr);
+}
+.dvc-group-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--white);
+  border: 1px solid var(--gray-200);
+  border-radius: 12px;
+  padding: 16px;
+  box-shadow: var(--shadow-sm);
+  text-decoration: none;
+  color: inherit;
+  min-height: 88px;
+  transition: box-shadow var(--transition), transform var(--transition-fast);
+}
+.dvc-group-card:hover {
+  box-shadow: var(--shadow-md);
+  transform: translateY(-1px);
+  color: inherit;
+  border-color: var(--primary);
+}
+.dvc-group-card-body {
+  flex: 1;
+  min-width: 0;
+}
+.dvc-group-card-title {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: var(--gray-500);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+.dvc-group-card-count {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--gray-900);
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.dvc-group-card-meta {
+  font-size: 0.75rem;
+  color: var(--gray-400);
+  margin-top: 2px;
+}
+.dvc-group-card-arrow {
+  color: var(--gray-300);
+  flex-shrink: 0;
+}
+.dvc-hero-kpis {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.dvc-hero-kpi {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--white);
+  border: 1px solid var(--gray-200);
+  border-radius: 12px;
+  padding: 16px 20px;
+  box-shadow: var(--shadow-sm);
+  border-left: 4px solid var(--primary);
+  min-height: 88px;
+}
+.dvc-hero-kpi-amount.completed { border-left-color: var(--success); }
+.dvc-hero-kpi-amount.paying { border-left-color: var(--primary); }
+.dvc-hero-kpi-amount.not-started { border-left-color: var(--warning); }
+.dvc-hero-kpi-amount.immediate { border-left-color: var(--info); }
+.dvc-hero-kpi-amount.review { border-left-color: var(--danger); }
+.dvc-hero-value {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: var(--gray-900);
+  line-height: 1.2;
+}
+.dvc-kpi-secondary { margin-bottom: 20px; }
+.dvc-sibling-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+.dvc-sibling-nav a {
+  border: 1px solid var(--gray-200);
+  background: var(--white);
+  color: var(--gray-700);
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  flex: 1 1 auto;
+}
+.dvc-sibling-nav a:hover {
+  color: var(--primary);
+  border-color: var(--primary);
+}
+.dvc-sibling-nav a.active {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: var(--white);
+}
+.dvc-title-icon.immediate { color: var(--info); }
+.dvc-title-icon.completed { color: var(--success); }
+.dvc-title-icon.paying { color: var(--primary); }
+.dvc-title-icon.not-started { color: var(--warning); }
+.dvc-title-icon.review { color: var(--danger); }
 
 @media (max-width: 768px) {
   .dvc-stat-row { grid-template-columns: 1fr 1fr; }
+  .dvc-hub-grid,
+  .dvc-hub-grid-3 { grid-template-columns: 1fr; }
   .dvc-page-header { flex-direction: column; }
   .dvc-filter-bar { padding: 12px 16px; }
   .dvc-data-card table thead { display: none; }
@@ -293,9 +431,12 @@
 @media (max-width: 576px) {
   .dvc-table-header,
   .dvc-pagination-wrapper { padding: 12px 16px; }
+  .dvc-hero-kpis { grid-template-columns: 1fr; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .dvc-stat-chip { transition: none; }
-  .dvc-stat-chip:hover { transform: none; }
+  .dvc-stat-chip,
+  .dvc-group-card { transition: none; }
+  .dvc-stat-chip:hover,
+  .dvc-group-card:hover { transform: none; }
 }

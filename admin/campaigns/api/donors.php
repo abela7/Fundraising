@@ -143,6 +143,21 @@ try {
         }
     }
 
+    $summaryOnly = isset($_GET['summary_only']) && (string)$_GET['summary_only'] === '1';
+    if ($summaryOnly) {
+        echo json_encode([
+            'summary' => $summary,
+            'group' => $group,
+            'total_count' => 0,
+            'page' => 1,
+            'per_page' => $perPage,
+            'total_pages' => 0,
+            'rows' => [],
+            'has_data_source' => $hasDataSource,
+        ]);
+        return;
+    }
+
     $where = ["({$groupExpr}) = ?"];
     $params = [$group];
     $types = 's';
