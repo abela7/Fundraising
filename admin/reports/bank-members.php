@@ -154,25 +154,6 @@ $cssVersion = (int) (filemtime(__DIR__ . '/assets/bank-members.css') ?: time());
                     </div>
                 <?php endif; ?>
 
-                <?php if (empty($result['donors_available']) && $memberRows !== []): ?>
-                    <div class="alert alert-warning" role="alert" style="color: var(--gray-800);">
-                        <i class="fas fa-triangle-exclamation me-2"></i>
-                        This database has no member records to link against. Excel people are listed below as not in the system.
-                    </div>
-                <?php endif; ?>
-
-                    <div class="bsm-note">
-                        <i class="fas fa-info-circle me-1" style="color: var(--primary);"></i>
-                        This page shows only the <?php echo (int) $totals['excel_members']; ?> people from
-                        <strong>donors-bank-data.xlsx</strong>
-                        (<span id="bsmExcelPaidTotal"><?php echo bsm_h(bsm_money((float) $totals['excel_paid'], $currency)); ?></span>).
-                        Other members in the database are not listed.
-                        Double-click a <strong>Bank paid</strong> amount to correct it.
-                        <?php if ((float) $totals['bank_lump'] > 0): ?>
-                            A bank lump of <?php echo bsm_h(bsm_money((float) $totals['bank_lump'], $currency)); ?> is excluded.
-                        <?php endif; ?>
-                    </div>
-
                     <div class="bsm-stats">
                         <button type="button" class="bsm-chip is-active" data-filter="all">
                             <span class="bsm-chip-icon excel"><i class="fas fa-file-excel"></i></span>
