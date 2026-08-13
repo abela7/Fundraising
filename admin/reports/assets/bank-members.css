@@ -184,8 +184,22 @@
 .bsm-badge-match { background: rgba(16, 185, 129, 0.1); color: #065f46; }
 .bsm-badge-diff { background: rgba(245, 158, 11, 0.1); color: #92400e; }
 .bsm-badge-missing { background: rgba(239, 68, 68, 0.1); color: #991b1b; }
+.bsm-th-hint {
+  display: block;
+  margin-top: 2px;
+  font-size: 0.65rem;
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--gray-400);
+}
 .bsm-diff {
   font-weight: 600;
+}
+.bsm-diff-plus {
+  color: var(--success);
+}
+.bsm-diff-minus {
   color: var(--danger);
 }
 .bsm-ok {

@@ -75,7 +75,23 @@ function bsm_money(float $amount, string $currency): string
 {
     $symbol = $currency === 'GBP' ? "\u{00A3}" : $currency . ' ';
 
-    return $symbol . number_format($amount, 2);
+    return $symbol . number_format(abs($amount), 2);
+}
+
+/**
+ * Format bank minus system, with an explicit + or -.
+ */
+function bsm_signed_money(float $amount, string $currency): string
+{
+    $formatted = bsm_money($amount, $currency);
+    if ($amount > 0.009) {
+        return '+' . $formatted;
+    }
+    if ($amount < -0.009) {
+        return '-' . $formatted;
+    }
+
+    return $formatted;
 }
 
 /**
@@ -197,7 +213,7 @@ $cssVersion = (int) (filemtime(__DIR__ . '/assets/bank-members.css') ?: time());
                                         <th class="text-end">Bank paid</th>
                                         <th>Member</th>
                                         <th class="text-end">System paid</th>
-                                        <th class="text-end">Difference</th>
+                                        <th class="text-end">Difference<span class="bsm-th-hint">Bank − System</span></th>
                                         <th>Status</th>
                                     </tr>
                                 </thead>
@@ -256,8 +272,9 @@ $cssVersion = (int) (filemtime(__DIR__ . '/assets/bank-members.css') ?: time());
                                                     } elseif (abs((float) $diff) < 0.01) {
                                                         echo '<span class="bsm-ok">Same</span>';
                                                     } else {
-                                                        $sign = (float) $diff > 0 ? '+' : '';
-                                                        echo '<span class="bsm-diff">' . bsm_h($sign . bsm_money((float) $diff, $currency)) . '</span>';
+                                                        $diffVal = (float) $diff;
+                                                        $cls = $diffVal > 0 ? 'bsm-diff bsm-diff-plus' : 'bsm-diff bsm-diff-minus';
+                                                        echo '<span class="' . $cls . '">' . bsm_h(bsm_signed_money($diffVal, $currency)) . '</span>';
                                                     }
                                                     ?>
                                                 </td>
