@@ -278,6 +278,13 @@ try {
         </span>
         <span class="nav-label">WhatsApp Inbox</span>
       </a>
+      <a href="<?php echo url_for('admin/campaigns/index.php'); ?>"
+         class="nav-link <?php echo $current_dir === 'campaigns' ? 'active' : ''; ?>">
+        <span class="nav-icon">
+          <i class="fas fa-bullhorn"></i>
+        </span>
+        <span class="nav-label">WhatsApp Campaign</span>
+      </a>
       <a href="<?php echo url_for('admin/donations/record-pledge-payment.php'); ?>" 
          class="nav-link <?php echo ($current_dir === 'donations' && $current_page === 'record-pledge-payment') ? 'active' : ''; ?>">
         <span class="nav-icon">
