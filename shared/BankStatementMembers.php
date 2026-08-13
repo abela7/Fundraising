@@ -3,7 +3,6 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/SimpleXlsxReader.php';
-require_once __DIR__ . '/BankStatementReviews.php';
 
 /**
  * Relates donors-bank-data.xlsx rows to members. Excel list is the source.
@@ -178,7 +177,6 @@ final class BankStatementMembers
                     'excel_name' => $excelName,
                     'excel_ref' => $excelRef,
                     'excel_paid' => $excelPaid,
-                    'row_key' => BankStatementReviews::rowKey($r + 1, $excelName, $excelRef, $excelPaid),
                     'is_bank_account' => false,
                     'donor_id' => is_array($donor) ? (int) $donor['id'] : null,
                     'donor_name' => is_array($donor) ? (string) $donor['name'] : '',

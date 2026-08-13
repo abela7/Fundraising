@@ -5,9 +5,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/../../shared/auth.php';
 require_once __DIR__ . '/../../config/db.php';
 require_once __DIR__ . '/../../shared/url.php';
-require_once __DIR__ . '/../../shared/csrf.php';
 require_once __DIR__ . '/../../shared/BankStatementMembers.php';
-require_once __DIR__ . '/../../shared/BankStatementReviews.php';
 
 require_login();
 require_admin();
@@ -31,17 +29,16 @@ $result = [
     'donors_available' => false,
 ];
 
-$dbConn = null;
 try {
-    $dbConn = db();
-    $settingsTable = $dbConn->query("SHOW TABLES LIKE 'settings'");
+    $db = db();
+    $settingsTable = $db->query("SHOW TABLES LIKE 'settings'");
     if ($settingsTable && $settingsTable->num_rows > 0) {
-        $row = $dbConn->query('SELECT currency_code FROM settings WHERE id = 1')->fetch_assoc();
+        $row = $db->query('SELECT currency_code FROM settings WHERE id = 1')->fetch_assoc();
         if (is_array($row) && isset($row['currency_code'])) {
             $settings['currency_code'] = (string) $row['currency_code'];
         }
     }
-    $result = BankStatementMembers::relate($dbConn);
+    $result = BankStatementMembers::relate($db);
 } catch (Throwable $e) {
     $db_error = 'Could not link members. Showing the Excel list only.';
     error_log('Bank members page error: ' . $e->getMessage());
@@ -70,35 +67,6 @@ foreach ($result['rows'] ?? [] as $row) {
     }
     $memberRows[] = $row;
 }
-
-$reviewMap = [];
-if ($dbConn instanceof mysqli) {
-    try {
-        $reviewMap = BankStatementReviews::all($dbConn);
-    } catch (Throwable $e) {
-        error_log('Bank member reviews load failed: ' . $e->getMessage());
-    }
-}
-
-$reviewCounts = [
-    BankStatementReviews::PENDING => 0,
-    BankStatementReviews::IDENTIFIED => 0,
-    BankStatementReviews::NOT_IDENTIFIED => 0,
-];
-foreach ($memberRows as $i => $row) {
-    $key = (string) ($row['row_key'] ?? BankStatementReviews::rowKey(
-        (int) ($row['excel_row'] ?? 0),
-        (string) ($row['excel_name'] ?? ''),
-        (string) ($row['excel_ref'] ?? ''),
-        (float) ($row['excel_paid'] ?? 0)
-    ));
-    $review = $reviewMap[$key] ?? BankStatementReviews::PENDING;
-    $memberRows[$i]['row_key'] = $key;
-    $memberRows[$i]['review_status'] = $review;
-    $reviewCounts[$review]++;
-}
-
-$csrfToken = csrf_token();
 
 /**
  * Format a money amount for display.
@@ -186,57 +154,49 @@ $cssVersion = (int) (filemtime(__DIR__ . '/assets/bank-members.css') ?: time());
 
                     <div class="bsm-note">
                         <i class="fas fa-info-circle me-1" style="color: var(--primary);"></i>
-                        After you check a bank row, mark it <strong>Identified</strong> or <strong>Not identified</strong>.
-                        New rows start as <strong>Pending</strong>.
+                        This page shows only the <?php echo (int) $totals['excel_members']; ?> people from
+                        <strong>donors-bank-data.xlsx</strong>
+                        (<?php echo bsm_h(bsm_money((float) $totals['excel_paid'], $currency)); ?>).
+                        Other members in the database are not listed.
+                        <?php if ((float) $totals['bank_lump'] > 0): ?>
+                            A bank lump of <?php echo bsm_h(bsm_money((float) $totals['bank_lump'], $currency)); ?> is excluded.
+                        <?php endif; ?>
                     </div>
 
                     <div class="bsm-stats">
-                        <button type="button" class="bsm-chip is-active" data-review-filter="all">
-                            <span class="bsm-chip-icon excel"><i class="fas fa-list"></i></span>
+                        <button type="button" class="bsm-chip is-active" data-filter="all">
+                            <span class="bsm-chip-icon excel"><i class="fas fa-file-excel"></i></span>
                             <span>
-                                <span class="bsm-chip-val" id="bsmCountAll"><?php echo count($memberRows); ?></span>
-                                <span class="bsm-chip-lbl d-block">All</span>
+                                <span class="bsm-chip-val"><?php echo (int) $totals['excel_members']; ?></span>
+                                <span class="bsm-chip-lbl d-block">In Excel</span>
                             </span>
                         </button>
-                        <button type="button" class="bsm-chip" data-review-filter="pending">
-                            <span class="bsm-chip-icon pending"><i class="fas fa-clock"></i></span>
+                        <button type="button" class="bsm-chip" data-filter="found">
+                            <span class="bsm-chip-icon found"><i class="fas fa-link"></i></span>
                             <span>
-                                <span class="bsm-chip-val" id="bsmCountPending"><?php echo (int) $reviewCounts[BankStatementReviews::PENDING]; ?></span>
-                                <span class="bsm-chip-lbl d-block">Pending</span>
+                                <span class="bsm-chip-val"><?php echo (int) $totals['found']; ?></span>
+                                <span class="bsm-chip-lbl d-block">Found</span>
                             </span>
                         </button>
-                        <button type="button" class="bsm-chip" data-review-filter="identified">
-                            <span class="bsm-chip-icon found"><i class="fas fa-check"></i></span>
+                        <button type="button" class="bsm-chip" data-filter="amount_diff">
+                            <span class="bsm-chip-icon diff"><i class="fas fa-scale-unbalanced"></i></span>
                             <span>
-                                <span class="bsm-chip-val" id="bsmCountIdentified"><?php echo (int) $reviewCounts[BankStatementReviews::IDENTIFIED]; ?></span>
-                                <span class="bsm-chip-lbl d-block">Identified</span>
+                                <span class="bsm-chip-val"><?php echo (int) $totals['amount_diff']; ?></span>
+                                <span class="bsm-chip-lbl d-block">Amount differs</span>
                             </span>
                         </button>
-                        <button type="button" class="bsm-chip" data-review-filter="not_identified">
-                            <span class="bsm-chip-icon missing"><i class="fas fa-xmark"></i></span>
+                        <button type="button" class="bsm-chip" data-filter="not_found">
+                            <span class="bsm-chip-icon missing"><i class="fas fa-user-slash"></i></span>
                             <span>
-                                <span class="bsm-chip-val" id="bsmCountNotIdentified"><?php echo (int) $reviewCounts[BankStatementReviews::NOT_IDENTIFIED]; ?></span>
-                                <span class="bsm-chip-lbl d-block">Not identified</span>
+                                <span class="bsm-chip-val"><?php echo (int) $totals['not_found']; ?></span>
+                                <span class="bsm-chip-lbl d-block">Not in system</span>
                             </span>
                         </button>
                     </div>
 
                     <div class="bsm-filters">
-                        <div class="row g-2 align-items-end">
-                            <div class="col-md-8">
-                                <label class="form-label" for="bsmSearch">Search</label>
-                                <input type="search" class="form-control form-control-sm" id="bsmSearch" placeholder="Name or reference" autocomplete="off">
-                            </div>
-                            <div class="col-md-4">
-                                <label class="form-label" for="bsmMatchFilter">Match</label>
-                                <select class="form-select form-select-sm" id="bsmMatchFilter">
-                                    <option value="all">All matches</option>
-                                    <option value="found">Found in system</option>
-                                    <option value="amount_diff">Amount differs</option>
-                                    <option value="not_found">Not in system</option>
-                                </select>
-                            </div>
-                        </div>
+                        <label class="form-label" for="bsmSearch">Search</label>
+                        <input type="search" class="form-control form-control-sm" id="bsmSearch" placeholder="Name or reference" autocomplete="off">
                     </div>
 
                     <div class="bsm-card">
@@ -254,14 +214,13 @@ $cssVersion = (int) (filemtime(__DIR__ . '/assets/bank-members.css') ?: time());
                                         <th>Member</th>
                                         <th class="text-end">System paid</th>
                                         <th class="text-end">Difference<span class="bsm-th-hint">Bank − System</span></th>
-                                        <th>Match</th>
-                                        <th>Review</th>
+                                        <th>Status</th>
                                     </tr>
                                 </thead>
                                 <tbody id="bsmBody">
                                     <?php if ($memberRows === []): ?>
                                         <tr id="bsmEmpty">
-                                            <td colspan="8" class="text-center py-4 bsm-muted">No Excel members to show.</td>
+                                            <td colspan="7" class="text-center py-4 bsm-muted">No Excel members to show.</td>
                                         </tr>
                                     <?php else: ?>
                                         <?php foreach ($memberRows as $row): ?>
@@ -273,10 +232,8 @@ $cssVersion = (int) (filemtime(__DIR__ . '/assets/bank-members.css') ?: time());
                                                 (string) ($row['donor_name'] ?? '')
                                             );
                                             $donorId = isset($row['donor_id']) ? (int) $row['donor_id'] : 0;
-                                            $reviewStatus = (string) ($row['review_status'] ?? BankStatementReviews::PENDING);
-                                            $rowKey = (string) ($row['row_key'] ?? '');
                                             ?>
-                                            <tr data-status="<?php echo bsm_h($status); ?>" data-review="<?php echo bsm_h($reviewStatus); ?>" data-search="<?php echo bsm_h($search); ?>">
+                                            <tr data-status="<?php echo bsm_h($status); ?>" data-search="<?php echo bsm_h($search); ?>">
                                                 <td>
                                                     <div class="bsm-name" title="<?php echo bsm_h((string) ($row['excel_name'] ?? '')); ?>">
                                                         <?php echo bsm_h((string) ($row['excel_name'] ?? '')); ?>
@@ -330,25 +287,10 @@ $cssVersion = (int) (filemtime(__DIR__ . '/assets/bank-members.css') ?: time());
                                                         <span class="bsm-badge bsm-badge-missing"><i class="fas fa-xmark"></i> Not found</span>
                                                     <?php endif; ?>
                                                 </td>
-                                                <td>
-                                                    <select
-                                                        class="form-select form-select-sm bsm-review bsm-review-<?php echo bsm_h($reviewStatus); ?>"
-                                                        data-key="<?php echo bsm_h($rowKey); ?>"
-                                                        data-row="<?php echo (int) ($row['excel_row'] ?? 0); ?>"
-                                                        data-name="<?php echo bsm_h((string) ($row['excel_name'] ?? '')); ?>"
-                                                        data-ref="<?php echo bsm_h((string) ($row['excel_ref'] ?? '')); ?>"
-                                                        data-paid="<?php echo bsm_h(number_format((float) ($row['excel_paid'] ?? 0), 2, '.', '')); ?>"
-                                                        aria-label="Review status"
-                                                    >
-                                                        <option value="pending"<?php echo $reviewStatus === BankStatementReviews::PENDING ? ' selected' : ''; ?>>Pending</option>
-                                                        <option value="identified"<?php echo $reviewStatus === BankStatementReviews::IDENTIFIED ? ' selected' : ''; ?>>Identified</option>
-                                                        <option value="not_identified"<?php echo $reviewStatus === BankStatementReviews::NOT_IDENTIFIED ? ' selected' : ''; ?>>Not identified</option>
-                                                    </select>
-                                                </td>
                                             </tr>
                                         <?php endforeach; ?>
                                         <tr id="bsmEmpty" class="d-none">
-                                            <td colspan="8" class="text-center py-4 bsm-muted">No people match this filter.</td>
+                                            <td colspan="7" class="text-center py-4 bsm-muted">No people match this filter.</td>
                                         </tr>
                                     <?php endif; ?>
                                 </tbody>
@@ -363,29 +305,24 @@ $cssVersion = (int) (filemtime(__DIR__ . '/assets/bank-members.css') ?: time());
 <script src="../assets/admin.js"></script>
 <script>
 (function () {
-  const chips = document.querySelectorAll('.bsm-chip[data-review-filter]');
+  const chips = document.querySelectorAll('.bsm-chip');
   const search = document.getElementById('bsmSearch');
-  const matchFilterEl = document.getElementById('bsmMatchFilter');
   const rows = Array.from(document.querySelectorAll('#bsmBody tr[data-status]'));
   const empty = document.getElementById('bsmEmpty');
   const count = document.getElementById('bsmCount');
-  const csrf = <?php echo json_encode($csrfToken, JSON_UNESCAPED_SLASHES); ?>;
   if (!chips.length || !search) return;
 
-  let reviewFilter = 'all';
+  let filter = 'all';
 
   function apply() {
     const q = search.value.toLowerCase().trim();
-    const matchFilter = matchFilterEl ? matchFilterEl.value : 'all';
     let shown = 0;
     rows.forEach(function (row) {
       const status = row.getAttribute('data-status') || '';
-      const review = row.getAttribute('data-review') || 'pending';
       const hay = row.getAttribute('data-search') || '';
       let ok = true;
-      if (reviewFilter !== 'all' && review !== reviewFilter) ok = false;
-      if (ok && matchFilter === 'found') ok = status === 'linked' || status === 'amount_diff';
-      else if (ok && (matchFilter === 'amount_diff' || matchFilter === 'not_found')) ok = status === matchFilter;
+      if (filter === 'found') ok = status === 'linked' || status === 'amount_diff';
+      else if (filter === 'amount_diff' || filter === 'not_found') ok = status === filter;
       if (ok && q && hay.indexOf(q) === -1) ok = false;
       row.classList.toggle('d-none', !ok);
       if (ok) shown += 1;
@@ -394,70 +331,14 @@ $cssVersion = (int) (filemtime(__DIR__ . '/assets/bank-members.css') ?: time());
     if (count) count.textContent = shown + ' shown';
   }
 
-  function refreshReviewCounts() {
-    const totals = { pending: 0, identified: 0, not_identified: 0 };
-    rows.forEach(function (row) {
-      const review = row.getAttribute('data-review') || 'pending';
-      if (totals[review] !== undefined) totals[review] += 1;
-    });
-    const pendingEl = document.getElementById('bsmCountPending');
-    const identifiedEl = document.getElementById('bsmCountIdentified');
-    const notEl = document.getElementById('bsmCountNotIdentified');
-    if (pendingEl) pendingEl.textContent = String(totals.pending);
-    if (identifiedEl) identifiedEl.textContent = String(totals.identified);
-    if (notEl) notEl.textContent = String(totals.not_identified);
-  }
-
   chips.forEach(function (chip) {
     chip.addEventListener('click', function () {
-      reviewFilter = chip.getAttribute('data-review-filter') || 'all';
+      filter = chip.getAttribute('data-filter') || 'all';
       chips.forEach(function (c) { c.classList.toggle('is-active', c === chip); });
       apply();
     });
   });
   search.addEventListener('input', apply);
-  if (matchFilterEl) matchFilterEl.addEventListener('change', apply);
-
-  document.querySelectorAll('.bsm-review').forEach(function (select) {
-    select.addEventListener('change', function () {
-      const rowEl = select.closest('tr');
-      if (!rowEl) return;
-      const previous = rowEl.getAttribute('data-review') || 'pending';
-      const next = select.value;
-      const body = new URLSearchParams();
-      body.set('csrf_token', csrf);
-      body.set('row_key', select.getAttribute('data-key') || '');
-      body.set('review_status', next);
-      body.set('excel_row', select.getAttribute('data-row') || '0');
-      body.set('excel_name', select.getAttribute('data-name') || '');
-      body.set('excel_ref', select.getAttribute('data-ref') || '');
-      body.set('excel_paid', select.getAttribute('data-paid') || '0');
-      select.disabled = true;
-      fetch('api/bank-member-review.php', {
-        method: 'POST',
-        credentials: 'same-origin',
-        headers: { 'Accept': 'application/json' },
-        body: body
-      }).then(function (res) { return res.json().then(function (json) { return { ok: res.ok, json: json }; }); })
-        .then(function (result) {
-          if (!result.ok || !result.json || !result.json.success) {
-            throw new Error((result.json && result.json.error) || 'Save failed');
-          }
-          rowEl.setAttribute('data-review', next);
-          select.classList.remove('bsm-review-pending', 'bsm-review-identified', 'bsm-review-not_identified');
-          select.classList.add('bsm-review-' + next);
-          refreshReviewCounts();
-          apply();
-        })
-        .catch(function (err) {
-          select.value = previous;
-          alert(err.message || 'Could not save review status.');
-        })
-        .finally(function () {
-          select.disabled = false;
-        });
-    });
-  });
 })();
 </script>
 </body>
