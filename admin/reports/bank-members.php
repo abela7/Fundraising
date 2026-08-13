@@ -32,12 +32,19 @@ $result = [
 
 try {
     $db = db();
-    $settingsTable = $db->query("SHOW TABLES LIKE 'settings'");
-    if ($settingsTable && $settingsTable->num_rows > 0) {
-        $row = $db->query('SELECT currency_code FROM settings WHERE id = 1')->fetch_assoc();
-        if (is_array($row) && isset($row['currency_code'])) {
-            $settings['currency_code'] = (string) $row['currency_code'];
+    try {
+        $settingsTable = $db->query("SHOW TABLES LIKE 'settings'");
+        if ($settingsTable && $settingsTable->num_rows > 0) {
+            $row = $db->query('SELECT currency_code FROM settings WHERE id = 1')->fetch_assoc();
+            if (is_array($row) && isset($row['currency_code'])) {
+                $settings['currency_code'] = (string) $row['currency_code'];
+            }
         }
+        if ($settingsTable instanceof mysqli_result) {
+            $settingsTable->free();
+        }
+    } catch (Throwable $e) {
+        error_log('Bank members settings lookup failed: ' . $e->getMessage());
     }
     $result = BankStatementMembers::relate($db);
 } catch (Throwable $e) {

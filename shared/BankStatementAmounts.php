@@ -15,7 +15,15 @@ final class BankStatementAmounts
      */
     public static function rowKey(int $excelRow, string $name, string $ref): string
     {
-        return hash('sha256', $excelRow . "\0" . $name . "\0" . $ref);
+        $payload = json_encode(
+            [$excelRow, $name, $ref],
+            JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES
+        );
+        if (!is_string($payload) || $payload === '') {
+            $payload = $excelRow . '|' . $name . '|' . $ref;
+        }
+
+        return hash('sha256', $payload);
     }
 
     /**
@@ -40,31 +48,42 @@ final class BankStatementAmounts
      */
     public static function ensureTable(mysqli $db): void
     {
-        $db->query(
-            "CREATE TABLE IF NOT EXISTS bank_statement_amounts (
-                id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
-                row_key CHAR(64) NOT NULL,
-                excel_row INT NOT NULL DEFAULT 0,
-                excel_name VARCHAR(255) NOT NULL DEFAULT '',
-                excel_ref VARCHAR(32) NOT NULL DEFAULT '',
-                original_paid DECIMAL(12,2) NOT NULL DEFAULT 0.00,
-                bank_paid DECIMAL(12,2) NOT NULL DEFAULT 0.00,
-                updated_by INT NULL,
-                updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-                UNIQUE KEY uq_bank_amount_key (row_key)
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
-        );
+        try {
+            $db->query(
+                "CREATE TABLE IF NOT EXISTS bank_statement_amounts (
+                    id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+                    row_key CHAR(64) NOT NULL,
+                    excel_row INT NOT NULL DEFAULT 0,
+                    excel_name VARCHAR(255) NOT NULL DEFAULT '',
+                    excel_ref VARCHAR(32) NOT NULL DEFAULT '',
+                    original_paid DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+                    bank_paid DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+                    updated_by INT NULL,
+                    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                    UNIQUE KEY uq_bank_amount_key (row_key)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
+            );
+        } catch (Throwable $e) {
+            if (stripos($e->getMessage(), 'already exists') === false) {
+                throw $e;
+            }
+        }
     }
 
     /**
+     * Load saved Bank paid overrides. Does not create tables on read.
+     *
      * @return array<string, float>
      */
     public static function all(mysqli $db): array
     {
-        self::ensureTable($db);
         $map = [];
-        $result = $db->query('SELECT row_key, bank_paid FROM bank_statement_amounts');
-        if (!$result) {
+        try {
+            $result = $db->query('SELECT row_key, bank_paid FROM bank_statement_amounts');
+        } catch (Throwable $e) {
+            return $map;
+        }
+        if ($result === false) {
             return $map;
         }
         while ($row = $result->fetch_assoc()) {

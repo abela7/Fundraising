@@ -108,15 +108,23 @@ final class BankStatementMembers
                 $overrides = BankStatementAmounts::all($db);
             } catch (Throwable $e) {
                 error_log('Bank members amount overrides failed: ' . $e->getMessage());
+                $overrides = [];
             }
         }
         $byRef = [];
         $byName = [];
         foreach ($donors as $i => $donor) {
-            foreach ($donor['references'] as $ref) {
+            if (!is_array($donor)) {
+                continue;
+            }
+            foreach ($donor['references'] ?? [] as $ref) {
+                $ref = (string) $ref;
+                if ($ref === '') {
+                    continue;
+                }
                 $byRef[$ref][] = $i;
             }
-            $nameKey = self::normalizeName((string) $donor['name']);
+            $nameKey = self::normalizeName((string) ($donor['name'] ?? ''));
             if ($nameKey !== '') {
                 $byName[$nameKey][] = $i;
             }
@@ -144,12 +152,18 @@ final class BankStatementMembers
             if ($isBankAccount) {
                 $totals['bank_lump'] += $excelPaid;
             } else {
-                $rowKey = BankStatementAmounts::rowKey($r + 1, $excelName, $excelRef);
+                $rowKey = '';
                 $originalPaid = $excelPaid;
-                if (isset($overrides[$rowKey])) {
-                    $excelPaid = $overrides[$rowKey];
+                $bankPaidEdited = false;
+                try {
+                    $rowKey = BankStatementAmounts::rowKey($r + 1, $excelName, $excelRef);
+                    if ($rowKey !== '' && isset($overrides[$rowKey])) {
+                        $excelPaid = (float) $overrides[$rowKey];
+                    }
+                    $bankPaidEdited = abs($excelPaid - $originalPaid) >= 0.01;
+                } catch (Throwable $e) {
+                    error_log('Bank members amount key failed: ' . $e->getMessage());
                 }
-                $bankPaidEdited = abs($excelPaid - $originalPaid) >= 0.01;
 
                 if ($excelRef !== '' && isset($byRef[$excelRef])) {
                     $donor = $donors[$byRef[$excelRef][0]];
@@ -251,9 +265,13 @@ final class BankStatementMembers
      */
     private static function loadDonors(mysqli $db): array
     {
-        $fromTable = self::loadDonorsTable($db);
-        if ($fromTable !== []) {
-            return $fromTable;
+        try {
+            $fromTable = self::loadDonorsTable($db);
+            if ($fromTable !== []) {
+                return $fromTable;
+            }
+        } catch (Throwable $e) {
+            error_log('Bank members donors table lookup failed: ' . $e->getMessage());
         }
 
         return self::loadMembersFromTransactions($db);
@@ -266,8 +284,12 @@ final class BankStatementMembers
     {
         $table = $db->query("SHOW TABLES LIKE 'donors'");
         if (!$table || $table->num_rows === 0) {
+            if ($table instanceof mysqli_result) {
+                $table->free();
+            }
             return [];
         }
+        $table->free();
 
         $result = $db->query('SELECT id, name, total_paid FROM donors ORDER BY name ASC');
         if (!$result) {
@@ -451,10 +473,15 @@ final class BankStatementMembers
         if (!in_array($table, $allowed, true)) {
             return [];
         }
-        $exists = $db->query("SHOW TABLES LIKE '{$table}'");
+        $like = addcslashes($table, "%_\\");
+        $exists = $db->query("SHOW TABLES LIKE '" . $db->real_escape_string($like) . "'");
         if (!$exists || $exists->num_rows === 0) {
+            if ($exists instanceof mysqli_result) {
+                $exists->free();
+            }
             return [];
         }
+        $exists->free();
         $cols = [];
         $result = $db->query("SHOW COLUMNS FROM `{$table}`");
         if (!$result) {
