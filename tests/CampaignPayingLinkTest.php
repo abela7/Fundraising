@@ -51,4 +51,18 @@ assertSameValue(
 assertSameValue('£1,234.50', CampaignPayingLink::formatMoney(1234.5), 'formats GBP amounts');
 assertSameValue(16, strlen($token), 'paying tokens are 16 hex characters');
 
+require_once __DIR__ . '/../shared/CampaignGroupSettings.php';
+
+$welcome = CampaignGroupSettings::defaultWelcomeMessage();
+assertSameValue(
+    true,
+    str_contains($welcome, '{name}'),
+    'default welcome includes the name variable'
+);
+assertSameValue(
+    'የተከበሩ Abeba፣',
+    explode("\n", CampaignGroupSettings::preview($welcome, ['name' => 'Abeba']))[0],
+    'welcome preview replaces {name}'
+);
+
 fwrite(STDOUT, "PASS campaign paying link tests\n");

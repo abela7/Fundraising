@@ -111,6 +111,43 @@ body {
   font-size: 1.5rem;
 }
 
+.pay-welcome {
+  padding: 1.2rem 1.15rem 1.35rem;
+}
+
+.pay-welcome-text {
+  font-size: 1.12rem;
+  font-weight: 600;
+  line-height: 1.7;
+  color: var(--pay-text);
+  white-space: normal;
+}
+
+.pay-continue {
+  display: block;
+  width: 100%;
+  margin-top: 1.15rem;
+  min-height: 3.15rem;
+  border: 0;
+  border-radius: 0.95rem;
+  background: var(--pay-blue);
+  color: #fff;
+  font-family: inherit;
+  font-size: 1.12rem;
+  font-weight: 700;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.pay-continue:active {
+  background: var(--pay-blue-dark);
+}
+
+.pay-continue:focus-visible {
+  outline: 3px solid var(--pay-gold);
+  outline-offset: 2px;
+}
+
 .pay-error {
   margin: 2rem 0 0;
   text-align: center;

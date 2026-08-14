@@ -22,9 +22,12 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'GET') {
             'group' => $group,
             'first_message' => $settings['first_message'],
             'default_message' => $settings['default_message'],
+            'welcome_message' => $settings['welcome_message'],
+            'default_welcome' => $settings['default_welcome'],
             'recipient_mode' => $settings['recipient_mode'],
             'donor_ids' => $settings['donor_ids'],
             'variables' => CampaignGroupSettings::variables(),
+            'welcome_variables' => CampaignGroupSettings::welcomeVariables(),
         ]);
     } catch (Throwable $e) {
         error_log('Campaign first message load failed: ' . $e->getMessage());
@@ -73,6 +76,31 @@ try {
         echo json_encode([
             'success' => true,
             'first_message' => trim($message),
+            'preview' => CampaignGroupSettings::preview(trim($message), []),
+        ]);
+        exit;
+    }
+
+    if ($action === 'save_welcome') {
+        $message = (string) ($_POST['welcome_message'] ?? '');
+        if (trim($message) === '') {
+            http_response_code(400);
+            echo json_encode(['success' => false, 'error' => 'Write a welcome message before saving.']);
+            exit;
+        }
+        $length = function_exists('mb_strlen') ? mb_strlen($message) : strlen($message);
+        if ($length > CampaignGroupSettings::MAX_MESSAGE_LENGTH) {
+            http_response_code(400);
+            echo json_encode(['success' => false, 'error' => 'Message is too long.']);
+            exit;
+        }
+        $ok = CampaignGroupSettings::saveWelcomeMessage($db, $group, $message, $userId);
+        if (!$ok) {
+            throw new RuntimeException('Could not save welcome message.');
+        }
+        echo json_encode([
+            'success' => true,
+            'welcome_message' => trim($message),
             'preview' => CampaignGroupSettings::preview(trim($message), []),
         ]);
         exit;

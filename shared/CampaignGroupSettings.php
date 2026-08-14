@@ -23,6 +23,14 @@ final class CampaignGroupSettings
     }
 
     /**
+     * Default Amharic welcome on the paying page.
+     */
+    public static function defaultWelcomeMessage(): string
+    {
+        return "የተከበሩ {name}፣\n\nእንኳን በደህና መጡ። ከሊቨርፑል መካነ ቅዱሳን አቡነ ተክለሃይማኖት ቤተክርስቲያን ነው።";
+    }
+
+    /**
      * @return list<array{key:string,label:string,token:string}>
      */
     public static function variables(): array
@@ -32,6 +40,18 @@ final class CampaignGroupSettings
             ['key' => 'pledge_amount', 'label' => 'Pledge amount', 'token' => '{pledge_amount}'],
             ['key' => 'total_paid', 'label' => 'Total paid', 'token' => '{total_paid}'],
             ['key' => 'remaining_amount', 'label' => 'Remaining amount', 'token' => '{remaining_amount}'],
+        ];
+    }
+
+    /**
+     * Welcome composer only inserts the donor name.
+     *
+     * @return list<array{key:string,label:string,token:string}>
+     */
+    public static function welcomeVariables(): array
+    {
+        return [
+            ['key' => 'name', 'label' => 'Name', 'token' => '{name}'],
         ];
     }
 
@@ -47,6 +67,7 @@ final class CampaignGroupSettings
                 "CREATE TABLE IF NOT EXISTS campaign_group_settings (
                     group_key VARCHAR(40) NOT NULL,
                     first_message TEXT NOT NULL,
+                    welcome_message TEXT NULL,
                     recipient_mode VARCHAR(20) NOT NULL DEFAULT 'all',
                     updated_by INT NULL,
                     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -74,6 +95,25 @@ final class CampaignGroupSettings
                 throw $e;
             }
         }
+
+        self::ensureWelcomeColumn($db);
+    }
+
+    private static function ensureWelcomeColumn(mysqli $db): void
+    {
+        try {
+            $db->query(
+                'ALTER TABLE campaign_group_settings ADD COLUMN welcome_message TEXT NULL AFTER first_message'
+            );
+        } catch (Throwable $e) {
+            $msg = $e->getMessage();
+            if (
+                stripos($msg, 'duplicate column') === false
+                && stripos($msg, 'already exists') === false
+            ) {
+                error_log('Campaign welcome column failed: ' . $msg);
+            }
+        }
     }
 
     /**
@@ -81,6 +121,8 @@ final class CampaignGroupSettings
      *     group:string,
      *     first_message:string,
      *     default_message:string,
+     *     welcome_message:string,
+     *     default_welcome:string,
      *     recipient_mode:string,
      *     donor_ids:list<int>
      * }
@@ -91,6 +133,8 @@ final class CampaignGroupSettings
             'group' => $group,
             'first_message' => self::defaultFirstMessage(),
             'default_message' => self::defaultFirstMessage(),
+            'welcome_message' => self::defaultWelcomeMessage(),
+            'default_welcome' => self::defaultWelcomeMessage(),
             'recipient_mode' => self::MODE_ALL,
             'donor_ids' => [],
         ];
@@ -99,8 +143,17 @@ final class CampaignGroupSettings
         }
 
         try {
+            self::ensureTables($db);
+        } catch (Throwable $e) {
+            error_log('Campaign settings tables failed: ' . $e->getMessage());
+        }
+
+        try {
             $stmt = $db->prepare(
-                'SELECT first_message, recipient_mode FROM campaign_group_settings WHERE group_key = ? LIMIT 1'
+                'SELECT first_message, welcome_message, recipient_mode
+                 FROM campaign_group_settings
+                 WHERE group_key = ?
+                 LIMIT 1'
             );
             if ($stmt === false) {
                 return $defaults;
@@ -113,6 +166,10 @@ final class CampaignGroupSettings
                 $message = trim((string) ($row['first_message'] ?? ''));
                 if ($message !== '') {
                     $defaults['first_message'] = $message;
+                }
+                $welcome = trim((string) ($row['welcome_message'] ?? ''));
+                if ($welcome !== '') {
+                    $defaults['welcome_message'] = $welcome;
                 }
                 $mode = (string) ($row['recipient_mode'] ?? self::MODE_ALL);
                 $defaults['recipient_mode'] = $mode === self::MODE_SELECTED ? self::MODE_SELECTED : self::MODE_ALL;
@@ -171,6 +228,35 @@ final class CampaignGroupSettings
             return false;
         }
         $stmt->bind_param('sssi', $group, $message, $mode, $updatedBy);
+
+        return $stmt->execute();
+    }
+
+    public static function saveWelcomeMessage(mysqli $db, string $group, string $message, int $updatedBy): bool
+    {
+        if (!self::isAllowedGroup($group)) {
+            return false;
+        }
+        $message = trim($message);
+        $length = function_exists('mb_strlen') ? mb_strlen($message) : strlen($message);
+        if ($message === '' || $length > self::MAX_MESSAGE_LENGTH) {
+            return false;
+        }
+        self::ensureTables($db);
+        $existing = self::get($db, $group);
+        $first = $existing['first_message'];
+        $mode = $existing['recipient_mode'];
+        $stmt = $db->prepare(
+            'INSERT INTO campaign_group_settings (group_key, first_message, welcome_message, recipient_mode, updated_by)
+             VALUES (?, ?, ?, ?, ?)
+             ON DUPLICATE KEY UPDATE
+                welcome_message = VALUES(welcome_message),
+                updated_by = VALUES(updated_by)'
+        );
+        if ($stmt === false) {
+            return false;
+        }
+        $stmt->bind_param('ssssi', $group, $first, $message, $mode, $updatedBy);
 
         return $stmt->execute();
     }

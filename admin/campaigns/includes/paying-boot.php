@@ -16,6 +16,8 @@ $meta = dvc_campaign_group_meta(DonorCampaignGroups::PLEDGE_PAYING);
 $campaignSettings = [
     'first_message' => CampaignGroupSettings::defaultFirstMessage(),
     'default_message' => CampaignGroupSettings::defaultFirstMessage(),
+    'welcome_message' => CampaignGroupSettings::defaultWelcomeMessage(),
+    'default_welcome' => CampaignGroupSettings::defaultWelcomeMessage(),
     'recipient_mode' => CampaignGroupSettings::MODE_ALL,
     'donor_ids' => [],
 ];

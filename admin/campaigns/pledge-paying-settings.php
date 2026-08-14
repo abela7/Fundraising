@@ -10,11 +10,24 @@ $savedMessage = trim((string) $campaignSettings['first_message']);
 $defaultMessage = (string) $campaignSettings['default_message'];
 $messageIsCustom = $savedMessage !== '' && $savedMessage !== $defaultMessage;
 $messagePreview = $savedMessage !== '' ? $savedMessage : $defaultMessage;
-if (function_exists('mb_strlen') && mb_strlen($messagePreview) > 90) {
-    $messagePreview = mb_substr($messagePreview, 0, 90) . '…';
-} elseif (strlen($messagePreview) > 90) {
-    $messagePreview = substr($messagePreview, 0, 90) . '…';
-}
+
+$savedWelcome = trim((string) ($campaignSettings['welcome_message'] ?? ''));
+$defaultWelcome = (string) ($campaignSettings['default_welcome'] ?? CampaignGroupSettings::defaultWelcomeMessage());
+$welcomeIsCustom = $savedWelcome !== '' && $savedWelcome !== $defaultWelcome;
+$welcomePreview = $savedWelcome !== '' ? $savedWelcome : $defaultWelcome;
+
+$clip = static function (string $text): string {
+    if (function_exists('mb_strlen') && mb_strlen($text) > 90) {
+        return mb_substr($text, 0, 90) . '…';
+    }
+    if (strlen($text) > 90) {
+        return substr($text, 0, 90) . '…';
+    }
+
+    return $text;
+};
+$messagePreview = $clip($messagePreview);
+$welcomePreview = $clip($welcomePreview);
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -59,6 +72,17 @@ if (function_exists('mb_strlen') && mb_strlen($messagePreview) > 90) {
                                 <div class="dvc-setup-title">First WhatsApp message</div>
                                 <div class="dvc-group-card-meta dvc-am-text"><?php echo htmlspecialchars($messagePreview, ENT_QUOTES, 'UTF-8'); ?></div>
                                 <div class="dvc-group-card-meta"><?php echo $messageIsCustom ? 'Saved — tap to edit' : 'Default hello — tap to write or change'; ?></div>
+                            </div>
+                            <i class="fas fa-chevron-right dvc-group-card-arrow"></i>
+                        </a>
+                    </div>
+                    <div class="col-12 col-lg-8">
+                        <a class="dvc-group-card d-flex align-items-center text-decoration-none" href="pledge-paying-welcome.php">
+                            <div class="dvc-stat-icon paying"><i class="fas fa-door-open"></i></div>
+                            <div class="dvc-group-card-body">
+                                <div class="dvc-setup-title">Welcome page</div>
+                                <div class="dvc-group-card-meta dvc-am-text"><?php echo htmlspecialchars($welcomePreview, ENT_QUOTES, 'UTF-8'); ?></div>
+                                <div class="dvc-group-card-meta"><?php echo $welcomeIsCustom ? 'Saved — tap to edit' : 'Default welcome — tap to write or change'; ?></div>
                             </div>
                             <i class="fas fa-chevron-right dvc-group-card-arrow"></i>
                         </a>

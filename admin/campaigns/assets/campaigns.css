@@ -473,7 +473,8 @@ a.dvc-group-card:focus {
   font-size: 1.05rem;
   line-height: 1.7;
 }
-#dvcFirstMessageBody:focus {
+#dvcFirstMessageBody:focus,
+#dvcWelcomeBody:focus {
   border-color: var(--primary);
   box-shadow: 0 0 0 3px rgba(10, 98, 134, 0.1);
 }
@@ -505,6 +506,17 @@ a.dvc-group-card:focus {
   color: var(--gray-800);
   white-space: pre-wrap;
   word-break: break-word;
+}
+.dvc-preview-page {
+  background: #f8fafc;
+  border: 1px solid var(--gray-200);
+  border-top: 4px solid var(--accent);
+  border-radius: 12px;
+  padding: 16px 16px 18px;
+  color: var(--gray-800);
+  white-space: pre-wrap;
+  word-break: break-word;
+  min-height: 7rem;
 }
 .dvc-muted {
   font-size: 0.8125rem;
