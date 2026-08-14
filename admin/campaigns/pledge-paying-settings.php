@@ -16,10 +16,17 @@ $defaultWelcome = (string) ($campaignSettings['default_welcome'] ?? CampaignGrou
 $welcomeIsCustom = $savedWelcome !== '' && $savedWelcome !== $defaultWelcome;
 $welcomePreview = $savedWelcome !== '' ? $savedWelcome : $defaultWelcome;
 
-$savedStatus = CampaignGroupSettings::statusFooterText((string) ($campaignSettings['status_message'] ?? ''));
+$savedCard = CampaignGroupSettings::statusCardCopy(
+    (string) ($campaignSettings['status_message'] ?? ''),
+    (string) ($campaignSettings['status_title'] ?? '')
+);
+$savedStatus = $savedCard['footer'];
+$savedTitle = $savedCard['title'];
 $defaultStatus = (string) ($campaignSettings['default_status'] ?? CampaignGroupSettings::defaultStatusMessage());
-$statusIsCustom = $savedStatus !== '' && $savedStatus !== $defaultStatus;
-$statusPreview = $savedStatus !== '' ? $savedStatus : $defaultStatus;
+$defaultTitle = (string) ($campaignSettings['default_status_title'] ?? CampaignGroupSettings::defaultStatusTitle());
+$statusIsCustom = ($savedStatus !== '' && $savedStatus !== $defaultStatus)
+    || ($savedTitle !== '' && $savedTitle !== $defaultTitle);
+$statusPreview = trim($savedTitle . ' — ' . $savedStatus);
 
 $clip = static function (string $text): string {
     if (function_exists('mb_strlen') && mb_strlen($text) > 90) {
@@ -99,7 +106,7 @@ $statusPreview = $clip($statusPreview);
                             <div class="dvc-group-card-body">
                                 <div class="dvc-setup-title">Status check page</div>
                                 <div class="dvc-group-card-meta dvc-am-text"><?php echo htmlspecialchars($statusPreview, ENT_QUOTES, 'UTF-8'); ?></div>
-                                <div class="dvc-group-card-meta"><?php echo $statusIsCustom ? 'Saved — tap to edit' : 'Default footer — tap to write or change'; ?></div>
+                                <div class="dvc-group-card-meta"><?php echo $statusIsCustom ? 'Saved — tap to edit' : 'Default title and footer — tap to write or change'; ?></div>
                             </div>
                             <i class="fas fa-chevron-right dvc-group-card-arrow"></i>
                         </a>

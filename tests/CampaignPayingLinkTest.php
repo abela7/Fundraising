@@ -69,6 +69,11 @@ $status = CampaignGroupSettings::defaultStatusMessage();
 assertSameValue('ይህ መረጃ ትክክል ነው?', $status, 'default status footer asks if the amounts are right');
 assertSameValue(false, str_contains($status, '{pledge_amount}'), 'footer does not repeat pledge amount');
 assertSameValue(
+    'ባለን መረጃ መሰረት',
+    CampaignGroupSettings::defaultStatusTitle(),
+    'default status title sits above the amounts'
+);
+assertSameValue(
     'የተከበሩ Abeba፣ ይህ መረጃ ትክክል ነው?',
     CampaignGroupSettings::preview(
         'የተከበሩ {name}፣ ይህ መረጃ ትክክል ነው?',
@@ -86,8 +91,13 @@ assertSameValue(
     CampaignGroupSettings::statusFooterText(CampaignGroupSettings::legacyStatusMessage()),
     'old amount-repeating status text becomes the footer default'
 );
+$card = CampaignGroupSettings::statusCardCopy(
+    "ባለን መረጃ መሰረት\nለመክፈል ቃል የገቡት የገንዘብ መጠን :- {pledge_amount}\nእስካሁን የከፈሉት:- {total_paid}\nቀሪ:- {remaining_amount}\nይህ መረጃ ትክክል ነው?"
+);
+assertSameValue('ባለን መረጃ መሰረት', $card['title'], 'heading line becomes the card title');
+assertSameValue('ይህ መረጃ ትክክል ነው?', $card['footer'], 'question line stays as the footer');
 assertSameValue(
-    "ባለን መረጃ መሰረት\nይህ መረጃ ትክክል ነው?",
+    'ይህ መረጃ ትክክል ነው?',
     CampaignGroupSettings::statusFooterText(
         "ባለን መረጃ መሰረት\nለመክፈል ቃል የገቡት የገንዘብ መጠን :- {pledge_amount}\nእስካሁን የከፈሉት:- {total_paid}\nቀሪ:- {remaining_amount}\nይህ መረጃ ትክክል ነው?"
     ),
@@ -97,6 +107,16 @@ assertSameValue(
     'ቀሪው {remaining_amount} ትክክል ነው?',
     CampaignGroupSettings::statusFooterText('ቀሪው {remaining_amount} ትክክል ነው?'),
     'a footer that only mentions remaining is kept'
+);
+assertSameValue(
+    'የእርስዎ መረጃ',
+    CampaignGroupSettings::statusTitleText('የእርስዎ መረጃ'),
+    'a saved card title is kept'
+);
+assertSameValue(
+    'ባለን መረጃ መሰረት',
+    CampaignGroupSettings::statusTitleText(''),
+    'empty title uses the default heading'
 );
 
 fwrite(STDOUT, "PASS campaign paying link tests\n");

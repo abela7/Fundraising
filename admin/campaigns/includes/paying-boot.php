@@ -20,6 +20,8 @@ $campaignSettings = [
     'default_welcome' => CampaignGroupSettings::defaultWelcomeMessage(),
     'status_message' => CampaignGroupSettings::defaultStatusMessage(),
     'default_status' => CampaignGroupSettings::defaultStatusMessage(),
+    'status_title' => CampaignGroupSettings::defaultStatusTitle(),
+    'default_status_title' => CampaignGroupSettings::defaultStatusTitle(),
     'recipient_mode' => CampaignGroupSettings::MODE_ALL,
     'donor_ids' => [],
 ];

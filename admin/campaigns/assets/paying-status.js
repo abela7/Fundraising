@@ -3,11 +3,16 @@
   const csrf = config.csrf || '';
   const saveUrl = 'api/first-message.php';
   let defaultStatus = config.default_status || 'ይህ መረጃ ትክክል ነው?';
+  let defaultTitle = config.default_status_title || 'ባለን መረጃ መሰረት';
+  const titleEl = document.getElementById('dvcStatusTitle');
   const bodyEl = document.getElementById('dvcStatusBody');
   const previewEl = document.getElementById('dvcStatusPreview');
   const countEl = document.getElementById('dvcMsgCount');
+  const titleCountEl = document.getElementById('dvcTitleCount');
   const flashEl = document.getElementById('dvcMsgFlash');
   if (!bodyEl) return;
+
+  let activeEl = titleEl || bodyEl;
 
   const previewDonor = {
     name: 'Abeba',
@@ -52,10 +57,13 @@
 
   function updatePreview() {
     if (countEl) countEl.textContent = bodyEl.value.length + ' / 4000';
+    if (titleCountEl && titleEl) titleCountEl.textContent = titleEl.value.length + ' / 200';
     if (!previewEl) return;
+    const title = titleEl ? escapeHtml(previewText(titleEl.value)).replace(/\n/g, '<br>') : '';
     const footer = escapeHtml(previewText(bodyEl.value)).replace(/\n/g, '<br>');
     previewEl.innerHTML =
-      '<div class="dvc-status-row">'
+      (title ? '<div class="dvc-status-title">' + title + '</div>' : '')
+      + '<div class="dvc-status-row">'
       + '<span class="dvc-status-label">ጠቅላላ የገቡት ቃልኪዳን መጠን</span>'
       + '<span class="dvc-status-value">' + escapeHtml(money(previewDonor.pledged)) + '</span>'
       + '</div>'
@@ -71,26 +79,43 @@
   }
 
   function insertToken(token) {
-    const start = bodyEl.selectionStart || 0;
-    const end = bodyEl.selectionEnd || 0;
-    const value = bodyEl.value;
-    bodyEl.value = value.slice(0, start) + token + value.slice(end);
+    const el = activeEl || bodyEl;
+    const start = el.selectionStart || 0;
+    const end = el.selectionEnd || 0;
+    const value = el.value;
+    const max = el === titleEl ? 200 : 4000;
+    const next = value.slice(0, start) + token + value.slice(end);
+    if (next.length > max) return;
+    el.value = next;
     const pos = start + token.length;
-    bodyEl.focus();
-    bodyEl.setSelectionRange(pos, pos);
+    el.focus();
+    if (typeof el.setSelectionRange === 'function') {
+      el.setSelectionRange(pos, pos);
+    }
     updatePreview();
   }
+
+  if (titleEl) {
+    titleEl.addEventListener('focus', function () {
+      activeEl = titleEl;
+    });
+    titleEl.addEventListener('input', updatePreview);
+  }
+  bodyEl.addEventListener('focus', function () {
+    activeEl = bodyEl;
+  });
+  bodyEl.addEventListener('input', updatePreview);
 
   document.querySelectorAll('.dvc-var-btn').forEach(function (btn) {
     btn.addEventListener('click', function () {
       insertToken(btn.getAttribute('data-token') || '');
     });
   });
-  bodyEl.addEventListener('input', updatePreview);
 
   const resetBtn = document.getElementById('dvcResetStatus');
   if (resetBtn) {
     resetBtn.addEventListener('click', function () {
+      if (titleEl) titleEl.value = defaultTitle;
       bodyEl.value = defaultStatus;
       updatePreview();
     });
@@ -101,6 +126,7 @@
       const body = new URLSearchParams({
         csrf_token: csrf,
         action: 'save_status',
+        status_title: titleEl ? titleEl.value : '',
         status_message: bodyEl.value
       });
       const res = await fetch(saveUrl, {
@@ -113,9 +139,9 @@
       if (!res.ok || !data.success) {
         throw new Error(data.error || 'Could not save.');
       }
-      showFlash('Footer text saved. Donors will see it under the amounts.', false);
+      showFlash('Status page saved. Donors will see the title above the amounts.', false);
     } catch (err) {
-      showFlash(err.message || 'Could not save footer text.', true);
+      showFlash(err.message || 'Could not save the status page.', true);
     }
   });
 

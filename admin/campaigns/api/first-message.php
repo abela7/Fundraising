@@ -30,6 +30,8 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'GET') {
             'welcome_variables' => CampaignGroupSettings::welcomeVariables(),
             'status_message' => $settings['status_message'],
             'default_status' => $settings['default_status'],
+            'status_title' => $settings['status_title'],
+            'default_status_title' => $settings['default_status_title'],
             'status_variables' => CampaignGroupSettings::statusVariables(),
         ]);
     } catch (Throwable $e) {
@@ -111,25 +113,34 @@ try {
 
     if ($action === 'save_status') {
         $message = (string) ($_POST['status_message'] ?? '');
+        $title = (string) ($_POST['status_title'] ?? '');
         if (trim($message) === '') {
             http_response_code(400);
             echo json_encode(['success' => false, 'error' => 'Write footer text before saving.']);
             exit;
         }
         $length = function_exists('mb_strlen') ? mb_strlen($message) : strlen($message);
+        $titleLength = function_exists('mb_strlen') ? mb_strlen(trim($title)) : strlen(trim($title));
         if ($length > CampaignGroupSettings::MAX_MESSAGE_LENGTH) {
             http_response_code(400);
             echo json_encode(['success' => false, 'error' => 'Message is too long.']);
             exit;
         }
-        $ok = CampaignGroupSettings::saveStatusMessage($db, $group, $message, $userId);
+        if ($titleLength > CampaignGroupSettings::MAX_TITLE_LENGTH) {
+            http_response_code(400);
+            echo json_encode(['success' => false, 'error' => 'Title is too long.']);
+            exit;
+        }
+        $ok = CampaignGroupSettings::saveStatusMessage($db, $group, $message, $userId, $title);
         if (!$ok) {
             throw new RuntimeException('Could not save status message.');
         }
+        $card = CampaignGroupSettings::statusCardCopy($message, $title);
         echo json_encode([
             'success' => true,
-            'status_message' => trim($message),
-            'preview' => CampaignGroupSettings::preview(trim($message), []),
+            'status_message' => $card['footer'],
+            'status_title' => $card['title'],
+            'preview' => CampaignGroupSettings::preview($card['footer'], []),
         ]);
         exit;
     }

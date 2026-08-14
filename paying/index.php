@@ -24,6 +24,7 @@ $donor = null;
 $error = 'ይህ ሊንክ አይሰራም።';
 $welcomeHtml = '';
 $statusHtml = '';
+$statusTitleHtml = '';
 try {
     if ($token !== '') {
         $donor = CampaignPayingLink::donorByToken(db(), $token);
@@ -38,12 +39,18 @@ if ($donor === null) {
 } else {
     $welcomeTemplate = CampaignGroupSettings::defaultWelcomeMessage();
     $statusTemplate = CampaignGroupSettings::defaultStatusMessage();
+    $statusTitleTemplate = CampaignGroupSettings::defaultStatusTitle();
     try {
         $settings = CampaignGroupSettings::get(db(), CampaignGroupSettings::GROUP_PAYING);
         if (trim((string) ($settings['welcome_message'] ?? '')) !== '') {
             $welcomeTemplate = (string) $settings['welcome_message'];
         }
-        $statusTemplate = CampaignGroupSettings::statusFooterText((string) ($settings['status_message'] ?? ''));
+        $card = CampaignGroupSettings::statusCardCopy(
+            (string) ($settings['status_message'] ?? ''),
+            (string) ($settings['status_title'] ?? '')
+        );
+        $statusTemplate = $card['footer'];
+        $statusTitleTemplate = $card['title'];
     } catch (Throwable $e) {
         error_log('Paying page text load failed: ' . $e->getMessage());
     }
@@ -54,6 +61,11 @@ if ($donor === null) {
     ), false);
     $statusHtml = nl2br(htmlspecialchars(
         CampaignGroupSettings::previewFromDonor($statusTemplate, $donor),
+        ENT_QUOTES,
+        'UTF-8'
+    ), false);
+    $statusTitleHtml = nl2br(htmlspecialchars(
+        CampaignGroupSettings::previewFromDonor($statusTitleTemplate, $donor),
         ENT_QUOTES,
         'UTF-8'
     ), false);
@@ -117,6 +129,9 @@ if ($donor !== null && $token !== '') {
             <section class="pay-screen" data-pay-step="status" id="payStatus" hidden aria-label="የክፍያ መረጃ">
                 <div class="pay-stack">
                     <div class="pay-card">
+                        <?php if ($statusTitleHtml !== ''): ?>
+                            <div class="pay-title"><?php echo $statusTitleHtml; ?></div>
+                        <?php endif; ?>
                         <div class="pay-row">
                             <span class="pay-label">ጠቅላላ የገቡት ቃልኪዳን መጠን</span>
                             <span class="pay-value"><?php echo htmlspecialchars($pledged, ENT_QUOTES, 'UTF-8'); ?></span>

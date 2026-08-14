@@ -13,6 +13,11 @@ final class CampaignGroupSettings
     public const MODE_ALL = 'all';
     public const MODE_SELECTED = 'selected';
     public const MAX_MESSAGE_LENGTH = 4000;
+    public const MAX_TITLE_LENGTH = 200;
+
+    /**
+     * Default Amharic hello for still-paying donors.
+     */
 
     /**
      * Default Amharic hello for still-paying donors.
@@ -39,6 +44,14 @@ final class CampaignGroupSettings
     }
 
     /**
+     * Default heading above pledged / paid / remaining.
+     */
+    public static function defaultStatusTitle(): string
+    {
+        return 'ባለን መረጃ መሰረት';
+    }
+
+    /**
      * Previous status body that repeated the amounts in prose.
      */
     public static function legacyStatusMessage(): string
@@ -47,17 +60,78 @@ final class CampaignGroupSettings
     }
 
     /**
-     * Footer shown under the amount card. The old default and any saved
-     * text that still repeats pledged / paid / remaining are reduced to
-     * the lines that belong under the figures.
+     * Title and footer for the amount card. Old saved text that repeated
+     * pledged / paid / remaining is split so the heading sits above the
+     * figures and the question stays under them.
+     *
+     * @return array{title:string,footer:string}
      */
-    public static function statusFooterText(string $saved): string
+    public static function statusCardCopy(string $savedFooter, string $savedTitle = ''): array
     {
-        $saved = trim($saved);
-        if ($saved === '' || $saved === self::legacyStatusMessage()) {
-            return self::defaultStatusMessage();
+        $savedFooter = trim($savedFooter);
+        $savedTitle = trim($savedTitle);
+
+        if ($savedFooter === '' || $savedFooter === self::legacyStatusMessage()) {
+            $cleaned = self::defaultStatusMessage();
+        } else {
+            $cleaned = self::withoutAmountLines($savedFooter);
+            if ($cleaned === '') {
+                $cleaned = self::defaultStatusMessage();
+            }
         }
 
+        $lines = [];
+        foreach (preg_split("/\r\n|\n|\r/", $cleaned) as $line) {
+            $line = trim($line);
+            if ($line !== '') {
+                $lines[] = $line;
+            }
+        }
+
+        $title = $savedTitle;
+        if ($title === '' && count($lines) >= 2) {
+            $title = $lines[0];
+            array_shift($lines);
+        }
+        if ($title === '') {
+            $title = self::defaultStatusTitle();
+        }
+        if ($lines !== [] && $lines[0] === $title) {
+            array_shift($lines);
+        }
+
+        $footer = trim(implode("\n", $lines));
+        if ($footer === '') {
+            $footer = self::defaultStatusMessage();
+        }
+
+        return [
+            'title' => $title,
+            'footer' => $footer,
+        ];
+    }
+
+    /**
+     * Footer shown under the amount card.
+     */
+    public static function statusFooterText(string $saved, string $savedTitle = ''): string
+    {
+        return self::statusCardCopy($saved, $savedTitle)['footer'];
+    }
+
+    /**
+     * Heading shown above pledged / paid / remaining.
+     */
+    public static function statusTitleText(string $savedTitle, string $savedFooter = ''): string
+    {
+        return self::statusCardCopy($savedFooter, $savedTitle)['title'];
+    }
+
+    /**
+     * Drop lines that only repeat pledged / paid / remaining.
+     */
+    private static function withoutAmountLines(string $saved): string
+    {
         $amountTokens = ['{pledge_amount}', '{total_paid}', '{remaining_amount}'];
         $tokenHits = 0;
         foreach ($amountTokens as $token) {
@@ -66,7 +140,7 @@ final class CampaignGroupSettings
             }
         }
         if ($tokenHits < 2) {
-            return $saved;
+            return trim($saved);
         }
 
         $kept = [];
@@ -82,9 +156,8 @@ final class CampaignGroupSettings
                 $kept[] = $line;
             }
         }
-        $footer = trim((string) preg_replace("/\n{3,}/", "\n\n", implode("\n", $kept)));
 
-        return $footer !== '' ? $footer : self::defaultStatusMessage();
+        return trim((string) preg_replace("/\n{3,}/", "\n\n", implode("\n", $kept)));
     }
 
     /**
@@ -136,6 +209,7 @@ final class CampaignGroupSettings
                     first_message TEXT NOT NULL,
                     welcome_message TEXT NULL,
                     status_message TEXT NULL,
+                    status_title TEXT NULL,
                     recipient_mode VARCHAR(20) NOT NULL DEFAULT 'all',
                     updated_by INT NULL,
                     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -166,6 +240,7 @@ final class CampaignGroupSettings
 
         self::ensureWelcomeColumn($db);
         self::ensureStatusColumn($db);
+        self::ensureStatusTitleColumn($db);
     }
 
     private static function ensureWelcomeColumn(mysqli $db): void
@@ -177,12 +252,12 @@ final class CampaignGroupSettings
         );
     }
 
-    private static function ensureStatusColumn(mysqli $db): void
+    private static function ensureStatusTitleColumn(mysqli $db): void
     {
         self::addColumnIfMissing(
             $db,
-            'ALTER TABLE campaign_group_settings ADD COLUMN status_message TEXT NULL AFTER welcome_message',
-            'Campaign status column failed: '
+            'ALTER TABLE campaign_group_settings ADD COLUMN status_title TEXT NULL AFTER status_message',
+            'Campaign status title column failed: '
         );
     }
 
@@ -210,6 +285,8 @@ final class CampaignGroupSettings
      *     default_welcome:string,
      *     status_message:string,
      *     default_status:string,
+     *     status_title:string,
+     *     default_status_title:string,
      *     recipient_mode:string,
      *     donor_ids:list<int>
      * }
@@ -224,6 +301,8 @@ final class CampaignGroupSettings
             'default_welcome' => self::defaultWelcomeMessage(),
             'status_message' => self::defaultStatusMessage(),
             'default_status' => self::defaultStatusMessage(),
+            'status_title' => self::defaultStatusTitle(),
+            'default_status_title' => self::defaultStatusTitle(),
             'recipient_mode' => self::MODE_ALL,
             'donor_ids' => [],
         ];
@@ -239,11 +318,19 @@ final class CampaignGroupSettings
 
         try {
             $stmt = $db->prepare(
-                'SELECT first_message, welcome_message, status_message, recipient_mode
+                'SELECT first_message, welcome_message, status_message, status_title, recipient_mode
                  FROM campaign_group_settings
                  WHERE group_key = ?
                  LIMIT 1'
             );
+            if ($stmt === false) {
+                $stmt = $db->prepare(
+                    'SELECT first_message, welcome_message, status_message, recipient_mode
+                     FROM campaign_group_settings
+                     WHERE group_key = ?
+                     LIMIT 1'
+                );
+            }
             if ($stmt === false) {
                 return $defaults;
             }
@@ -260,8 +347,12 @@ final class CampaignGroupSettings
                 if ($welcome !== '') {
                     $defaults['welcome_message'] = $welcome;
                 }
-                $status = self::statusFooterText((string) ($row['status_message'] ?? ''));
-                $defaults['status_message'] = $status;
+                $card = self::statusCardCopy(
+                    (string) ($row['status_message'] ?? ''),
+                    (string) ($row['status_title'] ?? '')
+                );
+                $defaults['status_message'] = $card['footer'];
+                $defaults['status_title'] = $card['title'];
                 $mode = (string) ($row['recipient_mode'] ?? self::MODE_ALL);
                 $defaults['recipient_mode'] = $mode === self::MODE_SELECTED ? self::MODE_SELECTED : self::MODE_ALL;
             }
@@ -352,15 +443,28 @@ final class CampaignGroupSettings
         return $stmt->execute();
     }
 
-    public static function saveStatusMessage(mysqli $db, string $group, string $message, int $updatedBy): bool
-    {
+    public static function saveStatusMessage(
+        mysqli $db,
+        string $group,
+        string $message,
+        int $updatedBy,
+        string $title = ''
+    ): bool {
         if (!self::isAllowedGroup($group)) {
             return false;
         }
         $message = trim($message);
-        $length = function_exists('mb_strlen') ? mb_strlen($message) : strlen($message);
-        if ($message === '' || $length > self::MAX_MESSAGE_LENGTH) {
+        $title = trim($title);
+        $messageLength = function_exists('mb_strlen') ? mb_strlen($message) : strlen($message);
+        $titleLength = function_exists('mb_strlen') ? mb_strlen($title) : strlen($title);
+        if ($message === '' || $messageLength > self::MAX_MESSAGE_LENGTH) {
             return false;
+        }
+        if ($titleLength > self::MAX_TITLE_LENGTH) {
+            return false;
+        }
+        if ($title === '') {
+            $title = self::defaultStatusTitle();
         }
         self::ensureTables($db);
         $existing = self::get($db, $group);
@@ -369,16 +473,17 @@ final class CampaignGroupSettings
         $mode = $existing['recipient_mode'];
         $stmt = $db->prepare(
             'INSERT INTO campaign_group_settings
-                (group_key, first_message, welcome_message, status_message, recipient_mode, updated_by)
-             VALUES (?, ?, ?, ?, ?, ?)
+                (group_key, first_message, welcome_message, status_message, status_title, recipient_mode, updated_by)
+             VALUES (?, ?, ?, ?, ?, ?, ?)
              ON DUPLICATE KEY UPDATE
                 status_message = VALUES(status_message),
+                status_title = VALUES(status_title),
                 updated_by = VALUES(updated_by)'
         );
         if ($stmt === false) {
             return false;
         }
-        $stmt->bind_param('sssssi', $group, $first, $welcome, $message, $mode, $updatedBy);
+        $stmt->bind_param('ssssssi', $group, $first, $welcome, $message, $title, $mode, $updatedBy);
 
         return $stmt->execute();
     }

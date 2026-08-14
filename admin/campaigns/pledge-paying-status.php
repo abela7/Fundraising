@@ -5,13 +5,18 @@ declare(strict_types=1);
 require_once __DIR__ . '/includes/paying-boot.php';
 
 $page_title = 'Still paying — Status check';
-$savedStatus = CampaignGroupSettings::statusFooterText(
-    (string) ($campaignSettings['status_message'] ?? CampaignGroupSettings::defaultStatusMessage())
+$savedCard = CampaignGroupSettings::statusCardCopy(
+    (string) ($campaignSettings['status_message'] ?? ''),
+    (string) ($campaignSettings['status_title'] ?? '')
 );
+$savedStatus = $savedCard['footer'];
+$savedTitle = $savedCard['title'];
 $defaultStatus = (string) ($campaignSettings['default_status'] ?? CampaignGroupSettings::defaultStatusMessage());
+$defaultTitle = (string) ($campaignSettings['default_status_title'] ?? CampaignGroupSettings::defaultStatusTitle());
 $pageConfig = [
     'csrf' => $csrfToken,
     'default_status' => $defaultStatus,
+    'default_status_title' => $defaultTitle,
 ];
 ?>
 <!DOCTYPE html>
@@ -40,7 +45,7 @@ $pageConfig = [
                             <i class="fas fa-clipboard-check me-2 dvc-title-icon paying"></i>
                             Status check page
                         </h1>
-                        <p>After welcome, donors see pledged, paid, and remaining, then the footer you write here.</p>
+                        <p>After welcome, donors see a title, pledged / paid / remaining, then the footer you write here.</p>
                     </div>
                     <div class="d-flex gap-2">
                         <a class="btn btn-outline-secondary" href="pledge-paying-settings.php">
@@ -52,8 +57,8 @@ $pageConfig = [
                 <div class="dvc-settings-card animate-fade-in">
                     <div class="dvc-settings-head">
                         <div>
-                            <h6>Write the footer under the amounts</h6>
-                            <p>Pledged, paid, and remaining are shown automatically. You only write the text under them. Saving does not send WhatsApp.</p>
+                            <h6>Write the title and footer</h6>
+                            <p>The title sits above the amounts. The footer sits under them. Saving does not send WhatsApp.</p>
                         </div>
                     </div>
                     <div class="dvc-settings-body">
@@ -67,8 +72,13 @@ $pageConfig = [
                                 <button type="button" class="dvc-var-btn" data-token="{remaining_amount}">Remaining amount</button>
                             </div>
                         </div>
-                        <label class="form-label" for="dvcStatusBody">Footer text</label>
-                        <textarea class="form-control dvc-am-text" id="dvcStatusBody" rows="5" maxlength="4000" lang="am" dir="auto"><?php echo htmlspecialchars($savedStatus, ENT_QUOTES, 'UTF-8'); ?></textarea>
+                        <label class="form-label" for="dvcStatusTitle">Title</label>
+                        <input class="form-control dvc-am-text" id="dvcStatusTitle" type="text" maxlength="200" lang="am" dir="auto" value="<?php echo htmlspecialchars($savedTitle, ENT_QUOTES, 'UTF-8'); ?>">
+                        <div class="dvc-msg-meta">
+                            <span id="dvcTitleCount">0 / 200</span>
+                        </div>
+                        <label class="form-label mt-3" for="dvcStatusBody">Footer text</label>
+                        <textarea class="form-control dvc-am-text" id="dvcStatusBody" rows="4" maxlength="4000" lang="am" dir="auto"><?php echo htmlspecialchars($savedStatus, ENT_QUOTES, 'UTF-8'); ?></textarea>
                         <div class="dvc-msg-meta">
                             <span id="dvcMsgCount">0 / 4000</span>
                             <button type="button" class="btn btn-link btn-sm px-0" id="dvcResetStatus">Reset to default</button>
@@ -79,7 +89,7 @@ $pageConfig = [
                         </div>
                         <div class="d-flex flex-wrap gap-2 mt-3">
                             <button type="button" class="btn btn-primary" id="dvcSaveStatus">
-                                <i class="fas fa-save me-1"></i>Save footer text
+                                <i class="fas fa-save me-1"></i>Save status page
                             </button>
                         </div>
                     </div>
