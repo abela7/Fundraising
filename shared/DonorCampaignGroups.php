@@ -35,6 +35,34 @@ class DonorCampaignGroups
     }
 
     /**
+     * Classify one donor row the same way the campaign SQL groups do.
+     *
+     * @param array<string, mixed> $donor
+     */
+    public static function fromDonor(array $donor): string
+    {
+        $type = (string) ($donor['donor_type'] ?? '');
+        $pledged = (float) ($donor['total_pledged'] ?? 0);
+        $paid = (float) ($donor['total_paid'] ?? 0);
+        $balance = (float) ($donor['balance'] ?? 0);
+
+        if ($type === 'immediate_payment' || ($pledged <= 0.01 && $paid > 0.01)) {
+            return self::IMMEDIATE;
+        }
+        if ($pledged > 0.01 && $paid > 0.01 && $balance <= 0.01) {
+            return self::PLEDGE_COMPLETED;
+        }
+        if ($pledged > 0.01 && $paid > 0.01 && $balance > 0.01) {
+            return self::PLEDGE_PAYING;
+        }
+        if ($pledged > 0.01 && $paid <= 0.01) {
+            return self::PLEDGE_NOT_STARTED;
+        }
+
+        return self::UNCLASSIFIED;
+    }
+
+    /**
      * SQL CASE that classifies a donors-table alias.
      */
     public static function sqlCase(string $alias = 'd'): string

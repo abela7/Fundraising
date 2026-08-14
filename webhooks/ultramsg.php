@@ -432,13 +432,31 @@ function handleIncomingMessage($db, array $messageData, string $rawPayload): voi
         }
     }
     
+    $campaignReply = null;
+    if (!$commandHandled && is_string($body) && trim($body) !== '') {
+        try {
+            require_once __DIR__ . '/../shared/CampaignInboundIdentifier.php';
+            $campaignReply = CampaignInboundIdentifier::handle($db, [
+                'body' => (string) $body,
+                'phone' => $normalizedPhone,
+                'donor_id' => isset($donor['id']) ? (int) $donor['id'] : null,
+                'conversation_id' => $conversationId,
+                'whatsapp_message_id' => $messageDbId,
+                'ultramsg_id' => (string) $messageId,
+            ]);
+        } catch (Throwable $campaignError) {
+            error_log('Campaign inbound identifier error: ' . $campaignError->getMessage());
+        }
+    }
+    
     echo json_encode([
         'status' => 'ok',
         'message' => $commandHandled ? 'PAY command handled' : 'Message received',
         'conversation_id' => $conversationId,
         'message_id' => $messageDbId,
         'donor_id' => $donor['id'] ?? null,
-        'pay_command' => $commandHandled
+        'pay_command' => $commandHandled,
+        'campaign_reply' => $campaignReply,
     ]);
 }
 
