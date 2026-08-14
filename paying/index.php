@@ -6,6 +6,7 @@ require_once __DIR__ . '/../config/db.php';
 require_once __DIR__ . '/../shared/url.php';
 require_once __DIR__ . '/../shared/CampaignPayingLink.php';
 require_once __DIR__ . '/../shared/CampaignGroupSettings.php';
+require_once __DIR__ . '/../shared/CampaignPayingProgress.php';
 
 header('Cache-Control: no-store, private');
 header('X-Robots-Tag: noindex, nofollow');
@@ -17,6 +18,7 @@ if ($token === '') {
         $token = $match[1];
     }
 }
+$token = CampaignPayingProgress::normalizeToken($token) ?? '';
 
 $donor = null;
 $error = 'ይህ ሊንክ አይሰራም።';
@@ -60,6 +62,24 @@ $name = $donor !== null ? (string) ($donor['name'] ?? '') : '';
 $pledged = $donor !== null ? CampaignPayingLink::formatMoney((float) ($donor['total_pledged'] ?? 0)) : '';
 $paid = $donor !== null ? CampaignPayingLink::formatMoney((float) ($donor['total_paid'] ?? 0)) : '';
 $remaining = $donor !== null ? CampaignPayingLink::formatMoney((float) ($donor['balance'] ?? 0)) : '';
+$progress = CampaignPayingProgress::emptyState();
+$paySync = null;
+if ($donor !== null && $token !== '') {
+    try {
+        $progress = CampaignPayingProgress::load(db(), $token);
+    } catch (Throwable $e) {
+        error_log('Paying progress boot failed: ' . $e->getMessage());
+    }
+    $paySync = [
+        'token' => $token,
+        'sign' => CampaignPayingProgress::sign($token),
+        'saveUrl' => url_for('paying/api/save.php'),
+        'step' => $progress['step'],
+        'answers' => $progress['answers'],
+        'revision' => $progress['revision'],
+        'steps' => CampaignPayingProgress::STEPS,
+    ];
+}
 ?>
 <!DOCTYPE html>
 <html lang="am">
@@ -85,14 +105,13 @@ $remaining = $donor !== null ? CampaignPayingLink::formatMoney((float) ($donor['
         <?php if ($donor === null): ?>
             <p class="pay-error"><?php echo htmlspecialchars($error, ENT_QUOTES, 'UTF-8'); ?></p>
         <?php else: ?>
-            <section class="pay-screen is-active" id="payWelcome" aria-label="እንኳን ደህና መጡ">
+            <section class="pay-screen is-active" data-pay-step="welcome" id="payWelcome" aria-label="እንኳን ደህና መጡ">
                 <div class="pay-card pay-welcome">
                     <div class="pay-welcome-text"><?php echo $welcomeHtml; ?></div>
                 </div>
-                <button type="button" class="pay-continue" id="payContinue">ቀጥል</button>
             </section>
 
-            <section class="pay-screen" id="payInfo" hidden aria-label="የክፍያ መረጃ">
+            <section class="pay-screen" data-pay-step="info" id="payInfo" hidden aria-label="የክፍያ መረጃ">
                 <div class="pay-card">
                     <div class="pay-row">
                         <span class="pay-label">ስም</span>
@@ -112,9 +131,20 @@ $remaining = $donor !== null ? CampaignPayingLink::formatMoney((float) ($donor['
                     </div>
                 </div>
             </section>
+
+            <div class="pay-actions">
+                <button type="button" class="pay-back" data-pay-back hidden>ተመለስ</button>
+                <button type="button" class="pay-continue" data-pay-next>ቀጥል</button>
+            </div>
         <?php endif; ?>
     </main>
-    <?php if ($donor !== null): ?>
+    <?php if ($paySync !== null): ?>
+        <script>
+        window.PAY_SYNC = <?php echo json_encode(
+            $paySync,
+            JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT
+        ); ?>;
+        </script>
         <script src="<?php echo htmlspecialchars($jsPath, ENT_QUOTES, 'UTF-8'); ?>?v=<?php echo (int) (@filemtime(__DIR__ . '/assets/paying.js') ?: time()); ?>"></script>
     <?php endif; ?>
 </body>

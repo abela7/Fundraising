@@ -245,6 +245,10 @@ final class CampaignPayingLink
                 donor_id INT NOT NULL,
                 token CHAR(16) NOT NULL,
                 last_sent_at TIMESTAMP NULL DEFAULT NULL,
+                step VARCHAR(40) NOT NULL DEFAULT 'welcome',
+                answers_json TEXT NULL,
+                revision INT UNSIGNED NOT NULL DEFAULT 0,
+                progress_updated_at TIMESTAMP NULL DEFAULT NULL,
                 created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 PRIMARY KEY (donor_id),
                 UNIQUE KEY uq_campaign_paying_token (token)

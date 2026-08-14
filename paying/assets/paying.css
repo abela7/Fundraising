@@ -123,15 +123,19 @@ body {
   white-space: normal;
 }
 
-.pay-continue {
+.pay-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  margin-top: 1.15rem;
+}
+
+.pay-continue,
+.pay-back {
   display: block;
   width: 100%;
-  margin-top: 1.15rem;
   min-height: 3.15rem;
-  border: 0;
   border-radius: 0.95rem;
-  background: var(--pay-blue);
-  color: #fff;
   font-family: inherit;
   font-size: 1.12rem;
   font-weight: 700;
@@ -139,13 +143,36 @@ body {
   -webkit-tap-highlight-color: transparent;
 }
 
+.pay-continue {
+  margin-top: 0;
+  border: 0;
+  background: var(--pay-blue);
+  color: #fff;
+}
+
 .pay-continue:active {
   background: var(--pay-blue-dark);
 }
 
-.pay-continue:focus-visible {
+.pay-continue:focus-visible,
+.pay-back:focus-visible {
   outline: 3px solid var(--pay-gold);
   outline-offset: 2px;
+}
+
+.pay-back {
+  border: 2px solid var(--pay-blue);
+  background: #fff;
+  color: var(--pay-blue);
+}
+
+.pay-back:active {
+  background: rgba(10, 98, 134, 0.08);
+}
+
+.pay-back[hidden],
+.pay-continue[hidden] {
+  display: none;
 }
 
 .pay-error {
