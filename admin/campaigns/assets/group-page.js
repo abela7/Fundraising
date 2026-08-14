@@ -65,14 +65,19 @@
     return 'api/donors.php?' + params.toString();
   }
 
+  function setText(id, value) {
+    const el = document.getElementById(id);
+    if (el) el.textContent = value;
+  }
+
   function renderKpis(summary) {
     const group = summary[GROUP] || {};
     const amount = group[AMOUNT_KEY] || 0;
-    document.getElementById('kpiDonors').textContent = Number(group.donors || 0).toLocaleString();
-    document.getElementById('kpiAmount').textContent = fmtMoney(amount);
-    document.getElementById('kpiPledged').textContent = fmtMoney(group.pledged);
-    document.getElementById('kpiPaid').textContent = fmtMoney(group.paid);
-    document.getElementById('kpiRemaining').textContent = fmtMoney(group.remaining);
+    setText('kpiDonors', Number(group.donors || 0).toLocaleString());
+    setText('kpiAmount', fmtMoney(amount));
+    setText('kpiPledged', fmtMoney(group.pledged));
+    setText('kpiPaid', fmtMoney(group.paid));
+    setText('kpiRemaining', fmtMoney(group.remaining));
   }
 
   function sourceBadge(source) {

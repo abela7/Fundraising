@@ -2,10 +2,8 @@
 
 require_once __DIR__ . '/../../../shared/auth.php';
 require_once __DIR__ . '/../../../config/db.php';
-require_once __DIR__ . '/../../../shared/csrf.php';
 require_once __DIR__ . '/group-config.php';
 require_once __DIR__ . '/../../../shared/DonorCampaignGroups.php';
-require_once __DIR__ . '/../../../shared/CampaignGroupSettings.php';
 
 require_login();
 require_admin();
@@ -47,10 +45,12 @@ $pageConfig = [
     'sort_by' => (string)$meta['sort_by'],
     'sort_order' => (string)$meta['sort_order'],
     'currency' => $settings['currency_code'] ?? 'GBP',
-    'campaign' => $isPayingCampaign,
-    'csrf' => csrf_token(),
+    'campaign' => false,
 ];
 $cssVersion = (int) (filemtime(__DIR__ . '/../assets/campaigns.css') ?: time());
+if ($isPayingCampaign) {
+    require_once __DIR__ . '/paying-nav.php';
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -86,7 +86,15 @@ $cssVersion = (int) (filemtime(__DIR__ . '/../assets/campaigns.css') ?: time());
                         </h1>
                         <p><?php echo $description; ?></p>
                     </div>
-                    <div class="d-flex gap-2">
+                    <div class="d-flex gap-2 flex-wrap">
+                        <?php if ($isPayingCampaign): ?>
+                            <a class="btn btn-outline-primary" href="pledge-paying-settings.php">
+                                <i class="fas fa-sliders me-1"></i>Settings
+                            </a>
+                            <a class="btn btn-primary" href="pledge-paying-send.php">
+                                <i class="fas fa-paper-plane me-1"></i>Send
+                            </a>
+                        <?php endif; ?>
                         <a class="btn btn-outline-secondary" href="index.php">
                             <i class="fas fa-arrow-left me-1"></i>Back to Campaign
                         </a>
@@ -109,7 +117,7 @@ $cssVersion = (int) (filemtime(__DIR__ . '/../assets/campaigns.css') ?: time());
                 <?php endif; ?>
 
                 <?php if ($isPayingCampaign): ?>
-                    <?php include __DIR__ . '/paying-first-message.php'; ?>
+                    <?php dvc_paying_nav('list'); ?>
                 <?php endif; ?>
 
                 <div class="dvc-hero-kpis animate-fade-in">
@@ -196,11 +204,6 @@ $cssVersion = (int) (filemtime(__DIR__ . '/../assets/campaigns.css') ?: time());
                         <table class="table table-hover align-middle mb-0">
                             <thead>
                                 <tr>
-                                    <?php if ($isPayingCampaign): ?>
-                                        <th class="dvc-col-check">
-                                            <input type="checkbox" id="dvcCheckPage" title="Select this page" disabled>
-                                        </th>
-                                    <?php endif; ?>
                                     <th class="dvc-col-num">#</th>
                                     <th class="dvc-sortable" data-sort-by="name">Donor<span class="dvc-sort-icon"></span></th>
                                     <th>Reference</th>
@@ -212,7 +215,7 @@ $cssVersion = (int) (filemtime(__DIR__ . '/../assets/campaigns.css') ?: time());
                             </thead>
                             <tbody id="dataBody">
                                 <tr>
-                                    <td colspan="<?php echo $isPayingCampaign ? '8' : '7'; ?>" class="text-center py-4" style="color: var(--gray-500);">
+                                    <td colspan="7" class="text-center py-4" style="color: var(--gray-500);">
                                         <div class="spinner-border spinner-border-sm me-2" role="status"></div>
                                         Loading...
                                     </td>
@@ -235,9 +238,6 @@ $cssVersion = (int) (filemtime(__DIR__ . '/../assets/campaigns.css') ?: time());
 <script>
 window.DVC_PAGE = <?php echo json_encode($pageConfig, JSON_UNESCAPED_SLASHES); ?>;
 </script>
-<?php if ($isPayingCampaign): ?>
-<script src="assets/paying-campaign.js"></script>
-<?php endif; ?>
 <script src="assets/group-page.js"></script>
 </body>
 </html>
