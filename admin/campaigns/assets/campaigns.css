@@ -374,16 +374,15 @@ a.dvc-group-card:focus {
   border: 1px solid var(--gray-200);
   background: var(--white);
   color: var(--gray-700);
-  border-radius: 8px;
-  padding: 8px 12px;
+  border-radius: 999px;
+  padding: 6px 14px;
   font-size: 0.8125rem;
   font-weight: 600;
-  min-height: 44px;
+  min-height: 36px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   text-decoration: none;
-  flex: 1 1 auto;
 }
 .dvc-sibling-nav a:hover {
   color: var(--primary);
@@ -392,40 +391,6 @@ a.dvc-group-card:focus {
 .dvc-sibling-nav a.active {
   background: var(--primary);
   border-color: var(--primary);
-  color: var(--white);
-}
-.dvc-paying-nav {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-bottom: 20px;
-  padding: 8px;
-  background: var(--white);
-  border: 1px solid var(--gray-200);
-  border-radius: 12px;
-  box-shadow: var(--shadow-sm);
-}
-.dvc-paying-nav a {
-  border: 1px solid transparent;
-  background: transparent;
-  color: var(--gray-700);
-  border-radius: 8px;
-  padding: 8px 14px;
-  font-size: 0.8125rem;
-  font-weight: 600;
-  min-height: 40px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  text-decoration: none;
-  flex: 1 1 auto;
-}
-.dvc-paying-nav a:hover {
-  color: var(--primary);
-  background: rgba(10, 98, 134, 0.06);
-}
-.dvc-paying-nav a.active {
-  background: var(--primary);
   color: var(--white);
 }
 .dvc-setup-title {

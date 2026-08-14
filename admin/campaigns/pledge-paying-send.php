@@ -46,15 +46,14 @@ $pageConfig = [
                             <i class="fas fa-paper-plane me-2 dvc-title-icon paying"></i>
                             Send first message
                         </h1>
-                        <p>Choose still-paying pledge donors. Saving the list does not send WhatsApp yet.</p>
+                        <p>Choose who should receive the saved first message. This does not send WhatsApp yet.</p>
                     </div>
                     <div class="d-flex gap-2 flex-wrap">
-                        <a class="btn btn-outline-secondary" href="pledge-paying-first-message.php">Edit message</a>
-                        <a class="btn btn-outline-secondary" href="pledge-paying.php">Back to donors</a>
+                        <a class="btn btn-outline-secondary" href="pledge-paying.php">
+                            <i class="fas fa-arrow-left me-1"></i>Back to donors
+                        </a>
                     </div>
                 </div>
-
-                <?php dvc_paying_nav('send'); ?>
 
                 <div class="dvc-settings-card animate-fade-in">
                     <div class="dvc-settings-head">

@@ -42,19 +42,14 @@ if (function_exists('mb_strlen') && mb_strlen($messagePreview) > 90) {
                             <i class="fas fa-sliders me-2 dvc-title-icon paying"></i>
                             <?php echo htmlspecialchars($title, ENT_QUOTES, 'UTF-8'); ?>
                         </h1>
-                        <p>Set up the still-paying campaign here. Write messages on their own pages. Send from the Send page.</p>
+                        <p>Set up this campaign, then send when you are ready.</p>
                     </div>
                     <div class="d-flex gap-2 flex-wrap">
                         <a class="btn btn-outline-secondary" href="pledge-paying.php">
                             <i class="fas fa-arrow-left me-1"></i>Back to donors
                         </a>
-                        <a class="btn btn-primary" href="pledge-paying-send.php">
-                            <i class="fas fa-paper-plane me-1"></i>Go to Send
-                        </a>
                     </div>
                 </div>
-
-                <?php dvc_paying_nav('settings'); ?>
 
                 <div class="row g-3">
                     <div class="col-12 col-lg-8">

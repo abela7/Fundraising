@@ -38,15 +38,14 @@ $pageConfig = [
                             <i class="fab fa-whatsapp me-2" style="color: var(--success);"></i>
                             First WhatsApp message
                         </h1>
-                        <p>This is the hello you will send to still-paying pledge donors. Saving does not send it.</p>
+                        <p>Write the hello message. Saving does not send it.</p>
                     </div>
                     <div class="d-flex gap-2">
-                        <a class="btn btn-outline-secondary" href="pledge-paying-settings.php">Back to settings</a>
-                        <a class="btn btn-primary" href="pledge-paying-send.php">Go to Send</a>
+                        <a class="btn btn-outline-secondary" href="pledge-paying-settings.php">
+                            <i class="fas fa-arrow-left me-1"></i>Back to settings
+                        </a>
                     </div>
                 </div>
-
-                <?php dvc_paying_nav('first-message'); ?>
 
                 <div class="dvc-settings-card animate-fade-in">
                     <div class="dvc-settings-head">

@@ -6,7 +6,6 @@ require_once __DIR__ . '/../../../shared/auth.php';
 require_once __DIR__ . '/../../../config/db.php';
 require_once __DIR__ . '/../../../shared/csrf.php';
 require_once __DIR__ . '/group-config.php';
-require_once __DIR__ . '/paying-nav.php';
 require_once __DIR__ . '/../../../shared/DonorCampaignGroups.php';
 require_once __DIR__ . '/../../../shared/CampaignGroupSettings.php';
 

@@ -48,9 +48,6 @@ $pageConfig = [
     'campaign' => false,
 ];
 $cssVersion = (int) (filemtime(__DIR__ . '/../assets/campaigns.css') ?: time());
-if ($isPayingCampaign) {
-    require_once __DIR__ . '/paying-nav.php';
-}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -114,10 +111,6 @@ if ($isPayingCampaign) {
                             </a>
                         <?php endforeach; ?>
                     </div>
-                <?php endif; ?>
-
-                <?php if ($isPayingCampaign): ?>
-                    <?php dvc_paying_nav('list'); ?>
                 <?php endif; ?>
 
                 <div class="dvc-hero-kpis animate-fade-in">
