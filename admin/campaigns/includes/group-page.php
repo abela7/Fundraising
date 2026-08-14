@@ -2,8 +2,10 @@
 
 require_once __DIR__ . '/../../../shared/auth.php';
 require_once __DIR__ . '/../../../config/db.php';
+require_once __DIR__ . '/../../../shared/csrf.php';
 require_once __DIR__ . '/group-config.php';
 require_once __DIR__ . '/../../../shared/DonorCampaignGroups.php';
+require_once __DIR__ . '/../../../shared/CampaignGroupSettings.php';
 
 require_login();
 require_admin();
@@ -38,12 +40,15 @@ $title = htmlspecialchars((string)$meta['title'], ENT_QUOTES, 'UTF-8');
 $description = htmlspecialchars((string)$meta['description'], ENT_QUOTES, 'UTF-8');
 $amountLabel = htmlspecialchars((string)$meta['amount_label'], ENT_QUOTES, 'UTF-8');
 $isPledgeFamily = ($meta['family'] ?? '') === 'pledge';
+$isPayingCampaign = ($dvc_group === DonorCampaignGroups::PLEDGE_PAYING);
 $pageConfig = [
     'group' => $dvc_group,
     'amount_key' => (string)$meta['amount_key'],
     'sort_by' => (string)$meta['sort_by'],
     'sort_order' => (string)$meta['sort_order'],
     'currency' => $settings['currency_code'] ?? 'GBP',
+    'campaign' => $isPayingCampaign,
+    'csrf' => csrf_token(),
 ];
 $cssVersion = (int) (filemtime(__DIR__ . '/../assets/campaigns.css') ?: time());
 ?>
@@ -101,6 +106,10 @@ $cssVersion = (int) (filemtime(__DIR__ . '/../assets/campaigns.css') ?: time());
                             </a>
                         <?php endforeach; ?>
                     </div>
+                <?php endif; ?>
+
+                <?php if ($isPayingCampaign): ?>
+                    <?php include __DIR__ . '/paying-first-message.php'; ?>
                 <?php endif; ?>
 
                 <div class="dvc-hero-kpis animate-fade-in">
@@ -187,6 +196,11 @@ $cssVersion = (int) (filemtime(__DIR__ . '/../assets/campaigns.css') ?: time());
                         <table class="table table-hover align-middle mb-0">
                             <thead>
                                 <tr>
+                                    <?php if ($isPayingCampaign): ?>
+                                        <th class="dvc-col-check">
+                                            <input type="checkbox" id="dvcCheckPage" title="Select this page" disabled>
+                                        </th>
+                                    <?php endif; ?>
                                     <th class="dvc-col-num">#</th>
                                     <th class="dvc-sortable" data-sort-by="name">Donor<span class="dvc-sort-icon"></span></th>
                                     <th>Reference</th>
@@ -198,7 +212,7 @@ $cssVersion = (int) (filemtime(__DIR__ . '/../assets/campaigns.css') ?: time());
                             </thead>
                             <tbody id="dataBody">
                                 <tr>
-                                    <td colspan="7" class="text-center py-4" style="color: var(--gray-500);">
+                                    <td colspan="<?php echo $isPayingCampaign ? '8' : '7'; ?>" class="text-center py-4" style="color: var(--gray-500);">
                                         <div class="spinner-border spinner-border-sm me-2" role="status"></div>
                                         Loading...
                                     </td>
@@ -221,6 +235,9 @@ $cssVersion = (int) (filemtime(__DIR__ . '/../assets/campaigns.css') ?: time());
 <script>
 window.DVC_PAGE = <?php echo json_encode($pageConfig, JSON_UNESCAPED_SLASHES); ?>;
 </script>
+<?php if ($isPayingCampaign): ?>
+<script src="assets/paying-campaign.js"></script>
+<?php endif; ?>
 <script src="assets/group-page.js"></script>
 </body>
 </html>

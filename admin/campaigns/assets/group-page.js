@@ -3,6 +3,8 @@
   const GROUP = config.group || 'pledge_not_started';
   const AMOUNT_KEY = config.amount_key || 'pledged';
   const CURRENCY = config.currency || 'GBP';
+  const CAMPAIGN = config.campaign === true;
+  const COLSPAN = CAMPAIGN ? 8 : 7;
   let sortState = {
     sortBy: config.sort_by || 'name',
     sortOrder: config.sort_order || 'asc'
@@ -84,16 +86,22 @@
     const body = document.getElementById('dataBody');
     const rows = data.rows || [];
     if (rows.length === 0) {
-      body.innerHTML = '<tr><td colspan="7"><div class="dvc-empty-state"><i class="fas fa-inbox"></i><p>No donors in this group.</p></div></td></tr>';
+      body.innerHTML = '<tr><td colspan="' + COLSPAN + '"><div class="dvc-empty-state"><i class="fas fa-inbox"></i><p>No donors in this group.</p></div></td></tr>';
       return;
     }
     const startNum = (data.page - 1) * data.per_page + 1;
+    const campaign = window.DVC_CAMPAIGN;
     body.innerHTML = rows.map((r, i) => {
       const name = escapeHtml(r.name || 'Unknown');
+      const id = Number(r.donor_id || r.id || 0);
       const link = r.donor_id
         ? `<a class="dvc-donor-link" href="../donor-management/view-donor.php?id=${r.donor_id}">${name}</a>`
         : name;
+      const check = CAMPAIGN
+        ? `<td class="dvc-col-check" data-label="Select"><input type="checkbox" class="dvc-row-check" data-donor-id="${id}" ${campaign && campaign.isSelected(id) ? 'checked' : ''} ${campaign && campaign.canTick() ? '' : 'disabled'}></td>`
+        : '';
       return `<tr>
+        ${check}
         <td class="dvc-col-num" data-label="#">${startNum + i}</td>
         <td data-label="Donor"><div>${link}</div><small class="text-muted">${escapeHtml(r.phone || '')}</small></td>
         <td data-label="Reference"><code class="small">${escapeHtml(r.reference || '—')}</code></td>
@@ -103,6 +111,9 @@
         <td class="text-end fw-semibold" data-label="Remaining">${escapeHtml(fmtMoney(r.balance))}</td>
       </tr>`;
     }).join('');
+    if (CAMPAIGN && window.DVC_CAMPAIGN && typeof window.DVC_CAMPAIGN.onRows === 'function') {
+      window.DVC_CAMPAIGN.onRows(rows);
+    }
   }
 
   function renderPagination(data) {
@@ -140,7 +151,7 @@
 
   async function load(page) {
     const body = document.getElementById('dataBody');
-    body.innerHTML = '<tr><td colspan="7" class="text-center py-4" style="color:var(--gray-500)"><div class="spinner-border spinner-border-sm me-2" role="status"></div>Loading...</td></tr>';
+    body.innerHTML = '<tr><td colspan="' + COLSPAN + '" class="text-center py-4" style="color:var(--gray-500)"><div class="spinner-border spinner-border-sm me-2" role="status"></div>Loading...</td></tr>';
     try {
       const res = await fetch(buildUrl(page), { credentials: 'same-origin', headers: { Accept: 'application/json' } });
       const data = await res.json();
@@ -149,7 +160,7 @@
       renderTable(data);
       renderPagination(data);
     } catch (err) {
-      body.innerHTML = '<tr><td colspan="7" class="text-center py-4" style="color:var(--danger)">Failed to load donors.</td></tr>';
+      body.innerHTML = '<tr><td colspan="' + COLSPAN + '" class="text-center py-4" style="color:var(--danger)">Failed to load donors.</td></tr>';
     }
   }
 
