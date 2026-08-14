@@ -13,6 +13,8 @@ final class CampaignInboundIdentifier
     public const INTENT_OTHER = 'other';
     public const LINK_PENDING = 'pending';
     public const LINK_UNSUPPORTED = 'unsupported';
+    public const LINK_SENT = 'sent';
+    public const LINK_ALREADY = 'already_sent';
 
     /**
      * True when the whole message is OK / okay, any casing.
@@ -65,6 +67,17 @@ final class CampaignInboundIdentifier
         $body = (string) ($input['body'] ?? '');
         if (!self::isOkReply($body)) {
             return null;
+        }
+
+        try {
+            self::ensureTable($db);
+        } catch (Throwable $e) {
+            error_log('Campaign inbound table failed: ' . $e->getMessage());
+        }
+
+        $existing = self::existingByUltramsg($db, (string) ($input['ultramsg_id'] ?? ''));
+        if ($existing !== null) {
+            return $existing;
         }
 
         $donor = self::loadDonor($db, $input);
@@ -188,21 +201,6 @@ final class CampaignInboundIdentifier
         try {
             self::ensureTable($db);
             $ultramsgId = trim((string) ($input['ultramsg_id'] ?? ''));
-            if ($ultramsgId !== '') {
-                $existing = $db->prepare(
-                    'SELECT id FROM campaign_inbound_replies WHERE ultramsg_id = ? LIMIT 1'
-                );
-                if ($existing !== false) {
-                    $existing->bind_param('s', $ultramsgId);
-                    $existing->execute();
-                    $row = $existing->get_result()->fetch_assoc();
-                    $existing->close();
-                    if (is_array($row)) {
-                        return (int) ($row['id'] ?? 0) ?: null;
-                    }
-                }
-            }
-
             $stmt = $db->prepare(
                 'INSERT INTO campaign_inbound_replies
                     (donor_id, conversation_id, whatsapp_message_id, ultramsg_id, phone,
@@ -250,6 +248,84 @@ final class CampaignInboundIdentifier
         } catch (Throwable $e) {
             error_log('Campaign inbound reply record failed: ' . $e->getMessage());
             return null;
+        }
+    }
+
+    /**
+     * @return array{
+     *     intent:string,
+     *     matched:bool,
+     *     identified:bool,
+     *     donor_id:?int,
+     *     donor_name:?string,
+     *     campaign_group:?string,
+     *     link_status:string,
+     *     recorded:bool,
+     *     reply_id:?int
+     * }|null
+     */
+    private static function existingByUltramsg(mysqli $db, string $ultramsgId): ?array
+    {
+        $ultramsgId = trim($ultramsgId);
+        if ($ultramsgId === '') {
+            return null;
+        }
+        try {
+            $stmt = $db->prepare(
+                'SELECT id, donor_id, campaign_group, identified, link_status, intent
+                 FROM campaign_inbound_replies
+                 WHERE ultramsg_id = ?
+                 LIMIT 1'
+            );
+            if ($stmt === false) {
+                return null;
+            }
+            $stmt->bind_param('s', $ultramsgId);
+            $stmt->execute();
+            $row = $stmt->get_result()->fetch_assoc();
+            $stmt->close();
+            if (!is_array($row)) {
+                return null;
+            }
+            $donorId = isset($row['donor_id']) ? (int) $row['donor_id'] : 0;
+            $identified = ((int) ($row['identified'] ?? 0)) === 1 && $donorId > 0;
+            $donorName = null;
+            if ($identified) {
+                $loaded = self::donorById($db, $donorId);
+                $donorName = $loaded !== null ? (string) ($loaded['name'] ?? '') : null;
+            }
+
+            return [
+                'intent' => (string) ($row['intent'] ?? self::INTENT_OK),
+                'matched' => true,
+                'identified' => $identified,
+                'donor_id' => $donorId > 0 ? $donorId : null,
+                'donor_name' => $donorName,
+                'campaign_group' => isset($row['campaign_group']) ? (string) $row['campaign_group'] : null,
+                'link_status' => (string) ($row['link_status'] ?? self::LINK_PENDING),
+                'recorded' => true,
+                'reply_id' => (int) ($row['id'] ?? 0) ?: null,
+            ];
+        } catch (Throwable $e) {
+            return null;
+        }
+    }
+
+    public static function markLinkStatus(mysqli $db, ?int $replyId, string $status): void
+    {
+        if ($replyId === null || $replyId <= 0) {
+            return;
+        }
+        try {
+            $stmt = $db->prepare('UPDATE campaign_inbound_replies SET link_status = ? WHERE id = ?');
+            if ($stmt === false) {
+                return;
+            }
+            $stmt->bind_param('si', $status, $replyId);
+            $stmt->execute();
+            $stmt->close();
+        } catch (Throwable $e) {
+            error_log('Campaign inbound link status update failed: ' . $e->getMessage());
         }
     }
 

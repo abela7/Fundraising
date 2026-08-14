@@ -433,6 +433,7 @@ function handleIncomingMessage($db, array $messageData, string $rawPayload): voi
     }
     
     $campaignReply = null;
+    $payingLink = null;
     if (!$commandHandled && is_string($body) && trim($body) !== '') {
         try {
             require_once __DIR__ . '/../shared/CampaignInboundIdentifier.php';
@@ -447,6 +448,25 @@ function handleIncomingMessage($db, array $messageData, string $rawPayload): voi
         } catch (Throwable $campaignError) {
             error_log('Campaign inbound identifier error: ' . $campaignError->getMessage());
         }
+
+        if (is_array($campaignReply)) {
+            try {
+                require_once __DIR__ . '/../shared/CampaignPayingLink.php';
+                $payingLink = CampaignPayingLink::sendIfPaying(
+                    $db,
+                    $campaignReply,
+                    $normalizedPhone,
+                    (int) $conversationId
+                );
+                if (!empty($payingLink['sent'])) {
+                    $campaignReply['link_status'] = CampaignInboundIdentifier::LINK_SENT;
+                } elseif (($payingLink['reason'] ?? '') === 'already_sent') {
+                    $campaignReply['link_status'] = CampaignInboundIdentifier::LINK_ALREADY;
+                }
+            } catch (Throwable $linkError) {
+                error_log('Campaign paying link send error: ' . $linkError->getMessage());
+            }
+        }
     }
     
     echo json_encode([
@@ -457,6 +477,7 @@ function handleIncomingMessage($db, array $messageData, string $rawPayload): voi
         'donor_id' => $donor['id'] ?? null,
         'pay_command' => $commandHandled,
         'campaign_reply' => $campaignReply,
+        'paying_link' => $payingLink,
     ]);
 }
 

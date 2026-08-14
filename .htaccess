@@ -1,0 +1,4 @@
+RewriteEngine On
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^paying/([A-Za-z0-9]+)/?$ paying/index.php?t=$1 [L,QSA]

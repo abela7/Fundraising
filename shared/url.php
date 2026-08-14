@@ -8,7 +8,7 @@ declare(strict_types=1);
 function app_base_path(): string {
     $script = $_SERVER['SCRIPT_NAME'] ?? '';
     $script = str_replace('\\', '/', $script);
-    $markers = ['/admin/', '/registrar/', '/donor/', '/public/', '/api/'];
+    $markers = ['/admin/', '/registrar/', '/donor/', '/public/', '/api/', '/paying/', '/webhooks/'];
     foreach ($markers as $marker) {
         $pos = strpos($script, $marker);
         if ($pos !== false) {

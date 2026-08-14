@@ -1,0 +1,138 @@
+:root {
+  --pay-blue: #0a6286;
+  --pay-blue-dark: #07506d;
+  --pay-gold: #e2ca18;
+  --pay-bg: #f3f7fa;
+  --pay-card: #ffffff;
+  --pay-text: #12202a;
+  --pay-muted: #5b6b75;
+  --pay-line: #e6eef2;
+  --pay-paid: #0f7a5a;
+  --pay-remain: #0a6286;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+}
+
+body {
+  font-family: "Noto Sans Ethiopic", "Ebrima", "Nyala", sans-serif;
+  background:
+    radial-gradient(1200px 420px at 50% -80px, rgba(10, 98, 134, 0.18), transparent 70%),
+    var(--pay-bg);
+  color: var(--pay-text);
+  line-height: 1.45;
+}
+
+.pay-sheet {
+  width: min(28rem, 100%);
+  margin: 0 auto;
+  padding: max(1.25rem, env(safe-area-inset-top)) 1.15rem max(2rem, env(safe-area-inset-bottom));
+}
+
+.pay-brand {
+  text-align: center;
+  margin-bottom: 1.25rem;
+}
+
+.pay-kicker {
+  margin: 0 0 0.2rem;
+  color: var(--pay-muted);
+  font-size: 0.82rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.pay-brand h1 {
+  margin: 0;
+  color: var(--pay-blue);
+  font-size: 1.35rem;
+  font-weight: 700;
+}
+
+.pay-card {
+  background: var(--pay-card);
+  border: 1px solid var(--pay-line);
+  border-top: 4px solid var(--pay-gold);
+  border-radius: 1.15rem;
+  box-shadow: 0 10px 30px rgba(10, 98, 134, 0.08);
+  overflow: hidden;
+}
+
+.pay-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.28rem;
+  padding: 1rem 1.1rem;
+  border-bottom: 1px solid var(--pay-line);
+  min-height: 4.5rem;
+}
+
+.pay-row-last {
+  border-bottom: 0;
+  background: rgba(10, 98, 134, 0.04);
+}
+
+.pay-label {
+  color: var(--pay-muted);
+  font-size: 0.92rem;
+  font-weight: 600;
+}
+
+.pay-value {
+  color: var(--pay-text);
+  font-size: 1.28rem;
+  font-weight: 700;
+  word-break: break-word;
+}
+
+.pay-name {
+  font-size: 1.35rem;
+}
+
+.pay-paid {
+  color: var(--pay-paid);
+}
+
+.pay-remain {
+  color: var(--pay-remain);
+  font-size: 1.5rem;
+}
+
+.pay-error {
+  margin: 2rem 0 0;
+  text-align: center;
+  color: var(--pay-muted);
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
+@media (min-width: 640px) {
+  .pay-sheet {
+    padding-top: 2.5rem;
+  }
+  .pay-brand h1 {
+    font-size: 1.5rem;
+  }
+  .pay-value {
+    font-size: 1.4rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+  }
+}
