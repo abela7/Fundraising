@@ -27,7 +27,49 @@ $target = (float)($settings['target_amount'] ?? 100000);
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="./assets/projector-live.css">
+    <link rel="stylesheet" href="./assets/projector-live.css?v=<?= (int) filemtime(__DIR__ . '/assets/projector-live.css') ?>">
+    <style>
+        button.total-card {
+            appearance: none;
+            -webkit-appearance: none;
+            font-family: inherit;
+            color: inherit;
+            text-align: inherit;
+        }
+        .contribution-more-wrap {
+            flex-shrink: 0;
+            display: flex;
+            justify-content: center;
+            padding: 0.85rem 1.5rem 1.2rem;
+        }
+        button.contrib-load-more {
+            appearance: none;
+            -webkit-appearance: none;
+            font-family: inherit;
+            min-width: 200px;
+            background: linear-gradient(180deg, #2a4060 0%, #1e2a3e 100%);
+            color: #ffffff;
+            border: 1px solid #0b78a6;
+            border-radius: 999px;
+            padding: 0.7rem 1.6rem;
+            font-size: 0.9rem;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            cursor: pointer;
+            box-shadow: 0 4px 16px rgba(11, 120, 166, 0.28);
+        }
+        button.contrib-load-more:hover:not(:disabled) {
+            border-color: #0d8fc4;
+            background: linear-gradient(180deg, #315178 0%, #1e2a3e 100%);
+        }
+        button.contrib-load-more:disabled {
+            opacity: 0.65;
+            cursor: wait;
+        }
+        button.contrib-load-more[hidden] {
+            display: none !important;
+        }
+    </style>
     <link rel="icon" type="image/svg+xml" href="../../assets/favicon.svg">
     <link rel="alternate icon" href="../../favicon.ico">
 </head>
@@ -63,10 +105,10 @@ $target = (float)($settings['target_amount'] ?? 100000);
     <main class="main-content">
         <!-- Fixed Left Panel - Totals -->
         <aside class="totals-panel">
-            <div class="total-card paid-card" data-filter="paid" role="button" tabindex="0" title="Show paid donations">
+            <button type="button" class="total-card paid-card" data-filter="paid" aria-pressed="false" title="Show paid donations">
                 <div class="card-header">
                     <i class="fas fa-check-circle"></i>
-                    <h3>Total Paid</h3>
+                    <span class="card-title">Total Paid</span>
                 </div>
                 <div class="card-value">
                     <span class="currency"><?= $currency ?></span>
@@ -75,12 +117,12 @@ $target = (float)($settings['target_amount'] ?? 100000);
                 <div class="card-indicator">
                     <div class="indicator-pulse"></div>
                 </div>
-            </div>
+            </button>
 
-            <div class="total-card pledged-card" data-filter="pledge" role="button" tabindex="0" title="Show pledges">
+            <button type="button" class="total-card pledged-card" data-filter="pledge" aria-pressed="false" title="Show pledges">
                 <div class="card-header">
                     <i class="fas fa-church"></i>
-                    <h3>Total Pledged</h3>
+                    <span class="card-title">Total Pledged</span>
                 </div>
                 <div class="card-value">
                     <span class="currency"><?= $currency ?></span>
@@ -89,12 +131,12 @@ $target = (float)($settings['target_amount'] ?? 100000);
                 <div class="card-indicator">
                     <div class="indicator-pulse"></div>
                 </div>
-            </div>
+            </button>
 
-            <div class="total-card grand-card is-filter-active" data-filter="all" role="button" tabindex="0" title="Show all donations">
+            <button type="button" class="total-card grand-card is-filter-active" data-filter="all" aria-pressed="true" title="Show all donations">
                 <div class="card-header">
                     <i class="fas fa-trophy"></i>
-                    <h3>Grand Total</h3>
+                    <span class="card-title">Grand Total</span>
                 </div>
                 <div class="card-value">
                     <span class="currency"><?= $currency ?></span>
@@ -103,7 +145,7 @@ $target = (float)($settings['target_amount'] ?? 100000);
                 <div class="card-indicator">
                     <div class="indicator-pulse"></div>
                 </div>
-            </div>
+            </button>
 
             <!-- Live Clock -->
             <div class="live-info">
@@ -120,11 +162,6 @@ $target = (float)($settings['target_amount'] ?? 100000);
 
         <!-- Scrollable Right Panel - Recent Contributions -->
         <section class="contributions-panel">
-            <div class="contribution-toolbar" role="group" aria-label="Donation filters">
-                <button type="button" class="contrib-filter is-active" data-filter="all" aria-pressed="true">All</button>
-                <button type="button" class="contrib-filter" data-filter="paid" aria-pressed="false">Paid</button>
-                <button type="button" class="contrib-filter" data-filter="pledge" aria-pressed="false">Pledged</button>
-            </div>
             <div class="contributions-list" id="contributionsList">
                 <div class="loading-message">
                     <i class="fas fa-spinner fa-spin"></i>
@@ -348,13 +385,10 @@ $target = (float)($settings['target_amount'] ?? 100000);
         }
         if (next === state.filter && state.contributions.length > 0) return;
         state.filter = next;
-        document.querySelectorAll('.contrib-filter').forEach((btn) => {
-            const active = btn.dataset.filter === next;
-            btn.classList.toggle('is-active', active);
-            btn.setAttribute('aria-pressed', active ? 'true' : 'false');
-        });
         document.querySelectorAll('.total-card[data-filter]').forEach((card) => {
-            card.classList.toggle('is-filter-active', card.dataset.filter === next);
+            const active = card.dataset.filter === next;
+            card.classList.toggle('is-filter-active', active);
+            card.setAttribute('aria-pressed', active ? 'true' : 'false');
         });
         fetchRecent('reset');
     }
@@ -523,7 +557,6 @@ $target = (float)($settings['target_amount'] ?? 100000);
         }
         
         div.className = className;
-        const donationDate = formatDonationDate(item.approved_at);
         
         // Extract amount from the original text
         const amountMatch = item.text.match(/GBP\s+([\d,]+)|£([\d,]+)/);
@@ -570,8 +603,7 @@ $target = (float)($settings['target_amount'] ?? 100000);
             <div class="contribution-content">
                 <div class="contribution-text">${highlightedText}</div>
                 <div class="contribution-meta">
-                    <span class="contribution-time">${formatTime(item.approved_at)}</span>
-                    ${donationDate ? `<span class="contribution-date">${donationDate}</span>` : ''}
+                    <span class="contribution-time">${formatDonationDate(item.approved_at)}</span>
                 </div>
             </div>
         `;
@@ -585,19 +617,6 @@ $target = (float)($settings['target_amount'] ?? 100000);
         return div;
     }
 
-    // Format time
-    function formatTime(timestamp) {
-        const date = parseDonationDate(timestamp);
-        if (!date) return '';
-        const now = new Date();
-        const diff = Math.floor((now - date) / 1000);
-        
-        if (diff < 60) return 'just now';
-        if (diff < 3600) return Math.floor(diff / 60) + 'm ago';
-        if (diff < 86400) return Math.floor(diff / 3600) + 'h ago';
-        return date.toLocaleDateString('en-GB', { timeZone: 'Europe/London' });
-    }
-
     function parseDonationDate(timestamp) {
         if (!timestamp) return null;
         const raw = String(timestamp).trim();
@@ -609,8 +628,8 @@ $target = (float)($settings['target_amount'] ?? 100000);
         const date = parseDonationDate(timestamp);
         if (!date) return '';
         return date.toLocaleDateString('en-GB', {
-            day: 'numeric',
-            month: 'short',
+            day: '2-digit',
+            month: '2-digit',
             year: 'numeric',
             timeZone: 'Europe/London'
         });
@@ -826,14 +845,8 @@ $target = (float)($settings['target_amount'] ?? 100000);
     }
 
     function setupFeedControls() {
-        document.querySelectorAll('.contrib-filter, .total-card[data-filter]').forEach((el) => {
+        document.querySelectorAll('.total-card[data-filter]').forEach((el) => {
             el.addEventListener('click', () => setFilter(el.dataset.filter || 'all'));
-            el.addEventListener('keydown', (event) => {
-                if (event.key === 'Enter' || event.key === ' ') {
-                    event.preventDefault();
-                    setFilter(el.dataset.filter || 'all');
-                }
-            });
         });
         const loadMoreBtn = document.getElementById('loadMoreBtn');
         if (loadMoreBtn) {

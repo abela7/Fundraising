@@ -230,12 +230,21 @@ body {
     font-size: 1.5rem;
 }
 
-.card-header h3 {
+.card-header h3,
+.card-header .card-title {
     font-size: 1rem;
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.05em;
     color: var(--text-secondary);
+}
+
+button.total-card {
+    appearance: none;
+    -webkit-appearance: none;
+    font-family: inherit;
+    color: inherit;
+    text-align: inherit;
 }
 
 .paid-card .card-header i {
@@ -269,6 +278,7 @@ body {
     position: absolute;
     top: 1rem;
     right: 1rem;
+    pointer-events: none;
 }
 
 .indicator-pulse {
@@ -340,49 +350,6 @@ body {
     overflow: hidden;
 }
 
-.contribution-toolbar {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.5rem;
-    padding: 1rem 2rem 0;
-    flex-shrink: 0;
-}
-
-.contrib-filter {
-    background: var(--bg-card);
-    color: var(--text-secondary);
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    border-radius: 999px;
-    padding: 0.4rem 0.9rem;
-    font-size: 0.8rem;
-    font-weight: 600;
-    letter-spacing: 0.03em;
-    text-transform: uppercase;
-    cursor: pointer;
-    transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
-}
-
-.contrib-filter:hover {
-    color: var(--text-primary);
-    border-color: rgba(255, 255, 255, 0.28);
-}
-
-.contrib-filter.is-active {
-    color: var(--text-primary);
-    background: rgba(11, 120, 166, 0.35);
-    border-color: var(--primary);
-}
-
-.contrib-filter[data-filter="paid"].is-active {
-    background: rgba(34, 197, 94, 0.2);
-    border-color: var(--success);
-}
-
-.contrib-filter[data-filter="pledge"].is-active {
-    background: rgba(255, 140, 0, 0.2);
-    border-color: var(--pledge-border);
-}
-
 .contributions-list {
     flex: 1;
     overflow-y: auto;
@@ -398,20 +365,26 @@ body {
 }
 
 .contrib-load-more {
-    background: var(--bg-card);
+    appearance: none;
+    -webkit-appearance: none;
+    font-family: inherit;
+    min-width: 200px;
+    background: linear-gradient(180deg, #2a4060 0%, var(--bg-card) 100%);
     color: var(--text-primary);
-    border: 1px solid rgba(255, 255, 255, 0.16);
+    border: 1px solid var(--primary);
     border-radius: 999px;
-    padding: 0.55rem 1.25rem;
-    font-size: 0.85rem;
-    font-weight: 600;
+    padding: 0.7rem 1.6rem;
+    font-size: 0.9rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
     cursor: pointer;
+    box-shadow: 0 4px 16px rgba(11, 120, 166, 0.28);
     transition: background 0.2s ease, border-color 0.2s ease;
 }
 
 .contrib-load-more:hover:not(:disabled) {
     border-color: var(--primary-light);
-    background: rgba(11, 120, 166, 0.25);
+    background: linear-gradient(180deg, #315178 0%, var(--bg-card) 100%);
 }
 
 .contrib-load-more:disabled {
@@ -530,11 +503,7 @@ body {
 }
 
 .contribution-date {
-    font-size: 0.68rem;
-    line-height: 1.2;
-    color: var(--text-muted);
-    letter-spacing: 0.02em;
-    opacity: 0.8;
+    display: none;
 }
 
 /* NEW badge temporarily disabled
@@ -814,7 +783,8 @@ body {
         font-size: 1.1rem;
     }
     
-    .card-header h3 {
+    .card-header h3,
+    .card-header .card-title {
         font-size: 0.65rem;
         line-height: 1.1;
         text-transform: uppercase;
@@ -878,35 +848,20 @@ body {
         font-weight: 800;
     }
     
-    .contribution-toolbar {
-        padding: 0.5rem 0.5rem 0;
-        gap: 0.35rem;
-    }
-
-    .contrib-filter {
-        flex: 1;
-        text-align: center;
-        padding: 0.35rem 0.45rem;
-        font-size: 0.68rem;
-    }
-
     .contribution-more-wrap {
         padding: 0.45rem 0.5rem 0.7rem;
     }
 
     .contrib-load-more {
         width: 100%;
-        padding: 0.5rem 0.75rem;
+        min-width: 0;
+        padding: 0.65rem 0.75rem;
         font-size: 0.8rem;
     }
 
     .contribution-time {
         font-size: 0.75rem;
         opacity: 0.8;
-    }
-
-    .contribution-date {
-        font-size: 0.6rem;
     }
 
     /* NEW badge temporarily disabled
