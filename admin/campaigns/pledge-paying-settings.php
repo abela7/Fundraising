@@ -16,7 +16,7 @@ $defaultWelcome = (string) ($campaignSettings['default_welcome'] ?? CampaignGrou
 $welcomeIsCustom = $savedWelcome !== '' && $savedWelcome !== $defaultWelcome;
 $welcomePreview = $savedWelcome !== '' ? $savedWelcome : $defaultWelcome;
 
-$savedStatus = trim((string) ($campaignSettings['status_message'] ?? ''));
+$savedStatus = CampaignGroupSettings::statusFooterText((string) ($campaignSettings['status_message'] ?? ''));
 $defaultStatus = (string) ($campaignSettings['default_status'] ?? CampaignGroupSettings::defaultStatusMessage());
 $statusIsCustom = $savedStatus !== '' && $savedStatus !== $defaultStatus;
 $statusPreview = $savedStatus !== '' ? $savedStatus : $defaultStatus;
@@ -99,7 +99,7 @@ $statusPreview = $clip($statusPreview);
                             <div class="dvc-group-card-body">
                                 <div class="dvc-setup-title">Status check page</div>
                                 <div class="dvc-group-card-meta dvc-am-text"><?php echo htmlspecialchars($statusPreview, ENT_QUOTES, 'UTF-8'); ?></div>
-                                <div class="dvc-group-card-meta"><?php echo $statusIsCustom ? 'Saved — tap to edit' : 'Default status check — tap to write or change'; ?></div>
+                                <div class="dvc-group-card-meta"><?php echo $statusIsCustom ? 'Saved — tap to edit' : 'Default footer — tap to write or change'; ?></div>
                             </div>
                             <i class="fas fa-chevron-right dvc-group-card-arrow"></i>
                         </a>

@@ -2,8 +2,7 @@
   const config = window.DVC_PAGE || {};
   const csrf = config.csrf || '';
   const saveUrl = 'api/first-message.php';
-  let defaultStatus = config.default_status
-    || 'የተከበሩ {name}፣\n\nቃል የገቡት፦ {pledge_amount}\nእስካሁን የከፈሉት፦ {total_paid}\nቀሪ፦ {remaining_amount}\n\nይህ መረጃ ትክክል ነው?';
+  let defaultStatus = config.default_status || 'ይህ መረጃ ትክክል ነው?';
   const bodyEl = document.getElementById('dvcStatusBody');
   const previewEl = document.getElementById('dvcStatusPreview');
   const countEl = document.getElementById('dvcMsgCount');
@@ -22,6 +21,14 @@
       minimumFractionDigits: 2,
       maximumFractionDigits: 2
     });
+  }
+
+  function escapeHtml(value) {
+    return String(value || '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
   }
 
   function previewText(template) {
@@ -44,8 +51,23 @@
   }
 
   function updatePreview() {
-    if (previewEl) previewEl.textContent = previewText(bodyEl.value);
     if (countEl) countEl.textContent = bodyEl.value.length + ' / 4000';
+    if (!previewEl) return;
+    const footer = escapeHtml(previewText(bodyEl.value)).replace(/\n/g, '<br>');
+    previewEl.innerHTML =
+      '<div class="dvc-status-row">'
+      + '<span class="dvc-status-label">ጠቅላላ የገቡት ቃልኪዳን መጠን</span>'
+      + '<span class="dvc-status-value">' + escapeHtml(money(previewDonor.pledged)) + '</span>'
+      + '</div>'
+      + '<div class="dvc-status-row">'
+      + '<span class="dvc-status-label">እስካሁን የከፈሉት</span>'
+      + '<span class="dvc-status-value dvc-status-paid">' + escapeHtml(money(previewDonor.paid)) + '</span>'
+      + '</div>'
+      + '<div class="dvc-status-row dvc-status-remain-row">'
+      + '<span class="dvc-status-label">ቀሪ</span>'
+      + '<span class="dvc-status-value dvc-status-remain">' + escapeHtml(money(previewDonor.balance)) + '</span>'
+      + '</div>'
+      + (footer ? '<div class="dvc-status-footer">' + footer + '</div>' : '');
   }
 
   function insertToken(token) {
@@ -91,9 +113,9 @@
       if (!res.ok || !data.success) {
         throw new Error(data.error || 'Could not save.');
       }
-      showFlash('Status text saved. Donors will see it after the welcome screen.', false);
+      showFlash('Footer text saved. Donors will see it under the amounts.', false);
     } catch (err) {
-      showFlash(err.message || 'Could not save status text.', true);
+      showFlash(err.message || 'Could not save footer text.', true);
     }
   });
 

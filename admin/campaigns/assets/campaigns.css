@@ -519,6 +519,46 @@ a.dvc-group-card:focus {
   word-break: break-word;
   min-height: 7rem;
 }
+.dvc-status-card {
+  background: #fff;
+  border: 1px solid var(--gray-200);
+  border-top: 4px solid var(--accent);
+  border-radius: 12px;
+  overflow: hidden;
+  color: var(--gray-800);
+}
+.dvc-status-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--gray-200);
+}
+.dvc-status-remain-row {
+  background: rgba(10, 98, 134, 0.04);
+  border-bottom: 0;
+}
+.dvc-status-label {
+  color: var(--gray-500);
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+.dvc-status-value {
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+.dvc-status-paid {
+  color: #0f7a5a;
+}
+.dvc-status-remain {
+  color: var(--primary);
+}
+.dvc-status-footer {
+  padding: 12px 14px 14px;
+  border-top: 1px solid var(--gray-200);
+  font-weight: 600;
+  line-height: 1.6;
+}
 .dvc-muted {
   font-size: 0.8125rem;
   color: var(--gray-400);

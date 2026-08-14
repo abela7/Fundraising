@@ -66,16 +66,37 @@ assertSameValue(
 );
 
 $status = CampaignGroupSettings::defaultStatusMessage();
-assertSameValue(true, str_contains($status, '{pledge_amount}'), 'status text includes pledge amount');
-assertSameValue(true, str_contains($status, '{total_paid}'), 'status text includes total paid');
-assertSameValue(true, str_contains($status, '{remaining_amount}'), 'status text includes remaining');
+assertSameValue('ይህ መረጃ ትክክል ነው?', $status, 'default status footer asks if the amounts are right');
+assertSameValue(false, str_contains($status, '{pledge_amount}'), 'footer does not repeat pledge amount');
 assertSameValue(
-    true,
-    str_contains(
-        CampaignGroupSettings::preview($status, ['name' => 'Abeba', 'pledged' => 400, 'paid' => 120, 'balance' => 280]),
-        '£400.00'
+    'የተከበሩ Abeba፣ ይህ መረጃ ትክክል ነው?',
+    CampaignGroupSettings::preview(
+        'የተከበሩ {name}፣ ይህ መረጃ ትክክል ነው?',
+        ['name' => 'Abeba']
     ),
-    'status preview replaces pledge amount'
+    'status footer preview still replaces {name}'
+);
+assertSameValue(
+    'ይህ መረጃ ትክክል ነው?',
+    CampaignGroupSettings::statusFooterText(''),
+    'empty saved status uses the footer default'
+);
+assertSameValue(
+    'ይህ መረጃ ትክክል ነው?',
+    CampaignGroupSettings::statusFooterText(CampaignGroupSettings::legacyStatusMessage()),
+    'old amount-repeating status text becomes the footer default'
+);
+assertSameValue(
+    "ባለን መረጃ መሰረት\nይህ መረጃ ትክክል ነው?",
+    CampaignGroupSettings::statusFooterText(
+        "ባለን መረጃ መሰረት\nለመክፈል ቃል የገቡት የገንዘብ መጠን :- {pledge_amount}\nእስካሁን የከፈሉት:- {total_paid}\nቀሪ:- {remaining_amount}\nይህ መረጃ ትክክል ነው?"
+    ),
+    'amount-repeating lines are dropped from a custom status body'
+);
+assertSameValue(
+    'ቀሪው {remaining_amount} ትክክል ነው?',
+    CampaignGroupSettings::statusFooterText('ቀሪው {remaining_amount} ትክክል ነው?'),
+    'a footer that only mentions remaining is kept'
 );
 
 fwrite(STDOUT, "PASS campaign paying link tests\n");

@@ -113,7 +113,7 @@ try {
         $message = (string) ($_POST['status_message'] ?? '');
         if (trim($message) === '') {
             http_response_code(400);
-            echo json_encode(['success' => false, 'error' => 'Write a status-check message before saving.']);
+            echo json_encode(['success' => false, 'error' => 'Write footer text before saving.']);
             exit;
         }
         $length = function_exists('mb_strlen') ? mb_strlen($message) : strlen($message);

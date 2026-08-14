@@ -31,11 +31,60 @@ final class CampaignGroupSettings
     }
 
     /**
-     * Default Amharic status-check text on the paying page.
+     * Default Amharic footer under pledged / paid / remaining.
      */
     public static function defaultStatusMessage(): string
     {
+        return 'ይህ መረጃ ትክክል ነው?';
+    }
+
+    /**
+     * Previous status body that repeated the amounts in prose.
+     */
+    public static function legacyStatusMessage(): string
+    {
         return "የተከበሩ {name}፣\n\nቃል የገቡት፦ {pledge_amount}\nእስካሁን የከፈሉት፦ {total_paid}\nቀሪ፦ {remaining_amount}\n\nይህ መረጃ ትክክል ነው?";
+    }
+
+    /**
+     * Footer shown under the amount card. The old default and any saved
+     * text that still repeats pledged / paid / remaining are reduced to
+     * the lines that belong under the figures.
+     */
+    public static function statusFooterText(string $saved): string
+    {
+        $saved = trim($saved);
+        if ($saved === '' || $saved === self::legacyStatusMessage()) {
+            return self::defaultStatusMessage();
+        }
+
+        $amountTokens = ['{pledge_amount}', '{total_paid}', '{remaining_amount}'];
+        $tokenHits = 0;
+        foreach ($amountTokens as $token) {
+            if (str_contains($saved, $token)) {
+                $tokenHits++;
+            }
+        }
+        if ($tokenHits < 2) {
+            return $saved;
+        }
+
+        $kept = [];
+        foreach (preg_split("/\r\n|\n|\r/", $saved) as $line) {
+            $drop = false;
+            foreach ($amountTokens as $token) {
+                if (str_contains($line, $token)) {
+                    $drop = true;
+                    break;
+                }
+            }
+            if (!$drop) {
+                $kept[] = $line;
+            }
+        }
+        $footer = trim((string) preg_replace("/\n{3,}/", "\n\n", implode("\n", $kept)));
+
+        return $footer !== '' ? $footer : self::defaultStatusMessage();
     }
 
     /**
@@ -64,7 +113,7 @@ final class CampaignGroupSettings
     }
 
     /**
-     * Status-check page: name plus pledged / paid / remaining.
+     * Footer under the amount card. Amounts are shown as rows, not in this text.
      *
      * @return list<array{key:string,label:string,token:string}>
      */
@@ -211,10 +260,8 @@ final class CampaignGroupSettings
                 if ($welcome !== '') {
                     $defaults['welcome_message'] = $welcome;
                 }
-                $status = trim((string) ($row['status_message'] ?? ''));
-                if ($status !== '') {
-                    $defaults['status_message'] = $status;
-                }
+                $status = self::statusFooterText((string) ($row['status_message'] ?? ''));
+                $defaults['status_message'] = $status;
                 $mode = (string) ($row['recipient_mode'] ?? self::MODE_ALL);
                 $defaults['recipient_mode'] = $mode === self::MODE_SELECTED ? self::MODE_SELECTED : self::MODE_ALL;
             }

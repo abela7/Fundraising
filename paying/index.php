@@ -43,9 +43,7 @@ if ($donor === null) {
         if (trim((string) ($settings['welcome_message'] ?? '')) !== '') {
             $welcomeTemplate = (string) $settings['welcome_message'];
         }
-        if (trim((string) ($settings['status_message'] ?? '')) !== '') {
-            $statusTemplate = (string) $settings['status_message'];
-        }
+        $statusTemplate = CampaignGroupSettings::statusFooterText((string) ($settings['status_message'] ?? ''));
     } catch (Throwable $e) {
         error_log('Paying page text load failed: ' . $e->getMessage());
     }
@@ -118,9 +116,6 @@ if ($donor !== null && $token !== '') {
 
             <section class="pay-screen" data-pay-step="status" id="payStatus" hidden aria-label="የክፍያ መረጃ">
                 <div class="pay-stack">
-                    <div class="pay-card pay-welcome">
-                        <div class="pay-welcome-text"><?php echo $statusHtml; ?></div>
-                    </div>
                     <div class="pay-card">
                         <div class="pay-row">
                             <span class="pay-label">ጠቅላላ የገቡት ቃልኪዳን መጠን</span>
@@ -134,6 +129,9 @@ if ($donor !== null && $token !== '') {
                             <span class="pay-label">ቀሪ</span>
                             <span class="pay-value pay-remain"><?php echo htmlspecialchars($remaining, ENT_QUOTES, 'UTF-8'); ?></span>
                         </div>
+                        <?php if ($statusHtml !== ''): ?>
+                            <div class="pay-footer"><?php echo $statusHtml; ?></div>
+                        <?php endif; ?>
                     </div>
                     <div class="pay-choices" role="group" aria-label="ይህ መረጃ ትክክል ነው?">
                         <button type="button" class="pay-choice" data-pay-choice="status_correct" data-pay-value="yes">አዎ</button>
