@@ -3,11 +3,17 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/includes/paying-boot.php';
+require_once __DIR__ . '/../../services/UltraMsgService.php';
+require_once __DIR__ . '/../../shared/CampaignFirstMessageSend.php';
 
 $page_title = 'Still paying — Send';
-$savedMessage = (string) $campaignSettings['first_message'];
-$recipientMode = (string) $campaignSettings['recipient_mode'];
-$modeAll = $recipientMode !== CampaignGroupSettings::MODE_SELECTED;
+$savedMessage = trim((string) $campaignSettings['first_message']);
+$whatsappReady = false;
+try {
+    $whatsappReady = UltraMsgService::fromDatabase(db()) !== null;
+} catch (Throwable $e) {
+    $whatsappReady = false;
+}
 $pageConfig = [
     'group' => DonorCampaignGroups::PLEDGE_PAYING,
     'amount_key' => 'remaining',
@@ -16,8 +22,9 @@ $pageConfig = [
     'currency' => 'GBP',
     'campaign' => true,
     'csrf' => $csrfToken,
-    'recipient_mode' => $recipientMode,
-    'donor_ids' => $campaignSettings['donor_ids'],
+    'has_message' => $savedMessage !== '',
+    'whatsapp_ready' => $whatsappReady,
+    'batch_limit' => CampaignFirstMessageSend::BATCH_LIMIT,
 ];
 ?>
 <!DOCTYPE html>
@@ -38,15 +45,15 @@ $pageConfig = [
     <?php include __DIR__ . '/../includes/sidebar.php'; ?>
     <div class="admin-content">
         <?php include __DIR__ . '/../includes/topbar.php'; ?>
-        <main class="main-content">
+        <main class="main-content dvc-send-page">
             <div class="container-fluid">
                 <div class="dvc-page-header animate-fade-in">
                     <div>
                         <h1>
-                            <i class="fas fa-paper-plane me-2 dvc-title-icon paying"></i>
+                            <i class="fab fa-whatsapp me-2" style="color: var(--success);"></i>
                             Send first message
                         </h1>
-                        <p>Choose who should receive the saved first message. This does not send WhatsApp yet.</p>
+                        <p>Tick the still-paying donors, then send the saved WhatsApp hello.</p>
                     </div>
                     <div class="d-flex gap-2 flex-wrap">
                         <a class="btn btn-outline-secondary" href="pledge-paying.php">
@@ -55,76 +62,39 @@ $pageConfig = [
                     </div>
                 </div>
 
-                <div class="dvc-settings-card animate-fade-in">
-                    <div class="dvc-settings-head">
-                        <div>
-                            <h6>Message to send</h6>
-                            <p>This is the saved first message. Variables fill in per donor when we send.</p>
-                        </div>
-                        <a class="btn btn-sm btn-outline-primary" href="pledge-paying-first-message.php">Edit</a>
+                <?php if ($savedMessage === ''): ?>
+                    <div class="alert alert-warning" role="alert">
+                        Write and save a first message in
+                        <a href="pledge-paying-first-message.php" class="alert-link">Settings</a>
+                        before sending.
                     </div>
-                    <div class="dvc-settings-body">
-                        <div class="dvc-preview-bubble dvc-am-text"><?php echo htmlspecialchars($savedMessage, ENT_QUOTES, 'UTF-8'); ?></div>
+                <?php endif; ?>
+
+                <?php if (!$whatsappReady): ?>
+                    <div class="alert alert-warning" role="alert">
+                        WhatsApp is not configured yet. Messages cannot be sent until UltraMsg is set up.
                     </div>
-                </div>
+                <?php endif; ?>
 
                 <div class="dvc-settings-card animate-fade-in">
                     <div class="dvc-settings-head">
                         <div>
-                            <h6>Who receives it</h6>
-                            <p>Only pledge donors who are still paying.</p>
+                            <h6>Message</h6>
+                            <p>Each donor gets their own name and amounts filled in.</p>
                         </div>
-                        <div class="dvc-select-count" id="dvcSelectCount">All still-paying donors</div>
+                        <a class="btn btn-sm btn-outline-primary" href="pledge-paying-first-message.php">Edit message</a>
                     </div>
                     <div class="dvc-settings-body">
-                        <div id="dvcMsgFlash" class="alert d-none" role="status"></div>
-                        <div class="dvc-mode-row">
-                            <label class="dvc-mode-option<?php echo $modeAll ? ' is-active' : ''; ?>">
-                                <input type="radio" name="dvcRecipientMode" id="dvcModeAll" value="all"<?php echo $modeAll ? ' checked' : ''; ?>>
-                                <span>
-                                    <strong>All still-paying donors</strong>
-                                    <small>Everyone in this group, including people not on this page.</small>
-                                </span>
-                            </label>
-                            <label class="dvc-mode-option<?php echo $modeAll ? '' : ' is-active'; ?>">
-                                <input type="radio" name="dvcRecipientMode" id="dvcModeSelected" value="selected"<?php echo $modeAll ? '' : ' checked'; ?>>
-                                <span>
-                                    <strong>Choose people</strong>
-                                    <small>Tick names in the table below.</small>
-                                </span>
-                            </label>
-                        </div>
-                        <div class="d-flex flex-wrap gap-2 mt-3">
-                            <button type="button" class="btn btn-outline-primary btn-sm" id="dvcSelectPage">Select this page</button>
-                            <button type="button" class="btn btn-outline-secondary btn-sm" id="dvcClearSelected">Clear ticks</button>
-                            <button type="button" class="btn btn-primary btn-sm" id="dvcSaveRecipients">
-                                <i class="fas fa-save me-1"></i>Save recipients
-                            </button>
-                        </div>
+                        <?php if ($savedMessage !== ''): ?>
+                            <div class="dvc-preview-bubble dvc-am-text"><?php echo htmlspecialchars($savedMessage, ENT_QUOTES, 'UTF-8'); ?></div>
+                        <?php else: ?>
+                            <p class="dvc-muted mb-0">No first message saved yet.</p>
+                        <?php endif; ?>
                     </div>
                 </div>
 
-                <div class="dvc-hero-kpis animate-fade-in">
-                    <div class="dvc-hero-kpi">
-                        <div class="dvc-stat-icon paying"><i class="fas fa-users"></i></div>
-                        <div>
-                            <div class="dvc-hero-value" id="kpiDonors">—</div>
-                            <div class="dvc-stat-label">Still-paying donors</div>
-                        </div>
-                    </div>
-                    <div class="dvc-hero-kpi dvc-hero-kpi-amount paying">
-                        <div class="dvc-stat-icon paying"><i class="fas fa-coins"></i></div>
-                        <div>
-                            <div class="dvc-hero-value" id="kpiAmount">—</div>
-                            <div class="dvc-stat-label">Total amount remaining</div>
-                        </div>
-                    </div>
-                </div>
-                <div class="dvc-stat-row d-none" aria-hidden="true">
-                    <div class="dvc-stat-value" id="kpiPledged">0</div>
-                    <div class="dvc-stat-value" id="kpiPaid">0</div>
-                    <div class="dvc-stat-value" id="kpiRemaining">0</div>
-                </div>
+                <div id="dvcMsgFlash" class="alert d-none" role="status"></div>
+                <div id="dvcSendResult" class="dvc-send-result d-none" role="status"></div>
 
                 <div class="dvc-filter-bar">
                     <div class="form-label mb-2"><i class="fas fa-filter me-1"></i>Find donors</div>
@@ -150,8 +120,11 @@ $pageConfig = [
 
                 <div class="dvc-data-card">
                     <div class="dvc-table-header">
-                        <h6>Still-paying donors</h6>
-                        <div class="d-flex align-items-center gap-2">
+                        <h6>Choose recipients</h6>
+                        <div class="d-flex align-items-center gap-2 flex-wrap">
+                            <button type="button" class="btn btn-outline-primary btn-sm" id="dvcSelectPage">Select this page</button>
+                            <button type="button" class="btn btn-outline-primary btn-sm" id="dvcSelectAll">Select all still-paying</button>
+                            <button type="button" class="btn btn-outline-secondary btn-sm" id="dvcClearSelected">Clear</button>
                             <label class="form-label mb-0" for="perPage">Per page</label>
                             <select class="form-select form-select-sm" id="perPage" style="width: auto;">
                                 <option value="10">10</option>
@@ -166,7 +139,7 @@ $pageConfig = [
                             <thead>
                                 <tr>
                                     <th class="dvc-col-check">
-                                        <input type="checkbox" id="dvcCheckPage" title="Select this page" disabled>
+                                        <input type="checkbox" id="dvcCheckPage" title="Select this page">
                                     </th>
                                     <th class="dvc-col-num">#</th>
                                     <th class="dvc-sortable" data-sort-by="name">Donor<span class="dvc-sort-icon"></span></th>
@@ -189,10 +162,42 @@ $pageConfig = [
                         <ul class="pagination pagination-sm mb-0" id="pagination"></ul>
                     </div>
                 </div>
+
+                <div class="dvc-send-dock" id="dvcSendDock">
+                    <div>
+                        <div class="dvc-send-count" id="dvcSelectCount">0 selected</div>
+                        <div class="dvc-send-meta" id="dvcSendMeta">Tick people in the table, then send.</div>
+                        <div class="progress dvc-send-progress d-none" id="dvcSendProgress">
+                            <div class="progress-bar" id="dvcSendProgressBar" role="progressbar" style="width: 0%"></div>
+                        </div>
+                    </div>
+                    <button type="button" class="btn btn-success" id="dvcSendNow" disabled>
+                        <i class="fab fa-whatsapp me-1"></i>Send on WhatsApp
+                    </button>
+                </div>
             </div>
         </main>
     </div>
 </div>
+
+<div class="modal fade" id="dvcSendModal" tabindex="-1" aria-labelledby="dvcSendModalTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="dvcSendModalTitle">Send WhatsApp messages?</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="dvcSendModalBody"></div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-success" id="dvcConfirmSend">
+                    <i class="fab fa-whatsapp me-1"></i>Send now
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="../assets/admin.js"></script>
 <script>

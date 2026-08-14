@@ -102,13 +102,20 @@
       const link = r.donor_id
         ? `<a class="dvc-donor-link" href="../donor-management/view-donor.php?id=${r.donor_id}">${name}</a>`
         : name;
+      const sent = !!(campaign && typeof campaign.isSent === 'function' && campaign.isSent(id));
+      const tickable = !!(campaign && typeof campaign.canTick === 'function' && campaign.canTick(id));
+      const selected = !!(campaign && campaign.isSelected(id)) || sent;
+      const phoneText = r.phone
+        ? escapeHtml(r.phone)
+        : (CAMPAIGN ? '<span class="dvc-no-phone">No phone</span>' : '');
+      const sentBadge = sent ? ' <span class="dvc-badge dvc-badge-new dvc-sent-flag">Sent</span>' : '';
       const check = CAMPAIGN
-        ? `<td class="dvc-col-check" data-label="Select"><input type="checkbox" class="dvc-row-check" data-donor-id="${id}" ${campaign && campaign.isSelected(id) ? 'checked' : ''} ${campaign && campaign.canTick() ? '' : 'disabled'}></td>`
+        ? `<td class="dvc-col-check" data-label="Select"><input type="checkbox" class="dvc-row-check" data-donor-id="${id}" ${selected ? 'checked' : ''} ${tickable ? '' : 'disabled'}></td>`
         : '';
-      return `<tr>
+      return `<tr class="${sent ? 'dvc-row-sent' : ''}">
         ${check}
         <td class="dvc-col-num" data-label="#">${startNum + i}</td>
-        <td data-label="Donor"><div>${link}</div><small class="text-muted">${escapeHtml(r.phone || '')}</small></td>
+        <td data-label="Donor"><div>${link}${sentBadge}</div><small class="text-muted">${phoneText}</small></td>
         <td data-label="Reference"><code class="small">${escapeHtml(r.reference || '—')}</code></td>
         <td data-label="Source">${sourceBadge(r.data_source)}</td>
         <td class="text-end" data-label="Pledged">${escapeHtml(fmtMoney(r.pledged))}</td>
