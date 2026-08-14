@@ -30,9 +30,13 @@ $decoded = json_decode((string) ($_POST['donor_ids'] ?? '[]'), true);
 $ids = [];
 if (is_array($decoded)) {
     foreach ($decoded as $id) {
-        $ids[] = (int) $id;
+        $id = (int) $id;
+        if ($id > 0) {
+            $ids[$id] = $id;
+        }
     }
 }
+$ids = array_values($ids);
 
 $userId = (int) ($_SESSION['user']['id'] ?? 0);
 

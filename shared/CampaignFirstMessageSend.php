@@ -77,8 +77,23 @@ final class CampaignFirstMessageSend
 
         $donors = self::loadDonors($db, $validIds);
         $results = [];
+        $sentPhones = [];
         foreach ($donors as $donor) {
-            $results[] = self::sendOne($db, $service, $donor, $template, $userId);
+            $phoneKey = self::phoneKey((string) $donor['phone']);
+            if ($phoneKey !== '' && isset($sentPhones[$phoneKey])) {
+                $results[] = [
+                    'donor_id' => $donor['id'],
+                    'name' => trim($donor['name']) !== '' ? $donor['name'] : 'Unknown',
+                    'status' => 'skipped',
+                    'error' => 'Same phone as another selected donor',
+                ];
+                continue;
+            }
+            $sent = self::sendOne($db, $service, $donor, $template, $userId);
+            if ($sent['status'] === 'sent' && $phoneKey !== '') {
+                $sentPhones[$phoneKey] = true;
+            }
+            $results[] = $sent;
         }
 
         return ['ok' => true, 'results' => $results];
@@ -162,6 +177,10 @@ final class CampaignFirstMessageSend
             'paid' => $donor['paid'],
             'balance' => $donor['balance'],
         ]);
+
+        if (self::recentlySent($db, $donor['phone'], $body)) {
+            return array_merge($base, ['status' => 'sent']);
+        }
 
         $result = $service->send($donor['phone'], $body, [
             'donor_id' => $donor['id'],
@@ -257,5 +276,53 @@ final class CampaignFirstMessageSend
         } catch (Throwable $e) {
             error_log('Campaign first message inbox log failed: ' . $e->getMessage());
         }
+    }
+
+    private static function phoneKey(string $phone): string
+    {
+        return preg_replace('/\D+/', '', $phone) ?? '';
+    }
+
+    private static function recentlySent(mysqli $db, string $phone, string $body): bool
+    {
+        $key = self::phoneKey($phone);
+        if ($key === '') {
+            return false;
+        }
+
+        try {
+            $check = $db->query("SHOW TABLES LIKE 'whatsapp_log'");
+            if (!$check || $check->num_rows === 0) {
+                return false;
+            }
+
+            $stmt = $db->prepare(
+                "SELECT phone_number, message_content
+                 FROM whatsapp_log
+                 WHERE source_type = 'campaign_first_message'
+                   AND status = 'sent'
+                   AND sent_at >= DATE_SUB(NOW(), INTERVAL 2 MINUTE)
+                 ORDER BY id DESC
+                 LIMIT 50"
+            );
+            if ($stmt === false) {
+                return false;
+            }
+            $stmt->execute();
+            $result = $stmt->get_result();
+            while ($row = $result->fetch_assoc()) {
+                $samePhone = self::phoneKey((string) ($row['phone_number'] ?? '')) === $key;
+                $sameBody = (string) ($row['message_content'] ?? '') === $body;
+                if ($samePhone && $sameBody) {
+                    $stmt->close();
+                    return true;
+                }
+            }
+            $stmt->close();
+        } catch (Throwable $e) {
+            return false;
+        }
+
+        return false;
     }
 }

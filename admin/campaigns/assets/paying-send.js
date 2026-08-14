@@ -8,6 +8,7 @@
   const selectCount = document.getElementById('dvcSelectCount');
   const sendMeta = document.getElementById('dvcSendMeta');
   const sendBtn = document.getElementById('dvcSendNow');
+  const confirmBtn = document.getElementById('dvcConfirmSend');
   const flashEl = document.getElementById('dvcMsgFlash');
   const resultEl = document.getElementById('dvcSendResult');
   const progressWrap = document.getElementById('dvcSendProgress');
@@ -265,14 +266,22 @@
   }
 
   async function runSend() {
+    if (sending) return;
+    sending = true;
+    if (confirmBtn) confirmBtn.disabled = true;
+    sendBtn.disabled = true;
+
     const ids = Array.from(selectedIds).filter(function (id) {
       return !isSent(id) && hasPhone(id, '');
     });
-    if (ids.length === 0) return;
+    if (ids.length === 0) {
+      sending = false;
+      if (confirmBtn) confirmBtn.disabled = false;
+      refreshChecks();
+      return;
+    }
 
-    sending = true;
     refreshChecks();
-    sendBtn.disabled = true;
     setProgress(0, ids.length);
 
     const summary = { sent: 0, skipped: 0, failed: 0 };
@@ -314,11 +323,13 @@
       showFlash(err.message || 'Sending stopped.', true);
     } finally {
       sending = false;
+      if (confirmBtn) confirmBtn.disabled = false;
       refreshChecks();
     }
   }
 
   sendBtn.addEventListener('click', function () {
+    if (sending) return;
     const ready = readyCount();
     const skipped = skippedCount();
     if (ready <= 0) return;
@@ -344,9 +355,10 @@
     sendModal.show();
   });
 
-  const confirmBtn = document.getElementById('dvcConfirmSend');
   if (confirmBtn) {
     confirmBtn.addEventListener('click', function () {
+      if (sending) return;
+      confirmBtn.disabled = true;
       if (sendModal) sendModal.hide();
       runSend();
     });
