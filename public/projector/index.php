@@ -28,48 +28,6 @@ $target = (float)($settings['target_amount'] ?? 100000);
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="./assets/projector-live.css?v=<?= (int) filemtime(__DIR__ . '/assets/projector-live.css') ?>">
-    <style>
-        button.total-card {
-            appearance: none;
-            -webkit-appearance: none;
-            font-family: inherit;
-            color: inherit;
-            text-align: inherit;
-        }
-        .contribution-more-wrap {
-            flex-shrink: 0;
-            display: flex;
-            justify-content: center;
-            padding: 0.85rem 1.5rem 1.2rem;
-        }
-        button.contrib-load-more {
-            appearance: none;
-            -webkit-appearance: none;
-            font-family: inherit;
-            min-width: 200px;
-            background: linear-gradient(180deg, #2a4060 0%, #1e2a3e 100%);
-            color: #ffffff;
-            border: 1px solid #0b78a6;
-            border-radius: 999px;
-            padding: 0.7rem 1.6rem;
-            font-size: 0.9rem;
-            font-weight: 700;
-            letter-spacing: 0.04em;
-            cursor: pointer;
-            box-shadow: 0 4px 16px rgba(11, 120, 166, 0.28);
-        }
-        button.contrib-load-more:hover:not(:disabled) {
-            border-color: #0d8fc4;
-            background: linear-gradient(180deg, #315178 0%, #1e2a3e 100%);
-        }
-        button.contrib-load-more:disabled {
-            opacity: 0.65;
-            cursor: wait;
-        }
-        button.contrib-load-more[hidden] {
-            display: none !important;
-        }
-    </style>
     <link rel="icon" type="image/svg+xml" href="../../assets/favicon.svg">
     <link rel="alternate icon" href="../../favicon.ico">
 </head>
