@@ -28,6 +28,9 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'GET') {
             'donor_ids' => $settings['donor_ids'],
             'variables' => CampaignGroupSettings::variables(),
             'welcome_variables' => CampaignGroupSettings::welcomeVariables(),
+            'status_message' => $settings['status_message'],
+            'default_status' => $settings['default_status'],
+            'status_variables' => CampaignGroupSettings::statusVariables(),
         ]);
     } catch (Throwable $e) {
         error_log('Campaign first message load failed: ' . $e->getMessage());
@@ -101,6 +104,31 @@ try {
         echo json_encode([
             'success' => true,
             'welcome_message' => trim($message),
+            'preview' => CampaignGroupSettings::preview(trim($message), []),
+        ]);
+        exit;
+    }
+
+    if ($action === 'save_status') {
+        $message = (string) ($_POST['status_message'] ?? '');
+        if (trim($message) === '') {
+            http_response_code(400);
+            echo json_encode(['success' => false, 'error' => 'Write a status-check message before saving.']);
+            exit;
+        }
+        $length = function_exists('mb_strlen') ? mb_strlen($message) : strlen($message);
+        if ($length > CampaignGroupSettings::MAX_MESSAGE_LENGTH) {
+            http_response_code(400);
+            echo json_encode(['success' => false, 'error' => 'Message is too long.']);
+            exit;
+        }
+        $ok = CampaignGroupSettings::saveStatusMessage($db, $group, $message, $userId);
+        if (!$ok) {
+            throw new RuntimeException('Could not save status message.');
+        }
+        echo json_encode([
+            'success' => true,
+            'status_message' => trim($message),
             'preview' => CampaignGroupSettings::preview(trim($message), []),
         ]);
         exit;

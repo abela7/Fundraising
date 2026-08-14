@@ -31,6 +31,14 @@ final class CampaignGroupSettings
     }
 
     /**
+     * Default Amharic status-check text on the paying page.
+     */
+    public static function defaultStatusMessage(): string
+    {
+        return "የተከበሩ {name}፣\n\nቃል የገቡት፦ {pledge_amount}\nእስካሁን የከፈሉት፦ {total_paid}\nቀሪ፦ {remaining_amount}\n\nይህ መረጃ ትክክል ነው?";
+    }
+
+    /**
      * @return list<array{key:string,label:string,token:string}>
      */
     public static function variables(): array
@@ -55,6 +63,16 @@ final class CampaignGroupSettings
         ];
     }
 
+    /**
+     * Status-check page: name plus pledged / paid / remaining.
+     *
+     * @return list<array{key:string,label:string,token:string}>
+     */
+    public static function statusVariables(): array
+    {
+        return self::variables();
+    }
+
     public static function isAllowedGroup(string $group): bool
     {
         return $group === self::GROUP_PAYING;
@@ -68,6 +86,7 @@ final class CampaignGroupSettings
                     group_key VARCHAR(40) NOT NULL,
                     first_message TEXT NOT NULL,
                     welcome_message TEXT NULL,
+                    status_message TEXT NULL,
                     recipient_mode VARCHAR(20) NOT NULL DEFAULT 'all',
                     updated_by INT NULL,
                     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -97,21 +116,38 @@ final class CampaignGroupSettings
         }
 
         self::ensureWelcomeColumn($db);
+        self::ensureStatusColumn($db);
     }
 
     private static function ensureWelcomeColumn(mysqli $db): void
     {
+        self::addColumnIfMissing(
+            $db,
+            'ALTER TABLE campaign_group_settings ADD COLUMN welcome_message TEXT NULL AFTER first_message',
+            'Campaign welcome column failed: '
+        );
+    }
+
+    private static function ensureStatusColumn(mysqli $db): void
+    {
+        self::addColumnIfMissing(
+            $db,
+            'ALTER TABLE campaign_group_settings ADD COLUMN status_message TEXT NULL AFTER welcome_message',
+            'Campaign status column failed: '
+        );
+    }
+
+    private static function addColumnIfMissing(mysqli $db, string $sql, string $logPrefix): void
+    {
         try {
-            $db->query(
-                'ALTER TABLE campaign_group_settings ADD COLUMN welcome_message TEXT NULL AFTER first_message'
-            );
+            $db->query($sql);
         } catch (Throwable $e) {
             $msg = $e->getMessage();
             if (
                 stripos($msg, 'duplicate column') === false
                 && stripos($msg, 'already exists') === false
             ) {
-                error_log('Campaign welcome column failed: ' . $msg);
+                error_log($logPrefix . $msg);
             }
         }
     }
@@ -123,6 +159,8 @@ final class CampaignGroupSettings
      *     default_message:string,
      *     welcome_message:string,
      *     default_welcome:string,
+     *     status_message:string,
+     *     default_status:string,
      *     recipient_mode:string,
      *     donor_ids:list<int>
      * }
@@ -135,6 +173,8 @@ final class CampaignGroupSettings
             'default_message' => self::defaultFirstMessage(),
             'welcome_message' => self::defaultWelcomeMessage(),
             'default_welcome' => self::defaultWelcomeMessage(),
+            'status_message' => self::defaultStatusMessage(),
+            'default_status' => self::defaultStatusMessage(),
             'recipient_mode' => self::MODE_ALL,
             'donor_ids' => [],
         ];
@@ -150,7 +190,7 @@ final class CampaignGroupSettings
 
         try {
             $stmt = $db->prepare(
-                'SELECT first_message, welcome_message, recipient_mode
+                'SELECT first_message, welcome_message, status_message, recipient_mode
                  FROM campaign_group_settings
                  WHERE group_key = ?
                  LIMIT 1'
@@ -170,6 +210,10 @@ final class CampaignGroupSettings
                 $welcome = trim((string) ($row['welcome_message'] ?? ''));
                 if ($welcome !== '') {
                     $defaults['welcome_message'] = $welcome;
+                }
+                $status = trim((string) ($row['status_message'] ?? ''));
+                if ($status !== '') {
+                    $defaults['status_message'] = $status;
                 }
                 $mode = (string) ($row['recipient_mode'] ?? self::MODE_ALL);
                 $defaults['recipient_mode'] = $mode === self::MODE_SELECTED ? self::MODE_SELECTED : self::MODE_ALL;
@@ -257,6 +301,37 @@ final class CampaignGroupSettings
             return false;
         }
         $stmt->bind_param('ssssi', $group, $first, $message, $mode, $updatedBy);
+
+        return $stmt->execute();
+    }
+
+    public static function saveStatusMessage(mysqli $db, string $group, string $message, int $updatedBy): bool
+    {
+        if (!self::isAllowedGroup($group)) {
+            return false;
+        }
+        $message = trim($message);
+        $length = function_exists('mb_strlen') ? mb_strlen($message) : strlen($message);
+        if ($message === '' || $length > self::MAX_MESSAGE_LENGTH) {
+            return false;
+        }
+        self::ensureTables($db);
+        $existing = self::get($db, $group);
+        $first = $existing['first_message'];
+        $welcome = $existing['welcome_message'];
+        $mode = $existing['recipient_mode'];
+        $stmt = $db->prepare(
+            'INSERT INTO campaign_group_settings
+                (group_key, first_message, welcome_message, status_message, recipient_mode, updated_by)
+             VALUES (?, ?, ?, ?, ?, ?)
+             ON DUPLICATE KEY UPDATE
+                status_message = VALUES(status_message),
+                updated_by = VALUES(updated_by)'
+        );
+        if ($stmt === false) {
+            return false;
+        }
+        $stmt->bind_param('sssssi', $group, $first, $welcome, $message, $mode, $updatedBy);
 
         return $stmt->execute();
     }
@@ -384,6 +459,23 @@ final class CampaignGroupSettings
         ];
 
         return strtr($template, $map);
+    }
+
+    /**
+     * Fill a page template with a live donor row.
+     *
+     * @param array<string, mixed> $donor
+     */
+    public static function previewFromDonor(string $template, array $donor): string
+    {
+        $name = trim((string) ($donor['name'] ?? ''));
+
+        return self::preview($template, [
+            'name' => $name !== '' ? $name : 'ጓደኛችን',
+            'pledged' => (float) ($donor['total_pledged'] ?? $donor['pledged'] ?? 0),
+            'paid' => (float) ($donor['total_paid'] ?? $donor['paid'] ?? 0),
+            'balance' => (float) ($donor['balance'] ?? 0),
+        ]);
     }
 
     public static function formatMoney(float $amount): string

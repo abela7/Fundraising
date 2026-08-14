@@ -65,4 +65,17 @@ assertSameValue(
     'welcome preview replaces {name}'
 );
 
+$status = CampaignGroupSettings::defaultStatusMessage();
+assertSameValue(true, str_contains($status, '{pledge_amount}'), 'status text includes pledge amount');
+assertSameValue(true, str_contains($status, '{total_paid}'), 'status text includes total paid');
+assertSameValue(true, str_contains($status, '{remaining_amount}'), 'status text includes remaining');
+assertSameValue(
+    true,
+    str_contains(
+        CampaignGroupSettings::preview($status, ['name' => 'Abeba', 'pledged' => 400, 'paid' => 120, 'balance' => 280]),
+        '£400.00'
+    ),
+    'status preview replaces pledge amount'
+);
+
 fwrite(STDOUT, "PASS campaign paying link tests\n");

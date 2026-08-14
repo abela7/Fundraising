@@ -23,6 +23,7 @@ $token = CampaignPayingProgress::normalizeToken($token) ?? '';
 $donor = null;
 $error = 'ይህ ሊንክ አይሰራም።';
 $welcomeHtml = '';
+$statusHtml = '';
 try {
     if ($token !== '') {
         $donor = CampaignPayingLink::donorByToken(db(), $token);
@@ -36,29 +37,33 @@ if ($donor === null) {
     http_response_code(404);
 } else {
     $welcomeTemplate = CampaignGroupSettings::defaultWelcomeMessage();
+    $statusTemplate = CampaignGroupSettings::defaultStatusMessage();
     try {
         $settings = CampaignGroupSettings::get(db(), CampaignGroupSettings::GROUP_PAYING);
         if (trim((string) ($settings['welcome_message'] ?? '')) !== '') {
             $welcomeTemplate = (string) $settings['welcome_message'];
         }
+        if (trim((string) ($settings['status_message'] ?? '')) !== '') {
+            $statusTemplate = (string) $settings['status_message'];
+        }
     } catch (Throwable $e) {
-        error_log('Paying welcome load failed: ' . $e->getMessage());
+        error_log('Paying page text load failed: ' . $e->getMessage());
     }
-    $welcomeText = CampaignGroupSettings::preview($welcomeTemplate, [
-        'name' => trim((string) ($donor['name'] ?? '')) !== ''
-            ? (string) $donor['name']
-            : 'ጓደኛችን',
-        'pledged' => (float) ($donor['total_pledged'] ?? 0),
-        'paid' => (float) ($donor['total_paid'] ?? 0),
-        'balance' => (float) ($donor['balance'] ?? 0),
-    ]);
-    $welcomeHtml = nl2br(htmlspecialchars($welcomeText, ENT_QUOTES, 'UTF-8'), false);
+    $welcomeHtml = nl2br(htmlspecialchars(
+        CampaignGroupSettings::previewFromDonor($welcomeTemplate, $donor),
+        ENT_QUOTES,
+        'UTF-8'
+    ), false);
+    $statusHtml = nl2br(htmlspecialchars(
+        CampaignGroupSettings::previewFromDonor($statusTemplate, $donor),
+        ENT_QUOTES,
+        'UTF-8'
+    ), false);
 }
 
 $cssPath = url_for('paying/assets/paying.css');
 $jsPath = url_for('paying/assets/paying.js');
 $iconPath = url_for('assets/favicon.svg');
-$name = $donor !== null ? (string) ($donor['name'] ?? '') : '';
 $pledged = $donor !== null ? CampaignPayingLink::formatMoney((float) ($donor['total_pledged'] ?? 0)) : '';
 $paid = $donor !== null ? CampaignPayingLink::formatMoney((float) ($donor['total_paid'] ?? 0)) : '';
 $remaining = $donor !== null ? CampaignPayingLink::formatMoney((float) ($donor['balance'] ?? 0)) : '';
@@ -111,23 +116,28 @@ if ($donor !== null && $token !== '') {
                 </div>
             </section>
 
-            <section class="pay-screen" data-pay-step="info" id="payInfo" hidden aria-label="የክፍያ መረጃ">
-                <div class="pay-card">
-                    <div class="pay-row">
-                        <span class="pay-label">ስም</span>
-                        <span class="pay-value pay-name"><?php echo htmlspecialchars($name !== '' ? $name : '—', ENT_QUOTES, 'UTF-8'); ?></span>
+            <section class="pay-screen" data-pay-step="status" id="payStatus" hidden aria-label="የክፍያ መረጃ">
+                <div class="pay-stack">
+                    <div class="pay-card pay-welcome">
+                        <div class="pay-welcome-text"><?php echo $statusHtml; ?></div>
                     </div>
-                    <div class="pay-row">
-                        <span class="pay-label">ጠቅላላ የገቡት ቃልኪዳን መጠን</span>
-                        <span class="pay-value"><?php echo htmlspecialchars($pledged, ENT_QUOTES, 'UTF-8'); ?></span>
+                    <div class="pay-card">
+                        <div class="pay-row">
+                            <span class="pay-label">ጠቅላላ የገቡት ቃልኪዳን መጠን</span>
+                            <span class="pay-value"><?php echo htmlspecialchars($pledged, ENT_QUOTES, 'UTF-8'); ?></span>
+                        </div>
+                        <div class="pay-row">
+                            <span class="pay-label">እስካሁን የከፈሉት</span>
+                            <span class="pay-value pay-paid"><?php echo htmlspecialchars($paid, ENT_QUOTES, 'UTF-8'); ?></span>
+                        </div>
+                        <div class="pay-row pay-row-last">
+                            <span class="pay-label">ቀሪ</span>
+                            <span class="pay-value pay-remain"><?php echo htmlspecialchars($remaining, ENT_QUOTES, 'UTF-8'); ?></span>
+                        </div>
                     </div>
-                    <div class="pay-row">
-                        <span class="pay-label">እስካሁን የከፈሉት</span>
-                        <span class="pay-value pay-paid"><?php echo htmlspecialchars($paid, ENT_QUOTES, 'UTF-8'); ?></span>
-                    </div>
-                    <div class="pay-row pay-row-last">
-                        <span class="pay-label">ቀሪ</span>
-                        <span class="pay-value pay-remain"><?php echo htmlspecialchars($remaining, ENT_QUOTES, 'UTF-8'); ?></span>
+                    <div class="pay-choices" role="group" aria-label="ይህ መረጃ ትክክል ነው?">
+                        <button type="button" class="pay-choice" data-pay-choice="status_correct" data-pay-value="yes">አዎ</button>
+                        <button type="button" class="pay-choice pay-choice-no" data-pay-choice="status_correct" data-pay-value="no">አይደለም</button>
                     </div>
                 </div>
             </section>

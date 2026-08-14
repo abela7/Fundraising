@@ -16,6 +16,11 @@ $defaultWelcome = (string) ($campaignSettings['default_welcome'] ?? CampaignGrou
 $welcomeIsCustom = $savedWelcome !== '' && $savedWelcome !== $defaultWelcome;
 $welcomePreview = $savedWelcome !== '' ? $savedWelcome : $defaultWelcome;
 
+$savedStatus = trim((string) ($campaignSettings['status_message'] ?? ''));
+$defaultStatus = (string) ($campaignSettings['default_status'] ?? CampaignGroupSettings::defaultStatusMessage());
+$statusIsCustom = $savedStatus !== '' && $savedStatus !== $defaultStatus;
+$statusPreview = $savedStatus !== '' ? $savedStatus : $defaultStatus;
+
 $clip = static function (string $text): string {
     if (function_exists('mb_strlen') && mb_strlen($text) > 90) {
         return mb_substr($text, 0, 90) . '…';
@@ -28,6 +33,7 @@ $clip = static function (string $text): string {
 };
 $messagePreview = $clip($messagePreview);
 $welcomePreview = $clip($welcomePreview);
+$statusPreview = $clip($statusPreview);
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -83,6 +89,17 @@ $welcomePreview = $clip($welcomePreview);
                                 <div class="dvc-setup-title">Welcome page</div>
                                 <div class="dvc-group-card-meta dvc-am-text"><?php echo htmlspecialchars($welcomePreview, ENT_QUOTES, 'UTF-8'); ?></div>
                                 <div class="dvc-group-card-meta"><?php echo $welcomeIsCustom ? 'Saved — tap to edit' : 'Default welcome — tap to write or change'; ?></div>
+                            </div>
+                            <i class="fas fa-chevron-right dvc-group-card-arrow"></i>
+                        </a>
+                    </div>
+                    <div class="col-12 col-lg-8">
+                        <a class="dvc-group-card d-flex align-items-center text-decoration-none" href="pledge-paying-status.php">
+                            <div class="dvc-stat-icon paying"><i class="fas fa-clipboard-check"></i></div>
+                            <div class="dvc-group-card-body">
+                                <div class="dvc-setup-title">Status check page</div>
+                                <div class="dvc-group-card-meta dvc-am-text"><?php echo htmlspecialchars($statusPreview, ENT_QUOTES, 'UTF-8'); ?></div>
+                                <div class="dvc-group-card-meta"><?php echo $statusIsCustom ? 'Saved — tap to edit' : 'Default status check — tap to write or change'; ?></div>
                             </div>
                             <i class="fas fa-chevron-right dvc-group-card-arrow"></i>
                         </a>

@@ -18,7 +18,8 @@ function assertSameValue(mixed $expected, mixed $actual, string $message): void
 
 assertSameValue('a1b2c3d4e5f67890', CampaignPayingProgress::normalizeToken('A1B2C3D4E5F67890'), 'normalizes paying tokens');
 assertSameValue(null, CampaignPayingProgress::normalizeToken('not-a-token'), 'rejects invalid tokens');
-assertSameValue('info', CampaignPayingProgress::sanitizeStep('info'), 'allows the info step');
+assertSameValue('status', CampaignPayingProgress::sanitizeStep('info'), 'maps the old info step to status');
+assertSameValue('status', CampaignPayingProgress::sanitizeStep('status'), 'allows the status step');
 assertSameValue('welcome', CampaignPayingProgress::sanitizeStep('../admin'), 'unknown steps fall back to welcome');
 
 $clean = CampaignPayingProgress::sanitizeAnswers([

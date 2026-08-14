@@ -2,7 +2,7 @@
   const config = window.PAY_SYNC || {};
   const steps = Array.isArray(config.steps) && config.steps.length
     ? config.steps
-    : ['welcome', 'info'];
+    : ['welcome', 'status'];
   const screens = {};
   document.querySelectorAll('[data-pay-step]').forEach(function (el) {
     screens[el.getAttribute('data-pay-step')] = el;
@@ -11,11 +11,15 @@
     return;
   }
 
+  let startStep = config.step === 'info' ? 'status' : (config.step || steps[0]);
+  if (steps.indexOf(startStep) < 0) {
+    startStep = steps[0];
+  }
   const state = {
     token: config.token || '',
     sign: config.sign || '',
     saveUrl: config.saveUrl || '',
-    step: steps.indexOf(config.step) >= 0 ? config.step : steps[0],
+    step: startStep,
     answers: config.answers && typeof config.answers === 'object' ? config.answers : {},
     revision: Number(config.revision || 0)
   };
@@ -45,6 +49,17 @@
         return;
       }
       el.value = value == null ? '' : String(value);
+    });
+    applyChoices();
+  }
+
+  function applyChoices() {
+    document.querySelectorAll('[data-pay-choice]').forEach(function (btn) {
+      const key = btn.getAttribute('data-pay-choice');
+      const value = btn.getAttribute('data-pay-value');
+      const selected = key != null && String(state.answers[key] ?? '') === String(value);
+      btn.classList.toggle('is-selected', selected);
+      btn.setAttribute('aria-pressed', selected ? 'true' : 'false');
     });
   }
 
@@ -184,6 +199,18 @@
     el.addEventListener('input', queueSave);
     el.addEventListener('change', queueSave);
   });
+  document.querySelectorAll('[data-pay-choice]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      const key = btn.getAttribute('data-pay-choice');
+      const value = btn.getAttribute('data-pay-value');
+      if (!key) {
+        return;
+      }
+      state.answers[key] = value;
+      applyChoices();
+      queueSave();
+    });
+  });
 
   window.addEventListener('popstate', function (event) {
     const step = (event.state && event.state.step)
@@ -200,7 +227,8 @@
   });
 
   applyFields();
-  const hashStep = location.hash ? location.hash.replace('#', '') : '';
+  const hashStepRaw = location.hash ? location.hash.replace('#', '') : '';
+  const hashStep = hashStepRaw === 'info' ? 'status' : hashStepRaw;
   const start = steps.indexOf(hashStep) >= 0 ? hashStep : state.step;
   history.replaceState({ step: steps[0] }, '', '#' + steps[0]);
   if (start !== steps[0]) {

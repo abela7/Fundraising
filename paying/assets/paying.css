@@ -123,6 +123,47 @@ body {
   white-space: normal;
 }
 
+.pay-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.pay-choices {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.65rem;
+}
+
+.pay-choice {
+  min-height: 3.15rem;
+  border: 2px solid var(--pay-blue);
+  border-radius: 0.95rem;
+  background: #fff;
+  color: var(--pay-blue);
+  font-family: inherit;
+  font-size: 1.12rem;
+  font-weight: 700;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.pay-choice.is-selected {
+  background: var(--pay-blue);
+  color: #fff;
+}
+
+.pay-choice-no.is-selected {
+  background: #8a3b3b;
+  border-color: #8a3b3b;
+  color: #fff;
+}
+
+.pay-choice:focus-visible {
+  outline: 3px solid var(--pay-gold);
+  outline-offset: 2px;
+}
+
 .pay-actions {
   display: flex;
   flex-direction: column;

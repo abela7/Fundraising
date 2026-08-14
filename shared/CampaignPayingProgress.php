@@ -8,7 +8,7 @@ declare(strict_types=1);
 final class CampaignPayingProgress
 {
     public const STEP_WELCOME = 'welcome';
-    public const STEP_INFO = 'info';
+    public const STEP_STATUS = 'status';
     public const MAX_JSON_BYTES = 16384;
     public const MAX_KEYS = 40;
     public const MAX_STRING = 500;
@@ -16,7 +16,7 @@ final class CampaignPayingProgress
     /** @var list<string> */
     public const STEPS = [
         self::STEP_WELCOME,
-        self::STEP_INFO,
+        self::STEP_STATUS,
     ];
 
     /** @var list<string> */
@@ -58,6 +58,9 @@ final class CampaignPayingProgress
     public static function sanitizeStep(string $step): string
     {
         $step = strtolower(trim($step));
+        if ($step === 'info') {
+            return self::STEP_STATUS;
+        }
 
         return in_array($step, self::STEPS, true) ? $step : self::STEP_WELCOME;
     }
