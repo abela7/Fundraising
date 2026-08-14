@@ -32,6 +32,8 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'GET') {
             'default_status' => $settings['default_status'],
             'status_title' => $settings['status_title'],
             'default_status_title' => $settings['default_status_title'],
+            'status_labels' => $settings['status_labels'],
+            'default_status_labels' => $settings['default_status_labels'],
             'status_variables' => CampaignGroupSettings::statusVariables(),
         ]);
     } catch (Throwable $e) {
@@ -131,15 +133,41 @@ try {
             echo json_encode(['success' => false, 'error' => 'Title is too long.']);
             exit;
         }
-        $ok = CampaignGroupSettings::saveStatusMessage($db, $group, $message, $userId, $title);
+        foreach (['status_pledge_label', 'status_paid_label', 'status_remain_label'] as $field) {
+            $label = trim((string) ($_POST[$field] ?? ''));
+            $labelLength = function_exists('mb_strlen') ? mb_strlen($label) : strlen($label);
+            if ($labelLength > CampaignGroupSettings::MAX_TITLE_LENGTH) {
+                http_response_code(400);
+                echo json_encode(['success' => false, 'error' => 'A label is too long.']);
+                exit;
+            }
+        }
+        $ok = CampaignGroupSettings::saveStatusMessage(
+            $db,
+            $group,
+            $message,
+            $userId,
+            $title,
+            [
+                'pledge' => (string) ($_POST['status_pledge_label'] ?? ''),
+                'paid' => (string) ($_POST['status_paid_label'] ?? ''),
+                'remain' => (string) ($_POST['status_remain_label'] ?? ''),
+            ]
+        );
         if (!$ok) {
             throw new RuntimeException('Could not save status message.');
         }
         $card = CampaignGroupSettings::statusCardCopy($message, $title);
+        $labels = CampaignGroupSettings::statusLabels(null, [
+            'pledge' => (string) ($_POST['status_pledge_label'] ?? ''),
+            'paid' => (string) ($_POST['status_paid_label'] ?? ''),
+            'remain' => (string) ($_POST['status_remain_label'] ?? ''),
+        ]);
         echo json_encode([
             'success' => true,
             'status_message' => $card['footer'],
             'status_title' => $card['title'],
+            'status_labels' => $labels,
             'preview' => CampaignGroupSettings::preview($card['footer'], []),
         ]);
         exit;

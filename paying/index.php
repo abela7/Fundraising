@@ -25,6 +25,9 @@ $error = 'ይህ ሊንክ አይሰራም።';
 $welcomeHtml = '';
 $statusHtml = '';
 $statusTitleHtml = '';
+$pledgeLabelHtml = '';
+$paidLabelHtml = '';
+$remainLabelHtml = '';
 try {
     if ($token !== '') {
         $donor = CampaignPayingLink::donorByToken(db(), $token);
@@ -40,6 +43,7 @@ if ($donor === null) {
     $welcomeTemplate = CampaignGroupSettings::defaultWelcomeMessage();
     $statusTemplate = CampaignGroupSettings::defaultStatusMessage();
     $statusTitleTemplate = CampaignGroupSettings::defaultStatusTitle();
+    $statusLabels = CampaignGroupSettings::defaultStatusLabels();
     try {
         $settings = CampaignGroupSettings::get(db(), CampaignGroupSettings::GROUP_PAYING);
         if (trim((string) ($settings['welcome_message'] ?? '')) !== '') {
@@ -51,24 +55,25 @@ if ($donor === null) {
         );
         $statusTemplate = $card['footer'];
         $statusTitleTemplate = $card['title'];
+        if (isset($settings['status_labels']) && is_array($settings['status_labels'])) {
+            $statusLabels = CampaignGroupSettings::statusLabels(null, $settings['status_labels']);
+        }
     } catch (Throwable $e) {
         error_log('Paying page text load failed: ' . $e->getMessage());
     }
-    $welcomeHtml = nl2br(htmlspecialchars(
-        CampaignGroupSettings::previewFromDonor($welcomeTemplate, $donor),
-        ENT_QUOTES,
-        'UTF-8'
-    ), false);
-    $statusHtml = nl2br(htmlspecialchars(
-        CampaignGroupSettings::previewFromDonor($statusTemplate, $donor),
-        ENT_QUOTES,
-        'UTF-8'
-    ), false);
-    $statusTitleHtml = nl2br(htmlspecialchars(
-        CampaignGroupSettings::previewFromDonor($statusTitleTemplate, $donor),
-        ENT_QUOTES,
-        'UTF-8'
-    ), false);
+    $renderText = static function (string $template) use ($donor): string {
+        return nl2br(htmlspecialchars(
+            CampaignGroupSettings::previewFromDonor($template, $donor),
+            ENT_QUOTES,
+            'UTF-8'
+        ), false);
+    };
+    $welcomeHtml = $renderText($welcomeTemplate);
+    $statusHtml = $renderText($statusTemplate);
+    $statusTitleHtml = $renderText($statusTitleTemplate);
+    $pledgeLabelHtml = $renderText($statusLabels['pledge']);
+    $paidLabelHtml = $renderText($statusLabels['paid']);
+    $remainLabelHtml = $renderText($statusLabels['remain']);
 }
 
 $cssPath = url_for('paying/assets/paying.css');
@@ -133,15 +138,15 @@ if ($donor !== null && $token !== '') {
                             <div class="pay-title"><?php echo $statusTitleHtml; ?></div>
                         <?php endif; ?>
                         <div class="pay-row">
-                            <span class="pay-label">ጠቅላላ የገቡት ቃልኪዳን መጠን</span>
+                            <span class="pay-label"><?php echo $pledgeLabelHtml; ?></span>
                             <span class="pay-value"><?php echo htmlspecialchars($pledged, ENT_QUOTES, 'UTF-8'); ?></span>
                         </div>
                         <div class="pay-row">
-                            <span class="pay-label">እስካሁን የከፈሉት</span>
+                            <span class="pay-label"><?php echo $paidLabelHtml; ?></span>
                             <span class="pay-value pay-paid"><?php echo htmlspecialchars($paid, ENT_QUOTES, 'UTF-8'); ?></span>
                         </div>
                         <div class="pay-row pay-row-last">
-                            <span class="pay-label">ቀሪ</span>
+                            <span class="pay-label"><?php echo $remainLabelHtml; ?></span>
                             <span class="pay-value pay-remain"><?php echo htmlspecialchars($remaining, ENT_QUOTES, 'UTF-8'); ?></span>
                         </div>
                         <?php if ($statusHtml !== ''): ?>

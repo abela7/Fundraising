@@ -118,5 +118,22 @@ assertSameValue(
     CampaignGroupSettings::statusTitleText(''),
     'empty title uses the default heading'
 );
+$labels = CampaignGroupSettings::defaultStatusLabels();
+assertSameValue('ጠቅላላ የገቡት ቃልኪዳን መጠን', $labels['pledge'], 'default pledge label');
+assertSameValue('እስካሁን የከፈሉት', $labels['paid'], 'default paid label');
+assertSameValue('ቀሪ', $labels['remain'], 'default remaining label');
+$customLabels = CampaignGroupSettings::statusLabels(json_encode([
+    'pledge' => 'ቃልኪዳን',
+    'paid' => '',
+    'remain' => 'የቀረው',
+], JSON_UNESCAPED_UNICODE));
+assertSameValue('ቃልኪዳን', $customLabels['pledge'], 'saved pledge label is kept');
+assertSameValue('እስካሁን የከፈሉት', $customLabels['paid'], 'empty paid label uses the default');
+assertSameValue('የቀረው', $customLabels['remain'], 'saved remaining label is kept');
+assertSameValue(
+    $labels,
+    CampaignGroupSettings::statusLabels('not-json'),
+    'invalid saved labels fall back to defaults'
+);
 
 fwrite(STDOUT, "PASS campaign paying link tests\n");

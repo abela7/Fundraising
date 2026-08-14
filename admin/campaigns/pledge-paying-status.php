@@ -13,10 +13,16 @@ $savedStatus = $savedCard['footer'];
 $savedTitle = $savedCard['title'];
 $defaultStatus = (string) ($campaignSettings['default_status'] ?? CampaignGroupSettings::defaultStatusMessage());
 $defaultTitle = (string) ($campaignSettings['default_status_title'] ?? CampaignGroupSettings::defaultStatusTitle());
+$savedLabels = CampaignGroupSettings::statusLabels(
+    null,
+    is_array($campaignSettings['status_labels'] ?? null) ? $campaignSettings['status_labels'] : []
+);
+$defaultLabels = $campaignSettings['default_status_labels'] ?? CampaignGroupSettings::defaultStatusLabels();
 $pageConfig = [
     'csrf' => $csrfToken,
     'default_status' => $defaultStatus,
     'default_status_title' => $defaultTitle,
+    'default_status_labels' => $defaultLabels,
 ];
 ?>
 <!DOCTYPE html>
@@ -45,7 +51,7 @@ $pageConfig = [
                             <i class="fas fa-clipboard-check me-2 dvc-title-icon paying"></i>
                             Status check page
                         </h1>
-                        <p>After welcome, donors see a title, pledged / paid / remaining, then the footer you write here.</p>
+                        <p>After welcome, donors see this card. You can change the title, each amount label, and the footer.</p>
                     </div>
                     <div class="d-flex gap-2">
                         <a class="btn btn-outline-secondary" href="pledge-paying-settings.php">
@@ -57,8 +63,8 @@ $pageConfig = [
                 <div class="dvc-settings-card animate-fade-in">
                     <div class="dvc-settings-head">
                         <div>
-                            <h6>Write the title and footer</h6>
-                            <p>The title sits above the amounts. The footer sits under them. Saving does not send WhatsApp.</p>
+                            <h6>Write every line on the card</h6>
+                            <p>Title, pledged / paid / remaining labels, and footer are all editable. The amounts stay automatic. Saving does not send WhatsApp.</p>
                         </div>
                     </div>
                     <div class="dvc-settings-body">
@@ -77,6 +83,12 @@ $pageConfig = [
                         <div class="dvc-msg-meta">
                             <span id="dvcTitleCount">0 / 200</span>
                         </div>
+                        <label class="form-label mt-3" for="dvcStatusPledge">Pledge amount label</label>
+                        <input class="form-control dvc-am-text" id="dvcStatusPledge" type="text" maxlength="200" lang="am" dir="auto" value="<?php echo htmlspecialchars($savedLabels['pledge'], ENT_QUOTES, 'UTF-8'); ?>">
+                        <label class="form-label mt-3" for="dvcStatusPaid">Paid so far label</label>
+                        <input class="form-control dvc-am-text" id="dvcStatusPaid" type="text" maxlength="200" lang="am" dir="auto" value="<?php echo htmlspecialchars($savedLabels['paid'], ENT_QUOTES, 'UTF-8'); ?>">
+                        <label class="form-label mt-3" for="dvcStatusRemain">Remaining label</label>
+                        <input class="form-control dvc-am-text" id="dvcStatusRemain" type="text" maxlength="200" lang="am" dir="auto" value="<?php echo htmlspecialchars($savedLabels['remain'], ENT_QUOTES, 'UTF-8'); ?>">
                         <label class="form-label mt-3" for="dvcStatusBody">Footer text</label>
                         <textarea class="form-control dvc-am-text" id="dvcStatusBody" rows="4" maxlength="4000" lang="am" dir="auto"><?php echo htmlspecialchars($savedStatus, ENT_QUOTES, 'UTF-8'); ?></textarea>
                         <div class="dvc-msg-meta">

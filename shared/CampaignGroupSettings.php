@@ -18,10 +18,6 @@ final class CampaignGroupSettings
     /**
      * Default Amharic hello for still-paying donors.
      */
-
-    /**
-     * Default Amharic hello for still-paying donors.
-     */
     public static function defaultFirstMessage(): string
     {
         return "ሰላም ጤና ይስጥልን የተከበሩ {name}። ከሊቨርፑል መካነ ቅዱሳን አቡነ ተክለሃይማኖት ቤተክርስቲያን ነው።";
@@ -49,6 +45,48 @@ final class CampaignGroupSettings
     public static function defaultStatusTitle(): string
     {
         return 'ባለን መረጃ መሰረት';
+    }
+
+    /**
+     * Default Amharic labels for pledged / paid / remaining.
+     *
+     * @return array{pledge:string,paid:string,remain:string}
+     */
+    public static function defaultStatusLabels(): array
+    {
+        return [
+            'pledge' => 'ጠቅላላ የገቡት ቃልኪዳን መጠን',
+            'paid' => 'እስካሁን የከፈሉት',
+            'remain' => 'ቀሪ',
+        ];
+    }
+
+    /**
+     * @param array{pledge?:string,paid?:string,remain?:string} $overrides
+     * @return array{pledge:string,paid:string,remain:string}
+     */
+    public static function statusLabels(?string $savedJson = null, array $overrides = []): array
+    {
+        $labels = self::defaultStatusLabels();
+        if (is_string($savedJson) && trim($savedJson) !== '') {
+            $decoded = json_decode($savedJson, true);
+            if (is_array($decoded)) {
+                foreach (['pledge', 'paid', 'remain'] as $key) {
+                    $value = trim((string) ($decoded[$key] ?? ''));
+                    if ($value !== '') {
+                        $labels[$key] = $value;
+                    }
+                }
+            }
+        }
+        foreach (['pledge', 'paid', 'remain'] as $key) {
+            $value = trim((string) ($overrides[$key] ?? ''));
+            if ($value !== '') {
+                $labels[$key] = $value;
+            }
+        }
+
+        return $labels;
     }
 
     /**
@@ -210,6 +248,7 @@ final class CampaignGroupSettings
                     welcome_message TEXT NULL,
                     status_message TEXT NULL,
                     status_title TEXT NULL,
+                    status_labels TEXT NULL,
                     recipient_mode VARCHAR(20) NOT NULL DEFAULT 'all',
                     updated_by INT NULL,
                     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -241,6 +280,7 @@ final class CampaignGroupSettings
         self::ensureWelcomeColumn($db);
         self::ensureStatusColumn($db);
         self::ensureStatusTitleColumn($db);
+        self::ensureStatusLabelsColumn($db);
     }
 
     private static function ensureWelcomeColumn(mysqli $db): void
@@ -252,12 +292,30 @@ final class CampaignGroupSettings
         );
     }
 
+    private static function ensureStatusColumn(mysqli $db): void
+    {
+        self::addColumnIfMissing(
+            $db,
+            'ALTER TABLE campaign_group_settings ADD COLUMN status_message TEXT NULL AFTER welcome_message',
+            'Campaign status column failed: '
+        );
+    }
+
     private static function ensureStatusTitleColumn(mysqli $db): void
     {
         self::addColumnIfMissing(
             $db,
             'ALTER TABLE campaign_group_settings ADD COLUMN status_title TEXT NULL AFTER status_message',
             'Campaign status title column failed: '
+        );
+    }
+
+    private static function ensureStatusLabelsColumn(mysqli $db): void
+    {
+        self::addColumnIfMissing(
+            $db,
+            'ALTER TABLE campaign_group_settings ADD COLUMN status_labels TEXT NULL AFTER status_title',
+            'Campaign status labels column failed: '
         );
     }
 
@@ -287,6 +345,8 @@ final class CampaignGroupSettings
      *     default_status:string,
      *     status_title:string,
      *     default_status_title:string,
+     *     status_labels:array{pledge:string,paid:string,remain:string},
+     *     default_status_labels:array{pledge:string,paid:string,remain:string},
      *     recipient_mode:string,
      *     donor_ids:list<int>
      * }
@@ -303,6 +363,8 @@ final class CampaignGroupSettings
             'default_status' => self::defaultStatusMessage(),
             'status_title' => self::defaultStatusTitle(),
             'default_status_title' => self::defaultStatusTitle(),
+            'status_labels' => self::defaultStatusLabels(),
+            'default_status_labels' => self::defaultStatusLabels(),
             'recipient_mode' => self::MODE_ALL,
             'donor_ids' => [],
         ];
@@ -318,11 +380,19 @@ final class CampaignGroupSettings
 
         try {
             $stmt = $db->prepare(
-                'SELECT first_message, welcome_message, status_message, status_title, recipient_mode
+                'SELECT first_message, welcome_message, status_message, status_title, status_labels, recipient_mode
                  FROM campaign_group_settings
                  WHERE group_key = ?
                  LIMIT 1'
             );
+            if ($stmt === false) {
+                $stmt = $db->prepare(
+                    'SELECT first_message, welcome_message, status_message, status_title, recipient_mode
+                     FROM campaign_group_settings
+                     WHERE group_key = ?
+                     LIMIT 1'
+                );
+            }
             if ($stmt === false) {
                 $stmt = $db->prepare(
                     'SELECT first_message, welcome_message, status_message, recipient_mode
@@ -353,6 +423,9 @@ final class CampaignGroupSettings
                 );
                 $defaults['status_message'] = $card['footer'];
                 $defaults['status_title'] = $card['title'];
+                $defaults['status_labels'] = self::statusLabels(
+                    isset($row['status_labels']) ? (string) $row['status_labels'] : null
+                );
                 $mode = (string) ($row['recipient_mode'] ?? self::MODE_ALL);
                 $defaults['recipient_mode'] = $mode === self::MODE_SELECTED ? self::MODE_SELECTED : self::MODE_ALL;
             }
@@ -448,13 +521,15 @@ final class CampaignGroupSettings
         string $group,
         string $message,
         int $updatedBy,
-        string $title = ''
+        string $title = '',
+        array $labels = []
     ): bool {
         if (!self::isAllowedGroup($group)) {
             return false;
         }
         $message = trim($message);
         $title = trim($title);
+        $resolved = self::statusLabels(null, $labels);
         $messageLength = function_exists('mb_strlen') ? mb_strlen($message) : strlen($message);
         $titleLength = function_exists('mb_strlen') ? mb_strlen($title) : strlen($title);
         if ($message === '' || $messageLength > self::MAX_MESSAGE_LENGTH) {
@@ -463,8 +538,18 @@ final class CampaignGroupSettings
         if ($titleLength > self::MAX_TITLE_LENGTH) {
             return false;
         }
+        foreach ($resolved as $label) {
+            $labelLength = function_exists('mb_strlen') ? mb_strlen($label) : strlen($label);
+            if ($label === '' || $labelLength > self::MAX_TITLE_LENGTH) {
+                return false;
+            }
+        }
         if ($title === '') {
             $title = self::defaultStatusTitle();
+        }
+        $labelsJson = json_encode($resolved, JSON_UNESCAPED_UNICODE);
+        if (!is_string($labelsJson)) {
+            return false;
         }
         self::ensureTables($db);
         $existing = self::get($db, $group);
@@ -473,17 +558,28 @@ final class CampaignGroupSettings
         $mode = $existing['recipient_mode'];
         $stmt = $db->prepare(
             'INSERT INTO campaign_group_settings
-                (group_key, first_message, welcome_message, status_message, status_title, recipient_mode, updated_by)
-             VALUES (?, ?, ?, ?, ?, ?, ?)
+                (group_key, first_message, welcome_message, status_message, status_title, status_labels, recipient_mode, updated_by)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
              ON DUPLICATE KEY UPDATE
                 status_message = VALUES(status_message),
                 status_title = VALUES(status_title),
+                status_labels = VALUES(status_labels),
                 updated_by = VALUES(updated_by)'
         );
         if ($stmt === false) {
             return false;
         }
-        $stmt->bind_param('ssssssi', $group, $first, $welcome, $message, $title, $mode, $updatedBy);
+        $stmt->bind_param(
+            'sssssssi',
+            $group,
+            $first,
+            $welcome,
+            $message,
+            $title,
+            $labelsJson,
+            $mode,
+            $updatedBy
+        );
 
         return $stmt->execute();
     }
