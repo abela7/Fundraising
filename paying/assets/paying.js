@@ -11,6 +11,26 @@
     return;
   }
 
+  function asAnswerMap(value) {
+    const out = {};
+    if (!value || typeof value !== 'object') {
+      return out;
+    }
+    Object.keys(value).forEach(function (key) {
+      if (!/^\d+$/.test(key)) {
+        out[key] = value[key];
+      }
+    });
+    if (Array.isArray(value)) {
+      Object.getOwnPropertyNames(value).forEach(function (key) {
+        if (key !== 'length' && !/^\d+$/.test(key)) {
+          out[key] = value[key];
+        }
+      });
+    }
+    return out;
+  }
+
   let startStep = config.step === 'info' ? 'status' : (config.step || steps[0]);
   if (steps.indexOf(startStep) < 0) {
     startStep = steps[0];
@@ -20,7 +40,7 @@
     sign: config.sign || '',
     saveUrl: config.saveUrl || '',
     step: startStep,
-    answers: config.answers && typeof config.answers === 'object' ? config.answers : {},
+    answers: asAnswerMap(config.answers),
     revision: Number(config.revision || 0)
   };
 
@@ -28,10 +48,21 @@
   let saving = false;
   let saveAgain = false;
 
+  function syncChoicesIntoAnswers() {
+    document.querySelectorAll('[data-pay-choice].is-selected').forEach(function (btn) {
+      const key = btn.getAttribute('data-pay-choice');
+      const value = btn.getAttribute('data-pay-value');
+      if (key && value) {
+        state.answers[key] = value;
+      }
+    });
+  }
+
   function allowedStep(step) {
     if (steps.indexOf(step) < 0) {
       return steps[0];
     }
+    syncChoicesIntoAnswers();
     if (step === 'contact' && state.answers.status_correct !== 'yes') {
       return 'status';
     }
@@ -43,6 +74,7 @@
     if (!next) {
       return false;
     }
+    syncChoicesIntoAnswers();
     if (state.step === 'status' && state.answers.status_correct !== 'yes') {
       return false;
     }
@@ -142,11 +174,12 @@
 
   function payload() {
     readFields();
+    syncChoicesIntoAnswers();
     return {
       token: state.token,
       sign: state.sign,
       step: state.step,
-      answers: state.answers,
+      answers: asAnswerMap(state.answers),
       revision: state.revision
     };
   }
@@ -186,9 +219,11 @@
     }).then(function (result) {
       if (result.res.ok && result.data && result.data.success) {
         state.revision = Number(result.data.revision || state.revision);
-        if (result.data.answers && typeof result.data.answers === 'object') {
-          state.answers = result.data.answers;
-        }
+        const incoming = asAnswerMap(result.data.answers);
+        state.answers = Object.assign({}, incoming, state.answers);
+        syncChoicesIntoAnswers();
+        applyChoices();
+        updateNav();
       }
     }).catch(function () {
       // Keep local answers; the next change retries.
@@ -228,6 +263,7 @@
       if (!key) {
         return;
       }
+      state.answers = asAnswerMap(state.answers);
       state.answers[key] = value;
       applyChoices();
       updateNav();

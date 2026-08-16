@@ -37,6 +37,16 @@ assertSameValue(
     CampaignPayingProgress::resolveStep('contact', []),
     'contact is blocked before a status answer'
 );
+assertSameValue(
+    '{}',
+    json_encode(CampaignPayingProgress::answersForClient([])),
+    'empty answers encode as a JSON object so JS does not treat them as an array'
+);
+assertSameValue(
+    '{"status_correct":"yes"}',
+    json_encode(CampaignPayingProgress::answersForClient(['status_correct' => 'yes'])),
+    'status answers keep their keys when encoded for the paying page'
+);
 
 $clean = CampaignPayingProgress::sanitizeAnswers([
     'confirm_name' => 'Abeba',

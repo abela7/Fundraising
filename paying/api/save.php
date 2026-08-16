@@ -63,7 +63,7 @@ try {
     echo json_encode([
         'success' => true,
         'step' => $saved['step'],
-        'answers' => $saved['answers'],
+        'answers' => CampaignPayingProgress::answersForClient($saved['answers']),
         'revision' => $saved['revision'],
     ], JSON_UNESCAPED_UNICODE);
 } catch (Throwable $e) {

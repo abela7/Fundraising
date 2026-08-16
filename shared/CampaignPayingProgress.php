@@ -116,6 +116,18 @@ final class CampaignPayingProgress
     }
 
     /**
+     * Empty PHP arrays become [] in JSON, which JavaScript treats as an Array.
+     * Named keys set on that array are then dropped by JSON.stringify, so the
+     * donor's Yes/No never reaches the server and Continue cannot open contact.
+     *
+     * @param array<string, mixed> $answers
+     */
+    public static function answersForClient(array $answers): object
+    {
+        return (object) $answers;
+    }
+
+    /**
      * @return array{step:string,answers:array<string,mixed>,revision:int}
      */
     public static function emptyState(): array

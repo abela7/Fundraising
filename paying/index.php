@@ -122,7 +122,7 @@ if ($donor !== null && $token !== '') {
         'sign' => CampaignPayingProgress::sign($token),
         'saveUrl' => url_for('paying/api/save.php'),
         'step' => $progress['step'],
-        'answers' => $progress['answers'],
+        'answers' => CampaignPayingProgress::answersForClient($progress['answers']),
         'revision' => $progress['revision'],
         'steps' => CampaignPayingProgress::STEPS,
     ];
