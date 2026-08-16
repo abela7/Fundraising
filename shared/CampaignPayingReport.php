@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/CampaignPayingProgress.php';
+require_once __DIR__ . '/CampaignPayingLink.php';
 require_once __DIR__ . '/DonorCampaignGroups.php';
 
 /**
@@ -170,6 +171,153 @@ final class CampaignPayingReport
         return date('j M Y, g:i A', $timestamp);
     }
 
+    public static function stepLabel(string $step): string
+    {
+        $step = CampaignPayingProgress::sanitizeStep($step);
+        if ($step === CampaignPayingProgress::STEP_STATUS) {
+            return 'Status check';
+        }
+        if ($step === CampaignPayingProgress::STEP_CONTACT) {
+            return 'Contact page';
+        }
+
+        return 'Welcome page';
+    }
+
+    /**
+     * @param array<string, mixed> $row
+     * @return array<string, mixed>
+     */
+    public static function present(array $row): array
+    {
+        $classified = self::classify($row);
+        $token = strtolower(trim((string) ($row['token'] ?? '')));
+        if ($token !== '' && !preg_match('/^[a-f0-9]{16}$/', $token)) {
+            $token = '';
+        }
+        $hasLink = $token !== '';
+        $answer = $classified['answer'];
+        $openedAt = self::stringOrNull($row['opened_at'] ?? null);
+        $savedAt = self::stringOrNull($row['progress_updated_at'] ?? null);
+        $sentAt = self::stringOrNull($row['last_sent_at'] ?? null);
+        $timeline = [];
+        self::pushEvent($timeline, 'sent', 'Link sent', $sentAt);
+        self::pushEvent($timeline, 'opened', 'Opened the link', $openedAt);
+        if ($savedAt !== null && $savedAt !== $openedAt) {
+            self::pushEvent($timeline, 'saved', 'Last saved on the page', $savedAt);
+        }
+        usort($timeline, static function (array $a, array $b): int {
+            return strcmp((string) ($a['when'] ?? ''), (string) ($b['when'] ?? ''));
+        });
+
+        $pledged = (float) ($row['total_pledged'] ?? $row['pledged'] ?? 0);
+        $paid = (float) ($row['total_paid'] ?? $row['paid'] ?? 0);
+        $balance = (float) ($row['balance'] ?? 0);
+
+        return [
+            'donor_id' => (int) ($row['id'] ?? $row['donor_id'] ?? 0),
+            'name' => (string) ($row['name'] ?? ''),
+            'phone' => (string) ($row['phone'] ?? ''),
+            'reference' => (string) ($row['reference'] ?? ''),
+            'pledged' => $pledged,
+            'paid' => $paid,
+            'balance' => $balance,
+            'pledged_label' => CampaignPayingLink::formatMoney($pledged),
+            'paid_label' => CampaignPayingLink::formatMoney($paid),
+            'balance_label' => CampaignPayingLink::formatMoney($balance),
+            'has_link' => $hasLink,
+            'token' => $token,
+            'paying_url' => $hasLink ? CampaignPayingLink::whatsappUrl($token) : '',
+            'step' => (string) ($row['step'] ?? ''),
+            'step_label' => $hasLink ? self::stepLabel((string) ($row['step'] ?? '')) : 'No paying link',
+            'revision' => max(0, (int) ($row['revision'] ?? 0)),
+            'sent' => $classified['sent'],
+            'opened' => $classified['opened'],
+            'answered' => $classified['answered'],
+            'booked' => $classified['booked'],
+            'answer' => $answer,
+            'answer_label' => $answer === 'yes' ? 'Yes' : ($answer === 'no' ? 'No' : 'Not answered'),
+            'sent_label' => self::formatWhen($sentAt),
+            'opened_label' => self::formatWhen($openedAt ?? $savedAt),
+            'saved_label' => self::formatWhen($savedAt),
+            'contact_date' => $classified['contact_date'],
+            'contact_time' => $classified['contact_time'],
+            'contact_method' => $classified['contact_method'],
+            'method_label' => $classified['contact_method'] === 'phone'
+                ? 'Phone'
+                : ($classified['contact_method'] === 'whatsapp' ? 'WhatsApp' : ''),
+            'booking_label' => self::formatBooking(
+                $classified['contact_date'],
+                $classified['contact_time'],
+                $classified['contact_method']
+            ),
+            'answers' => self::answersFromRow($row),
+            'timeline' => $timeline,
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    public static function findDonor(mysqli $db, int $donorId): ?array
+    {
+        if ($donorId <= 0) {
+            return null;
+        }
+        CampaignPayingProgress::ensureColumns($db);
+        $tables = $db->query("SHOW TABLES LIKE 'campaign_paying_links'");
+        $hasLinks = $tables && $tables->num_rows > 0;
+        $join = $hasLinks
+            ? 'LEFT JOIN campaign_paying_links l ON l.donor_id = d.id'
+            : '';
+        $linkSelect = $hasLinks
+            ? 'l.token, l.last_sent_at, l.opened_at, l.step, l.answers_json, l.revision, l.progress_updated_at'
+            : 'NULL AS token, NULL AS last_sent_at, NULL AS opened_at, NULL AS step, NULL AS answers_json, 0 AS revision, NULL AS progress_updated_at';
+
+        $sql = "
+            SELECT
+                d.id,
+                d.name,
+                d.phone,
+                d.donor_type,
+                d.total_pledged,
+                d.total_paid,
+                d.balance,
+                {$linkSelect},
+                (
+                    SELECT p.notes
+                    FROM pledges p
+                    WHERE p.donor_id = d.id
+                      AND p.status IN ('approved', 'pending')
+                      AND p.notes REGEXP '^[0-9]{4}$'
+                    ORDER BY (p.status = 'approved') DESC, p.id DESC
+                    LIMIT 1
+                ) AS reference
+            FROM donors d
+            {$join}
+            WHERE d.id = ?
+            LIMIT 1
+        ";
+        $stmt = $db->prepare($sql);
+        if ($stmt === false) {
+            throw new RuntimeException('Paying activity query failed.');
+        }
+        $stmt->bind_param('i', $donorId);
+        $stmt->execute();
+        $row = $stmt->get_result()->fetch_assoc();
+        $stmt->close();
+        if (!is_array($row)) {
+            return null;
+        }
+        $presented = self::present($row);
+        $group = DonorCampaignGroups::fromDonor($row);
+        if ($group !== DonorCampaignGroups::PLEDGE_PAYING && empty($presented['has_link'])) {
+            return null;
+        }
+
+        return $presented;
+    }
+
     public static function formatBooking(?string $date, ?string $time, ?string $method): string
     {
         if ($date === null || $time === null || $method === null) {
@@ -318,6 +466,23 @@ final class CampaignPayingReport
         $decoded = json_decode($json, true);
 
         return CampaignPayingProgress::sanitizeAnswers($decoded);
+    }
+
+    /**
+     * @param list<array<string, string>> $events
+     */
+    private static function pushEvent(array &$events, string $key, string $label, mixed $when): void
+    {
+        if (!self::hasTime($when)) {
+            return;
+        }
+        $stamp = trim((string) $when);
+        $events[] = [
+            'key' => $key,
+            'label' => $label,
+            'when' => $stamp,
+            'when_label' => self::formatWhen($stamp),
+        ];
     }
 
     private static function lower(string $value): string

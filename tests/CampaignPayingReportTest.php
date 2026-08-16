@@ -112,4 +112,58 @@ assertSameValue(
     'formats an opened time for staff'
 );
 
+assertSameValue('Welcome page', CampaignPayingReport::stepLabel('welcome'), 'labels the welcome step');
+assertSameValue('Status check', CampaignPayingReport::stepLabel('status'), 'labels the status step');
+assertSameValue('Status check', CampaignPayingReport::stepLabel('info'), 'maps the old info step');
+assertSameValue('Contact page', CampaignPayingReport::stepLabel('contact'), 'labels the contact step');
+
+$activity = CampaignPayingReport::present([
+    'id' => 4,
+    'name' => 'Abel Demssie',
+    'phone' => '07360436171',
+    'reference' => '1234',
+    'total_pledged' => 400,
+    'total_paid' => 19.55,
+    'balance' => 380.45,
+    'token' => 'a1b2c3d4e5f67890',
+    'step' => 'contact',
+    'revision' => 3,
+    'last_sent_at' => '2026-08-16 19:50:00',
+    'opened_at' => '2026-08-16 20:00:00',
+    'progress_updated_at' => '2026-08-16 20:12:00',
+    'answers' => [
+        'status_correct' => 'yes',
+        'contact_date' => '2026-08-20',
+        'contact_time' => '14:30',
+        'contact_method' => 'whatsapp',
+    ],
+]);
+assertSameValue(4, $activity['donor_id'], 'keeps the donor id');
+assertSameValue('Abel Demssie', $activity['name'], 'keeps the donor name');
+assertSameValue('£400.00', $activity['pledged_label'], 'formats pledged');
+assertSameValue('£19.55', $activity['paid_label'], 'formats paid');
+assertSameValue('£380.45', $activity['balance_label'], 'formats remaining');
+assertSameValue(true, $activity['booked'], 'presents a complete booking');
+assertSameValue('Yes', $activity['answer_label'], 'labels a yes answer');
+assertSameValue('Contact page', $activity['step_label'], 'presents the current page');
+assertSameValue(
+    'https://donate.abuneteklehaymanot.org/paying/a1b2c3d4e5f67890',
+    $activity['paying_url'],
+    'exposes the public paying link'
+);
+assertSameValue('sent', $activity['timeline'][0]['key'] ?? null, 'timeline starts with the send');
+assertSameValue('opened', $activity['timeline'][1]['key'] ?? null, 'timeline includes the open');
+assertSameValue('saved', $activity['timeline'][2]['key'] ?? null, 'timeline includes the last save');
+assertSameValue(
+    '20 Aug 2026, 2:30 PM · WhatsApp',
+    $activity['booking_label'],
+    'presents the booked slot'
+);
+
+$emptyActivity = CampaignPayingReport::present(['name' => 'No Link']);
+assertSameValue(false, $emptyActivity['sent'], 'empty activity is not sent');
+assertSameValue('No paying link', $emptyActivity['step_label'], 'empty activity has no page');
+assertSameValue([], $emptyActivity['timeline'], 'empty activity has no timeline');
+assertSameValue('Not answered', $emptyActivity['answer_label'], 'empty activity has no answer');
+
 fwrite(STDOUT, "PASS campaign paying report tests\n");

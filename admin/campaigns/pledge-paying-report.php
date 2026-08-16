@@ -33,7 +33,7 @@ $jsVersion = (int) (filemtime(__DIR__ . '/assets/paying-report.js') ?: time());
                             <i class="fas fa-chart-column me-2 dvc-title-icon paying"></i>
                             Paying link report
                         </h1>
-                        <p>See who opened the still-paying link, who answered, and who booked a call.</p>
+                        <p>See who opened the still-paying link, who answered, and who booked a call. Tap a name for their full activity.</p>
                     </div>
                     <div class="d-flex gap-2 flex-wrap">
                         <a class="btn btn-outline-secondary" href="pledge-paying.php">

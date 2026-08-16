@@ -84,7 +84,7 @@
       const name = escapeHtml(r.name || 'Unknown');
       const id = Number(r.donor_id || r.id || 0);
       const link = id
-        ? '<a class="dvc-donor-link" href="../donor-management/view-donor.php?id=' + id + '">' + name + '</a>'
+        ? '<a class="dvc-donor-link" href="pledge-paying-activity.php?id=' + id + '">' + name + '</a>'
         : name;
       const phone = r.phone
         ? escapeHtml(r.phone)
