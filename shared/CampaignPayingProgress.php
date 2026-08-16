@@ -9,6 +9,7 @@ final class CampaignPayingProgress
 {
     public const STEP_WELCOME = 'welcome';
     public const STEP_STATUS = 'status';
+    public const STEP_CONTACT = 'contact';
     public const MAX_JSON_BYTES = 16384;
     public const MAX_KEYS = 40;
     public const MAX_STRING = 500;
@@ -17,6 +18,7 @@ final class CampaignPayingProgress
     public const STEPS = [
         self::STEP_WELCOME,
         self::STEP_STATUS,
+        self::STEP_CONTACT,
     ];
 
     /** @var list<string> */
@@ -66,6 +68,21 @@ final class CampaignPayingProgress
     }
 
     /**
+     * Contact is only reachable after the donor confirms the amounts.
+     *
+     * @param array<string, mixed> $answers
+     */
+    public static function resolveStep(string $step, array $answers = []): string
+    {
+        $step = self::sanitizeStep($step);
+        if ($step === self::STEP_CONTACT && ($answers['status_correct'] ?? '') !== 'yes') {
+            return self::STEP_STATUS;
+        }
+
+        return $step;
+    }
+
+    /**
      * @return array<string, mixed>
      */
     public static function sanitizeAnswers(mixed $raw): array
@@ -85,6 +102,10 @@ final class CampaignPayingProgress
                 continue;
             }
             $clean = self::sanitizeValue($value);
+            if ($clean === '__reject__') {
+                continue;
+            }
+            $clean = self::sanitizeKnownAnswer($key, $clean);
             if ($clean === '__reject__') {
                 continue;
             }
@@ -134,9 +155,14 @@ final class CampaignPayingProgress
                 return self::emptyState();
             }
 
+            $answers = self::decodeAnswers($row['answers_json'] ?? null);
+
             return [
-                'step' => self::sanitizeStep((string) ($row['step'] ?? self::STEP_WELCOME)),
-                'answers' => self::decodeAnswers($row['answers_json'] ?? null),
+                'step' => self::resolveStep(
+                    (string) ($row['step'] ?? self::STEP_WELCOME),
+                    $answers
+                ),
+                'answers' => $answers,
                 'revision' => max(0, (int) ($row['revision'] ?? 0)),
             ];
         } catch (Throwable $e) {
@@ -156,8 +182,8 @@ final class CampaignPayingProgress
         if ($token === null) {
             return null;
         }
-        $step = self::sanitizeStep($step);
         $answers = self::sanitizeAnswers($answers);
+        $step = self::resolveStep($step, $answers);
         $json = json_encode($answers, JSON_UNESCAPED_UNICODE);
         if (!is_string($json) || strlen($json) > self::MAX_JSON_BYTES) {
             return null;
@@ -247,6 +273,40 @@ final class CampaignPayingProgress
         $decoded = json_decode($json, true);
 
         return self::sanitizeAnswers($decoded);
+    }
+
+    private static function sanitizeKnownAnswer(string $key, mixed $value): mixed
+    {
+        if ($key === 'contact_method') {
+            $value = strtolower(trim((string) $value));
+
+            return in_array($value, ['whatsapp', 'phone'], true) ? $value : '__reject__';
+        }
+        if ($key === 'contact_date') {
+            $value = trim((string) $value);
+
+            return preg_match('/^\d{4}-\d{2}-\d{2}$/', $value) === 1 ? $value : '__reject__';
+        }
+        if ($key === 'contact_time') {
+            $value = trim((string) $value);
+            if (preg_match('/^(\d{2}):(\d{2})(?::\d{2})?$/', $value, $match) !== 1) {
+                return '__reject__';
+            }
+            $hour = (int) $match[1];
+            $minute = (int) $match[2];
+            if ($hour > 23 || $minute > 59) {
+                return '__reject__';
+            }
+
+            return sprintf('%02d:%02d', $hour, $minute);
+        }
+        if ($key === 'status_correct') {
+            $value = strtolower(trim((string) $value));
+
+            return in_array($value, ['yes', 'no'], true) ? $value : '__reject__';
+        }
+
+        return $value;
     }
 
     private static function sanitizeValue(mixed $value): mixed

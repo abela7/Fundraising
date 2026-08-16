@@ -24,6 +24,12 @@ $campaignSettings = [
     'default_status_title' => CampaignGroupSettings::defaultStatusTitle(),
     'status_labels' => CampaignGroupSettings::defaultStatusLabels(),
     'default_status_labels' => CampaignGroupSettings::defaultStatusLabels(),
+    'contact_message' => CampaignGroupSettings::defaultContactMessage(),
+    'default_contact_message' => CampaignGroupSettings::defaultContactMessage(),
+    'contact_ask' => CampaignGroupSettings::defaultContactAsk(),
+    'default_contact_ask' => CampaignGroupSettings::defaultContactAsk(),
+    'contact_labels' => CampaignGroupSettings::defaultContactLabels(),
+    'default_contact_labels' => CampaignGroupSettings::defaultContactLabels(),
     'recipient_mode' => CampaignGroupSettings::MODE_ALL,
     'donor_ids' => [],
 ];

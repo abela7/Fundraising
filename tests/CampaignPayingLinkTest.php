@@ -136,4 +136,37 @@ assertSameValue(
     'invalid saved labels fall back to defaults'
 );
 
+$contactMessage = CampaignGroupSettings::defaultContactMessage();
+assertSameValue(true, str_contains($contactMessage, '{name}'), 'contact message includes name');
+assertSameValue(
+    true,
+    str_contains($contactMessage, '{remaining_amount}'),
+    'contact message includes remaining amount'
+);
+assertSameValue(
+    'እባክዎ የሚመችዎትን ቀን፣ ሰዓት እና የመገናኛ መንገድ ይምረጡ።',
+    CampaignGroupSettings::defaultContactAsk(),
+    'default contact ask asks for date, time, and method'
+);
+$contactLabels = CampaignGroupSettings::defaultContactLabels();
+assertSameValue('ቀን', $contactLabels['date'], 'default date label');
+assertSameValue('ሰዓት', $contactLabels['time'], 'default time label');
+assertSameValue('የWhatsApp ጥሪ', $contactLabels['whatsapp'], 'default WhatsApp call label');
+assertSameValue('የስልክ ጥሪ', $contactLabels['phone'], 'default phone call label');
+assertSameValue(
+    'የቤት ስልክ',
+    CampaignGroupSettings::contactLabels(json_encode(['phone' => 'የቤት ስልክ'], JSON_UNESCAPED_UNICODE))['phone'],
+    'saved phone label is kept'
+);
+assertSameValue(
+    CampaignGroupSettings::defaultContactMessage(),
+    CampaignGroupSettings::contactMessageText(''),
+    'empty contact message uses the default'
+);
+assertSameValue(
+    'እናመሰግናለን።',
+    CampaignGroupSettings::contactMessageText('እናመሰግናለን።'),
+    'saved contact message is kept'
+);
+
 fwrite(STDOUT, "PASS campaign paying link tests\n");

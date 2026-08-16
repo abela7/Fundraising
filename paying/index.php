@@ -28,6 +28,13 @@ $statusTitleHtml = '';
 $pledgeLabelHtml = '';
 $paidLabelHtml = '';
 $remainLabelHtml = '';
+$contactMessageHtml = '';
+$contactAskHtml = '';
+$contactDateLabelHtml = '';
+$contactTimeLabelHtml = '';
+$contactMethodLabelHtml = '';
+$contactWhatsappHtml = '';
+$contactPhoneHtml = '';
 try {
     if ($token !== '') {
         $donor = CampaignPayingLink::donorByToken(db(), $token);
@@ -44,6 +51,9 @@ if ($donor === null) {
     $statusTemplate = CampaignGroupSettings::defaultStatusMessage();
     $statusTitleTemplate = CampaignGroupSettings::defaultStatusTitle();
     $statusLabels = CampaignGroupSettings::defaultStatusLabels();
+    $contactMessageTemplate = CampaignGroupSettings::defaultContactMessage();
+    $contactAskTemplate = CampaignGroupSettings::defaultContactAsk();
+    $contactLabels = CampaignGroupSettings::defaultContactLabels();
     try {
         $settings = CampaignGroupSettings::get(db(), CampaignGroupSettings::GROUP_PAYING);
         if (trim((string) ($settings['welcome_message'] ?? '')) !== '') {
@@ -57,6 +67,15 @@ if ($donor === null) {
         $statusTitleTemplate = $card['title'];
         if (isset($settings['status_labels']) && is_array($settings['status_labels'])) {
             $statusLabels = CampaignGroupSettings::statusLabels(null, $settings['status_labels']);
+        }
+        $contactMessageTemplate = CampaignGroupSettings::contactMessageText(
+            (string) ($settings['contact_message'] ?? '')
+        );
+        $contactAskTemplate = CampaignGroupSettings::contactAskText(
+            (string) ($settings['contact_ask'] ?? '')
+        );
+        if (isset($settings['contact_labels']) && is_array($settings['contact_labels'])) {
+            $contactLabels = CampaignGroupSettings::contactLabels(null, $settings['contact_labels']);
         }
     } catch (Throwable $e) {
         error_log('Paying page text load failed: ' . $e->getMessage());
@@ -74,6 +93,13 @@ if ($donor === null) {
     $pledgeLabelHtml = $renderText($statusLabels['pledge']);
     $paidLabelHtml = $renderText($statusLabels['paid']);
     $remainLabelHtml = $renderText($statusLabels['remain']);
+    $contactMessageHtml = $renderText($contactMessageTemplate);
+    $contactAskHtml = $renderText($contactAskTemplate);
+    $contactDateLabelHtml = $renderText($contactLabels['date']);
+    $contactTimeLabelHtml = $renderText($contactLabels['time']);
+    $contactMethodLabelHtml = $renderText($contactLabels['method']);
+    $contactWhatsappHtml = $renderText($contactLabels['whatsapp']);
+    $contactPhoneHtml = $renderText($contactLabels['phone']);
 }
 
 $cssPath = url_for('paying/assets/paying.css');
@@ -82,6 +108,7 @@ $iconPath = url_for('assets/favicon.svg');
 $pledged = $donor !== null ? CampaignPayingLink::formatMoney((float) ($donor['total_pledged'] ?? 0)) : '';
 $paid = $donor !== null ? CampaignPayingLink::formatMoney((float) ($donor['total_paid'] ?? 0)) : '';
 $remaining = $donor !== null ? CampaignPayingLink::formatMoney((float) ($donor['balance'] ?? 0)) : '';
+$today = date('Y-m-d');
 $progress = CampaignPayingProgress::emptyState();
 $paySync = null;
 if ($donor !== null && $token !== '') {
@@ -156,6 +183,32 @@ if ($donor !== null && $token !== '') {
                     <div class="pay-choices" role="group" aria-label="ይህ መረጃ ትክክል ነው?">
                         <button type="button" class="pay-choice" data-pay-choice="status_correct" data-pay-value="yes">አዎ</button>
                         <button type="button" class="pay-choice pay-choice-no" data-pay-choice="status_correct" data-pay-value="no">አይደለም</button>
+                    </div>
+                </div>
+            </section>
+
+            <section class="pay-screen" data-pay-step="contact" id="payContact" hidden aria-label="የመገናኛ ቀን">
+                <div class="pay-stack">
+                    <div class="pay-card pay-welcome">
+                        <div class="pay-welcome-text"><?php echo $contactMessageHtml; ?></div>
+                    </div>
+                    <div class="pay-card">
+                        <div class="pay-title"><?php echo $contactAskHtml; ?></div>
+                        <label class="pay-field">
+                            <span class="pay-label"><?php echo $contactDateLabelHtml; ?></span>
+                            <input type="date" data-pay-field="contact_date" min="<?php echo htmlspecialchars($today, ENT_QUOTES, 'UTF-8'); ?>" required>
+                        </label>
+                        <label class="pay-field">
+                            <span class="pay-label"><?php echo $contactTimeLabelHtml; ?></span>
+                            <input type="time" data-pay-field="contact_time" required>
+                        </label>
+                        <div class="pay-field pay-field-last">
+                            <span class="pay-label"><?php echo $contactMethodLabelHtml; ?></span>
+                            <div class="pay-choices" role="group" aria-label="<?php echo htmlspecialchars(strip_tags($contactMethodLabelHtml), ENT_QUOTES, 'UTF-8'); ?>">
+                                <button type="button" class="pay-choice" data-pay-choice="contact_method" data-pay-value="whatsapp"><?php echo $contactWhatsappHtml; ?></button>
+                                <button type="button" class="pay-choice" data-pay-choice="contact_method" data-pay-value="phone"><?php echo $contactPhoneHtml; ?></button>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </section>

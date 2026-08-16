@@ -2,7 +2,7 @@
   const config = window.PAY_SYNC || {};
   const steps = Array.isArray(config.steps) && config.steps.length
     ? config.steps
-    : ['welcome', 'status'];
+    : ['welcome', 'status', 'contact'];
   const screens = {};
   document.querySelectorAll('[data-pay-step]').forEach(function (el) {
     screens[el.getAttribute('data-pay-step')] = el;
@@ -27,6 +27,27 @@
   let saveTimer = 0;
   let saving = false;
   let saveAgain = false;
+
+  function allowedStep(step) {
+    if (steps.indexOf(step) < 0) {
+      return steps[0];
+    }
+    if (step === 'contact' && state.answers.status_correct !== 'yes') {
+      return 'status';
+    }
+    return step;
+  }
+
+  function canGoNext() {
+    const next = steps[currentIndex() + 1];
+    if (!next) {
+      return false;
+    }
+    if (state.step === 'status' && state.answers.status_correct !== 'yes') {
+      return false;
+    }
+    return true;
+  }
 
   function currentIndex() {
     const idx = steps.indexOf(state.step);
@@ -89,11 +110,12 @@
       btn.hidden = idx <= 0;
     });
     document.querySelectorAll('[data-pay-next]').forEach(function (btn) {
-      btn.hidden = idx >= steps.length - 1;
+      btn.hidden = !canGoNext();
     });
   }
 
   function showStep(step, fromHistory) {
+    step = allowedStep(step);
     if (steps.indexOf(step) < 0) {
       step = steps[0];
     }
@@ -208,6 +230,7 @@
       }
       state.answers[key] = value;
       applyChoices();
+      updateNav();
       queueSave();
     });
   });
@@ -229,7 +252,7 @@
   applyFields();
   const hashStepRaw = location.hash ? location.hash.replace('#', '') : '';
   const hashStep = hashStepRaw === 'info' ? 'status' : hashStepRaw;
-  const start = steps.indexOf(hashStep) >= 0 ? hashStep : state.step;
+  const start = allowedStep(steps.indexOf(hashStep) >= 0 ? hashStep : state.step);
   history.replaceState({ step: steps[0] }, '', '#' + steps[0]);
   if (start !== steps[0]) {
     history.pushState({ step: start }, '', '#' + start);

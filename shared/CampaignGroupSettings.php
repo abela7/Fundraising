@@ -90,6 +90,88 @@ final class CampaignGroupSettings
     }
 
     /**
+     * Default thank-you after the donor confirms the amounts.
+     */
+    public static function defaultContactMessage(): string
+    {
+        return "እናመሰግናለን የተከበሩ {name}።\n\nመረጃው ትክክል ነው። የቀረው {remaining_amount} እንዴት እንደሚጠናቀቅ ለመነጋገር እንወዳለን።";
+    }
+
+    /**
+     * Default prompt to pick date, time, and contact method.
+     */
+    public static function defaultContactAsk(): string
+    {
+        return 'እባክዎ የሚመችዎትን ቀን፣ ሰዓት እና የመገናኛ መንገድ ይምረጡ።';
+    }
+
+    /**
+     * @return array{date:string,time:string,method:string,whatsapp:string,phone:string}
+     */
+    public static function defaultContactLabels(): array
+    {
+        return [
+            'date' => 'ቀን',
+            'time' => 'ሰዓት',
+            'method' => 'እንዴት እንደውልልዎ?',
+            'whatsapp' => 'የWhatsApp ጥሪ',
+            'phone' => 'የስልክ ጥሪ',
+        ];
+    }
+
+    public static function contactMessageText(string $saved): string
+    {
+        $saved = trim($saved);
+
+        return $saved !== '' ? $saved : self::defaultContactMessage();
+    }
+
+    public static function contactAskText(string $saved): string
+    {
+        $saved = trim($saved);
+
+        return $saved !== '' ? $saved : self::defaultContactAsk();
+    }
+
+    /**
+     * @param array{date?:string,time?:string,method?:string,whatsapp?:string,phone?:string} $overrides
+     * @return array{date:string,time:string,method:string,whatsapp:string,phone:string}
+     */
+    public static function contactLabels(?string $savedJson = null, array $overrides = []): array
+    {
+        $labels = self::defaultContactLabels();
+        if (is_string($savedJson) && trim($savedJson) !== '') {
+            $decoded = json_decode($savedJson, true);
+            if (is_array($decoded)) {
+                foreach (['date', 'time', 'method', 'whatsapp', 'phone'] as $key) {
+                    $value = trim((string) ($decoded[$key] ?? ''));
+                    if ($value !== '') {
+                        $labels[$key] = $value;
+                    }
+                }
+            }
+        }
+        foreach (['date', 'time', 'method', 'whatsapp', 'phone'] as $key) {
+            $value = trim((string) ($overrides[$key] ?? ''));
+            if ($value !== '') {
+                $labels[$key] = $value;
+            }
+        }
+
+        return $labels;
+    }
+
+    /**
+     * Contact page uses the same variables as the status page.
+     *
+     * @return list<array{key:string,label:string,token:string}>
+     */
+    public static function contactVariables(): array
+    {
+        return self::variables();
+    }
+
+    /**
      * Previous status body that repeated the amounts in prose.
      */
     public static function legacyStatusMessage(): string
@@ -249,6 +331,9 @@ final class CampaignGroupSettings
                     status_message TEXT NULL,
                     status_title TEXT NULL,
                     status_labels TEXT NULL,
+                    contact_message TEXT NULL,
+                    contact_ask TEXT NULL,
+                    contact_labels TEXT NULL,
                     recipient_mode VARCHAR(20) NOT NULL DEFAULT 'all',
                     updated_by INT NULL,
                     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -281,6 +366,7 @@ final class CampaignGroupSettings
         self::ensureStatusColumn($db);
         self::ensureStatusTitleColumn($db);
         self::ensureStatusLabelsColumn($db);
+        self::ensureContactColumns($db);
     }
 
     private static function ensureWelcomeColumn(mysqli $db): void
@@ -319,6 +405,25 @@ final class CampaignGroupSettings
         );
     }
 
+    private static function ensureContactColumns(mysqli $db): void
+    {
+        self::addColumnIfMissing(
+            $db,
+            'ALTER TABLE campaign_group_settings ADD COLUMN contact_message TEXT NULL AFTER status_labels',
+            'Campaign contact message column failed: '
+        );
+        self::addColumnIfMissing(
+            $db,
+            'ALTER TABLE campaign_group_settings ADD COLUMN contact_ask TEXT NULL AFTER contact_message',
+            'Campaign contact ask column failed: '
+        );
+        self::addColumnIfMissing(
+            $db,
+            'ALTER TABLE campaign_group_settings ADD COLUMN contact_labels TEXT NULL AFTER contact_ask',
+            'Campaign contact labels column failed: '
+        );
+    }
+
     private static function addColumnIfMissing(mysqli $db, string $sql, string $logPrefix): void
     {
         try {
@@ -347,6 +452,12 @@ final class CampaignGroupSettings
      *     default_status_title:string,
      *     status_labels:array{pledge:string,paid:string,remain:string},
      *     default_status_labels:array{pledge:string,paid:string,remain:string},
+     *     contact_message:string,
+     *     default_contact_message:string,
+     *     contact_ask:string,
+     *     default_contact_ask:string,
+     *     contact_labels:array{date:string,time:string,method:string,whatsapp:string,phone:string},
+     *     default_contact_labels:array{date:string,time:string,method:string,whatsapp:string,phone:string},
      *     recipient_mode:string,
      *     donor_ids:list<int>
      * }
@@ -365,6 +476,12 @@ final class CampaignGroupSettings
             'default_status_title' => self::defaultStatusTitle(),
             'status_labels' => self::defaultStatusLabels(),
             'default_status_labels' => self::defaultStatusLabels(),
+            'contact_message' => self::defaultContactMessage(),
+            'default_contact_message' => self::defaultContactMessage(),
+            'contact_ask' => self::defaultContactAsk(),
+            'default_contact_ask' => self::defaultContactAsk(),
+            'contact_labels' => self::defaultContactLabels(),
+            'default_contact_labels' => self::defaultContactLabels(),
             'recipient_mode' => self::MODE_ALL,
             'donor_ids' => [],
         ];
@@ -380,11 +497,20 @@ final class CampaignGroupSettings
 
         try {
             $stmt = $db->prepare(
-                'SELECT first_message, welcome_message, status_message, status_title, status_labels, recipient_mode
+                'SELECT first_message, welcome_message, status_message, status_title, status_labels,
+                        contact_message, contact_ask, contact_labels, recipient_mode
                  FROM campaign_group_settings
                  WHERE group_key = ?
                  LIMIT 1'
             );
+            if ($stmt === false) {
+                $stmt = $db->prepare(
+                    'SELECT first_message, welcome_message, status_message, status_title, status_labels, recipient_mode
+                     FROM campaign_group_settings
+                     WHERE group_key = ?
+                     LIMIT 1'
+                );
+            }
             if ($stmt === false) {
                 $stmt = $db->prepare(
                     'SELECT first_message, welcome_message, status_message, status_title, recipient_mode
@@ -425,6 +551,15 @@ final class CampaignGroupSettings
                 $defaults['status_title'] = $card['title'];
                 $defaults['status_labels'] = self::statusLabels(
                     isset($row['status_labels']) ? (string) $row['status_labels'] : null
+                );
+                $defaults['contact_message'] = self::contactMessageText(
+                    (string) ($row['contact_message'] ?? '')
+                );
+                $defaults['contact_ask'] = self::contactAskText(
+                    (string) ($row['contact_ask'] ?? '')
+                );
+                $defaults['contact_labels'] = self::contactLabels(
+                    isset($row['contact_labels']) ? (string) $row['contact_labels'] : null
                 );
                 $mode = (string) ($row['recipient_mode'] ?? self::MODE_ALL);
                 $defaults['recipient_mode'] = $mode === self::MODE_SELECTED ? self::MODE_SELECTED : self::MODE_ALL;
@@ -576,6 +711,74 @@ final class CampaignGroupSettings
             $welcome,
             $message,
             $title,
+            $labelsJson,
+            $mode,
+            $updatedBy
+        );
+
+        return $stmt->execute();
+    }
+
+    /**
+     * @param array{date?:string,time?:string,method?:string,whatsapp?:string,phone?:string} $labels
+     */
+    public static function saveContactCopy(
+        mysqli $db,
+        string $group,
+        string $message,
+        string $ask,
+        int $updatedBy,
+        array $labels = []
+    ): bool {
+        if (!self::isAllowedGroup($group)) {
+            return false;
+        }
+        $message = trim($message);
+        $ask = trim($ask);
+        $resolved = self::contactLabels(null, $labels);
+        $messageLength = function_exists('mb_strlen') ? mb_strlen($message) : strlen($message);
+        $askLength = function_exists('mb_strlen') ? mb_strlen($ask) : strlen($ask);
+        if ($message === '' || $messageLength > self::MAX_MESSAGE_LENGTH) {
+            return false;
+        }
+        if ($ask === '' || $askLength > self::MAX_MESSAGE_LENGTH) {
+            return false;
+        }
+        foreach ($resolved as $label) {
+            $labelLength = function_exists('mb_strlen') ? mb_strlen($label) : strlen($label);
+            if ($label === '' || $labelLength > self::MAX_TITLE_LENGTH) {
+                return false;
+            }
+        }
+        $labelsJson = json_encode($resolved, JSON_UNESCAPED_UNICODE);
+        if (!is_string($labelsJson)) {
+            return false;
+        }
+        self::ensureTables($db);
+        $existing = self::get($db, $group);
+        $first = $existing['first_message'];
+        $welcome = $existing['welcome_message'];
+        $mode = $existing['recipient_mode'];
+        $stmt = $db->prepare(
+            'INSERT INTO campaign_group_settings
+                (group_key, first_message, welcome_message, contact_message, contact_ask, contact_labels, recipient_mode, updated_by)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+             ON DUPLICATE KEY UPDATE
+                contact_message = VALUES(contact_message),
+                contact_ask = VALUES(contact_ask),
+                contact_labels = VALUES(contact_labels),
+                updated_by = VALUES(updated_by)'
+        );
+        if ($stmt === false) {
+            return false;
+        }
+        $stmt->bind_param(
+            'sssssssi',
+            $group,
+            $first,
+            $welcome,
+            $message,
+            $ask,
             $labelsJson,
             $mode,
             $updatedBy

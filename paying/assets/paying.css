@@ -141,6 +141,43 @@ body {
   white-space: normal;
 }
 
+.pay-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  padding: 0.95rem 1.1rem;
+  border-top: 1px solid var(--pay-line);
+}
+
+.pay-field-last {
+  padding-bottom: 1.15rem;
+}
+
+.pay-field input[type="date"],
+.pay-field input[type="time"] {
+  width: 100%;
+  min-height: 2.85rem;
+  border: 1px solid var(--pay-line);
+  border-radius: 0.75rem;
+  padding: 0.45rem 0.75rem;
+  font-family: inherit;
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--pay-text);
+  background: #fff;
+}
+
+.pay-field input[type="date"]:focus,
+.pay-field input[type="time"]:focus {
+  outline: 3px solid var(--pay-gold);
+  outline-offset: 2px;
+  border-color: var(--pay-blue);
+}
+
+.pay-title + .pay-field {
+  border-top: 0;
+}
+
 .pay-stack {
   display: flex;
   flex-direction: column;

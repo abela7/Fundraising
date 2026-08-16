@@ -41,6 +41,18 @@ $clip = static function (string $text): string {
 $messagePreview = $clip($messagePreview);
 $welcomePreview = $clip($welcomePreview);
 $statusPreview = $clip($statusPreview);
+
+$savedContactMessage = CampaignGroupSettings::contactMessageText(
+    (string) ($campaignSettings['contact_message'] ?? '')
+);
+$savedContactAsk = CampaignGroupSettings::contactAskText(
+    (string) ($campaignSettings['contact_ask'] ?? '')
+);
+$defaultContactMessage = (string) ($campaignSettings['default_contact_message'] ?? CampaignGroupSettings::defaultContactMessage());
+$defaultContactAsk = (string) ($campaignSettings['default_contact_ask'] ?? CampaignGroupSettings::defaultContactAsk());
+$contactIsCustom = ($savedContactMessage !== $defaultContactMessage)
+    || ($savedContactAsk !== $defaultContactAsk);
+$contactPreview = $clip(trim($savedContactAsk !== '' ? $savedContactAsk : $savedContactMessage));
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -107,6 +119,17 @@ $statusPreview = $clip($statusPreview);
                                 <div class="dvc-setup-title">Status check page</div>
                                 <div class="dvc-group-card-meta dvc-am-text"><?php echo htmlspecialchars($statusPreview, ENT_QUOTES, 'UTF-8'); ?></div>
                                 <div class="dvc-group-card-meta"><?php echo $statusIsCustom ? 'Saved — tap to edit' : 'Default title and footer — tap to write or change'; ?></div>
+                            </div>
+                            <i class="fas fa-chevron-right dvc-group-card-arrow"></i>
+                        </a>
+                    </div>
+                    <div class="col-12 col-lg-8">
+                        <a class="dvc-group-card d-flex align-items-center text-decoration-none" href="pledge-paying-contact.php">
+                            <div class="dvc-stat-icon paying"><i class="fas fa-phone"></i></div>
+                            <div class="dvc-group-card-body">
+                                <div class="dvc-setup-title">Contact page</div>
+                                <div class="dvc-group-card-meta dvc-am-text"><?php echo htmlspecialchars($contactPreview, ENT_QUOTES, 'UTF-8'); ?></div>
+                                <div class="dvc-group-card-meta"><?php echo $contactIsCustom ? 'Saved — tap to edit' : 'Default contact page — tap to write or change'; ?></div>
                             </div>
                             <i class="fas fa-chevron-right dvc-group-card-arrow"></i>
                         </a>

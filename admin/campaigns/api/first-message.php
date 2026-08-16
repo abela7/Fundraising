@@ -35,6 +35,13 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'GET') {
             'status_labels' => $settings['status_labels'],
             'default_status_labels' => $settings['default_status_labels'],
             'status_variables' => CampaignGroupSettings::statusVariables(),
+            'contact_message' => $settings['contact_message'],
+            'default_contact_message' => $settings['default_contact_message'],
+            'contact_ask' => $settings['contact_ask'],
+            'default_contact_ask' => $settings['default_contact_ask'],
+            'contact_labels' => $settings['contact_labels'],
+            'default_contact_labels' => $settings['default_contact_labels'],
+            'contact_variables' => CampaignGroupSettings::contactVariables(),
         ]);
     } catch (Throwable $e) {
         error_log('Campaign first message load failed: ' . $e->getMessage());
@@ -169,6 +176,55 @@ try {
             'status_title' => $card['title'],
             'status_labels' => $labels,
             'preview' => CampaignGroupSettings::preview($card['footer'], []),
+        ]);
+        exit;
+    }
+
+    if ($action === 'save_contact') {
+        $message = (string) ($_POST['contact_message'] ?? '');
+        $ask = (string) ($_POST['contact_ask'] ?? '');
+        if (trim($message) === '') {
+            http_response_code(400);
+            echo json_encode(['success' => false, 'error' => 'Write the after-yes message before saving.']);
+            exit;
+        }
+        if (trim($ask) === '') {
+            http_response_code(400);
+            echo json_encode(['success' => false, 'error' => 'Write the date and time prompt before saving.']);
+            exit;
+        }
+        $messageLength = function_exists('mb_strlen') ? mb_strlen($message) : strlen($message);
+        $askLength = function_exists('mb_strlen') ? mb_strlen($ask) : strlen($ask);
+        if ($messageLength > CampaignGroupSettings::MAX_MESSAGE_LENGTH || $askLength > CampaignGroupSettings::MAX_MESSAGE_LENGTH) {
+            http_response_code(400);
+            echo json_encode(['success' => false, 'error' => 'Message is too long.']);
+            exit;
+        }
+        foreach (['contact_date_label', 'contact_time_label', 'contact_method_label', 'contact_whatsapp_label', 'contact_phone_label'] as $field) {
+            $label = trim((string) ($_POST[$field] ?? ''));
+            $labelLength = function_exists('mb_strlen') ? mb_strlen($label) : strlen($label);
+            if ($labelLength > CampaignGroupSettings::MAX_TITLE_LENGTH) {
+                http_response_code(400);
+                echo json_encode(['success' => false, 'error' => 'A label is too long.']);
+                exit;
+            }
+        }
+        $labels = [
+            'date' => (string) ($_POST['contact_date_label'] ?? ''),
+            'time' => (string) ($_POST['contact_time_label'] ?? ''),
+            'method' => (string) ($_POST['contact_method_label'] ?? ''),
+            'whatsapp' => (string) ($_POST['contact_whatsapp_label'] ?? ''),
+            'phone' => (string) ($_POST['contact_phone_label'] ?? ''),
+        ];
+        $ok = CampaignGroupSettings::saveContactCopy($db, $group, $message, $ask, $userId, $labels);
+        if (!$ok) {
+            throw new RuntimeException('Could not save contact page.');
+        }
+        echo json_encode([
+            'success' => true,
+            'contact_message' => CampaignGroupSettings::contactMessageText($message),
+            'contact_ask' => CampaignGroupSettings::contactAskText($ask),
+            'contact_labels' => CampaignGroupSettings::contactLabels(null, $labels),
         ]);
         exit;
     }
