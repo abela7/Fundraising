@@ -85,6 +85,9 @@ $cssVersion = (int) (filemtime(__DIR__ . '/../assets/campaigns.css') ?: time());
                     </div>
                     <div class="d-flex gap-2 flex-wrap">
                         <?php if ($isPayingCampaign): ?>
+                            <a class="btn btn-outline-primary" href="pledge-paying-report.php">
+                                <i class="fas fa-chart-column me-1"></i>Report
+                            </a>
                             <a class="btn btn-outline-primary" href="pledge-paying-settings.php">
                                 <i class="fas fa-sliders me-1"></i>Settings
                             </a>

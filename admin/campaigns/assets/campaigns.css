@@ -222,6 +222,18 @@
 }
 .dvc-badge-old { background: rgba(245, 158, 11, 0.1); color: var(--accent-dark); }
 .dvc-badge-new { background: rgba(16, 185, 129, 0.1); color: var(--success); }
+button.dvc-stat-chip {
+  width: 100%;
+  border: 1px solid var(--gray-200);
+  text-align: left;
+  font: inherit;
+  appearance: none;
+  background: var(--white);
+  color: inherit;
+}
+.dvc-report-kpis {
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+}
 .dvc-pagination-wrapper {
   display: flex;
   align-items: center;

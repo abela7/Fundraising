@@ -113,6 +113,7 @@ $progress = CampaignPayingProgress::emptyState();
 $paySync = null;
 if ($donor !== null && $token !== '') {
     try {
+        CampaignPayingProgress::markOpened(db(), $token);
         $progress = CampaignPayingProgress::load(db(), $token);
     } catch (Throwable $e) {
         error_log('Paying progress boot failed: ' . $e->getMessage());

@@ -249,6 +249,7 @@ final class CampaignPayingLink
                 answers_json TEXT NULL,
                 revision INT UNSIGNED NOT NULL DEFAULT 0,
                 progress_updated_at TIMESTAMP NULL DEFAULT NULL,
+                opened_at TIMESTAMP NULL DEFAULT NULL,
                 created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 PRIMARY KEY (donor_id),
                 UNIQUE KEY uq_campaign_paying_token (token)

@@ -1,0 +1,345 @@
+<?php
+
+declare(strict_types=1);
+
+require_once __DIR__ . '/CampaignPayingProgress.php';
+require_once __DIR__ . '/DonorCampaignGroups.php';
+
+/**
+ * Still-paying campaign report: opened links, answers, and booked calls.
+ */
+final class CampaignPayingReport
+{
+    public const FILTER_ALL = 'all';
+    public const FILTER_SENT = 'sent';
+    public const FILTER_NOT_OPENED = 'not_opened';
+    public const FILTER_OPENED = 'opened';
+    public const FILTER_ANSWERED = 'answered';
+    public const FILTER_BOOKED = 'booked';
+
+    /** @var list<string> */
+    public const FILTERS = [
+        self::FILTER_ALL,
+        self::FILTER_SENT,
+        self::FILTER_NOT_OPENED,
+        self::FILTER_OPENED,
+        self::FILTER_ANSWERED,
+        self::FILTER_BOOKED,
+    ];
+
+    /**
+     * @param array<string, mixed> $row
+     * @return array{
+     *   sent:bool,
+     *   opened:bool,
+     *   answered:bool,
+     *   answer:?string,
+     *   booked:bool,
+     *   contact_date:?string,
+     *   contact_time:?string,
+     *   contact_method:?string
+     * }
+     */
+    public static function classify(array $row): array
+    {
+        $answers = self::answersFromRow($row);
+        $answer = isset($answers['status_correct']) && is_string($answers['status_correct'])
+            ? $answers['status_correct']
+            : null;
+        if ($answer !== 'yes' && $answer !== 'no') {
+            $answer = null;
+        }
+        $date = self::stringOrNull($answers['contact_date'] ?? null);
+        $time = self::stringOrNull($answers['contact_time'] ?? null);
+        $method = self::stringOrNull($answers['contact_method'] ?? null);
+        if ($method !== 'whatsapp' && $method !== 'phone') {
+            $method = null;
+        }
+        $booked = $date !== null && $time !== null && $method !== null;
+        $answered = $answer !== null;
+        $opened = self::hasTime($row['opened_at'] ?? null)
+            || self::hasTime($row['progress_updated_at'] ?? null)
+            || (int) ($row['revision'] ?? 0) > 0
+            || $answered
+            || $booked;
+
+        return [
+            'sent' => self::hasTime($row['last_sent_at'] ?? null),
+            'opened' => $opened,
+            'answered' => $answered,
+            'answer' => $answer,
+            'booked' => $booked,
+            'contact_date' => $date,
+            'contact_time' => $time,
+            'contact_method' => $method,
+        ];
+    }
+
+    /**
+     * @param array<string, mixed> $classified
+     */
+    public static function matchesFilter(array $classified, string $filter): bool
+    {
+        $filter = strtolower(trim($filter));
+        if ($filter === self::FILTER_SENT) {
+            return !empty($classified['sent']);
+        }
+        if ($filter === self::FILTER_NOT_OPENED) {
+            return !empty($classified['sent']) && empty($classified['opened']);
+        }
+        if ($filter === self::FILTER_OPENED) {
+            return !empty($classified['opened']);
+        }
+        if ($filter === self::FILTER_ANSWERED) {
+            return !empty($classified['answered']);
+        }
+        if ($filter === self::FILTER_BOOKED) {
+            return !empty($classified['booked']);
+        }
+
+        return true;
+    }
+
+    /**
+     * @param list<array<string, mixed>> $rows
+     * @return array{
+     *   donors:int,
+     *   sent:int,
+     *   opened:int,
+     *   not_opened:int,
+     *   answered:int,
+     *   answered_yes:int,
+     *   answered_no:int,
+     *   booked:int
+     * }
+     */
+    public static function summarize(array $rows): array
+    {
+        $summary = [
+            'donors' => 0,
+            'sent' => 0,
+            'opened' => 0,
+            'not_opened' => 0,
+            'answered' => 0,
+            'answered_yes' => 0,
+            'answered_no' => 0,
+            'booked' => 0,
+        ];
+        foreach ($rows as $row) {
+            $item = isset($row['sent']) || isset($row['opened']) || isset($row['answered'])
+                ? $row
+                : self::classify($row);
+            $summary['donors']++;
+            if (!empty($item['sent'])) {
+                $summary['sent']++;
+            }
+            if (!empty($item['opened'])) {
+                $summary['opened']++;
+            }
+            if (!empty($item['sent']) && empty($item['opened'])) {
+                $summary['not_opened']++;
+            }
+            if (!empty($item['answered'])) {
+                $summary['answered']++;
+            }
+            if (($item['answer'] ?? null) === 'yes') {
+                $summary['answered_yes']++;
+            }
+            if (($item['answer'] ?? null) === 'no') {
+                $summary['answered_no']++;
+            }
+            if (!empty($item['booked'])) {
+                $summary['booked']++;
+            }
+        }
+
+        return $summary;
+    }
+
+    public static function formatWhen(mixed $datetime): string
+    {
+        $value = trim((string) $datetime);
+        if ($value === '') {
+            return '';
+        }
+        $timestamp = strtotime($value);
+        if ($timestamp === false) {
+            return '';
+        }
+
+        return date('j M Y, g:i A', $timestamp);
+    }
+
+    public static function formatBooking(?string $date, ?string $time, ?string $method): string
+    {
+        if ($date === null || $time === null || $method === null) {
+            return '';
+        }
+        $timestamp = strtotime($date . ' ' . $time);
+        if ($timestamp === false) {
+            return '';
+        }
+        $when = date('j M Y, g:i A', $timestamp);
+        $label = $method === 'phone' ? 'Phone' : 'WhatsApp';
+
+        return $when . ' · ' . $label;
+    }
+
+    /**
+     * @return list<array<string, mixed>>
+     */
+    public static function fetch(mysqli $db): array
+    {
+        CampaignPayingProgress::ensureColumns($db);
+        $tables = $db->query("SHOW TABLES LIKE 'campaign_paying_links'");
+        $hasLinks = $tables && $tables->num_rows > 0;
+        $groupExpr = DonorCampaignGroups::sqlCase('d');
+        $join = $hasLinks
+            ? 'LEFT JOIN campaign_paying_links l ON l.donor_id = d.id'
+            : '';
+        $linkSelect = $hasLinks
+            ? 'l.last_sent_at, l.opened_at, l.step, l.answers_json, l.revision, l.progress_updated_at'
+            : 'NULL AS last_sent_at, NULL AS opened_at, NULL AS step, NULL AS answers_json, 0 AS revision, NULL AS progress_updated_at';
+
+        $sql = "
+            SELECT
+                d.id,
+                d.name,
+                d.phone,
+                d.total_pledged,
+                d.total_paid,
+                d.balance,
+                {$linkSelect},
+                (
+                    SELECT p.notes
+                    FROM pledges p
+                    WHERE p.donor_id = d.id
+                      AND p.status IN ('approved', 'pending')
+                      AND p.notes REGEXP '^[0-9]{4}$'
+                    ORDER BY (p.status = 'approved') DESC, p.id DESC
+                    LIMIT 1
+                ) AS reference
+            FROM donors d
+            {$join}
+            WHERE ({$groupExpr}) = ?
+            ORDER BY d.name ASC, d.id ASC
+        ";
+        $stmt = $db->prepare($sql);
+        if ($stmt === false) {
+            throw new RuntimeException('Paying report query failed.');
+        }
+        $group = DonorCampaignGroups::PLEDGE_PAYING;
+        $stmt->bind_param('s', $group);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        $rows = [];
+        while ($row = $result->fetch_assoc()) {
+            if (!is_array($row)) {
+                continue;
+            }
+            $classified = self::classify($row);
+            $rows[] = [
+                'id' => (int) ($row['id'] ?? 0),
+                'donor_id' => (int) ($row['id'] ?? 0),
+                'name' => (string) ($row['name'] ?? ''),
+                'phone' => (string) ($row['phone'] ?? ''),
+                'reference' => (string) ($row['reference'] ?? ''),
+                'pledged' => (float) ($row['total_pledged'] ?? 0),
+                'paid' => (float) ($row['total_paid'] ?? 0),
+                'balance' => (float) ($row['balance'] ?? 0),
+                'sent' => $classified['sent'],
+                'opened' => $classified['opened'],
+                'opened_at' => self::stringOrNull($row['opened_at'] ?? null)
+                    ?? self::stringOrNull($row['progress_updated_at'] ?? null),
+                'opened_label' => self::formatWhen(
+                    $row['opened_at'] ?? $row['progress_updated_at'] ?? null
+                ),
+                'answered' => $classified['answered'],
+                'answer' => $classified['answer'],
+                'booked' => $classified['booked'],
+                'contact_date' => $classified['contact_date'],
+                'contact_time' => $classified['contact_time'],
+                'contact_method' => $classified['contact_method'],
+                'booking_label' => self::formatBooking(
+                    $classified['contact_date'],
+                    $classified['contact_time'],
+                    $classified['contact_method']
+                ),
+            ];
+        }
+        $stmt->close();
+
+        return $rows;
+    }
+
+    /**
+     * @param list<array<string, mixed>> $rows
+     * @return list<array<string, mixed>>
+     */
+    public static function filterRows(array $rows, string $filter, string $search): array
+    {
+        $search = self::lower(trim($search));
+        $out = [];
+        foreach ($rows as $row) {
+            if (!self::matchesFilter($row, $filter)) {
+                continue;
+            }
+            if ($search !== '') {
+                $hay = self::lower(
+                    (string) ($row['name'] ?? '')
+                    . ' '
+                    . (string) ($row['phone'] ?? '')
+                    . ' '
+                    . (string) ($row['reference'] ?? '')
+                );
+                if (!str_contains($hay, $search)) {
+                    continue;
+                }
+            }
+            $out[] = $row;
+        }
+
+        return $out;
+    }
+
+    /**
+     * @param array<string, mixed> $row
+     * @return array<string, mixed>
+     */
+    private static function answersFromRow(array $row): array
+    {
+        if (isset($row['answers']) && is_array($row['answers'])) {
+            return CampaignPayingProgress::sanitizeAnswers($row['answers']);
+        }
+        $json = $row['answers_json'] ?? null;
+        if (!is_string($json) || trim($json) === '') {
+            return [];
+        }
+        $decoded = json_decode($json, true);
+
+        return CampaignPayingProgress::sanitizeAnswers($decoded);
+    }
+
+    private static function lower(string $value): string
+    {
+        if (function_exists('mb_strtolower')) {
+            return mb_strtolower($value);
+        }
+
+        return strtolower($value);
+    }
+
+    private static function hasTime(mixed $value): bool
+    {
+        $value = trim((string) $value);
+
+        return $value !== '' && $value !== '0000-00-00 00:00:00';
+    }
+
+    private static function stringOrNull(mixed $value): ?string
+    {
+        $value = trim((string) $value);
+
+        return $value === '' ? null : $value;
+    }
+}

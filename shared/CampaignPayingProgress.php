@@ -184,6 +184,30 @@ final class CampaignPayingProgress
         }
     }
 
+    public static function markOpened(mysqli $db, string $token): void
+    {
+        $token = self::normalizeToken($token);
+        if ($token === null) {
+            return;
+        }
+        try {
+            self::ensureColumns($db);
+            $stmt = $db->prepare(
+                'UPDATE campaign_paying_links
+                 SET opened_at = COALESCE(opened_at, NOW())
+                 WHERE token = ?'
+            );
+            if ($stmt === false) {
+                return;
+            }
+            $stmt->bind_param('s', $token);
+            $stmt->execute();
+            $stmt->close();
+        } catch (Throwable $e) {
+            error_log('Paying open stamp failed: ' . $e->getMessage());
+        }
+    }
+
     /**
      * @param array<string, mixed> $answers
      * @return array{ok:bool,step:string,answers:array<string,mixed>,revision:int}|null
@@ -258,6 +282,7 @@ final class CampaignPayingProgress
             'ALTER TABLE campaign_paying_links ADD COLUMN answers_json TEXT NULL',
             'ALTER TABLE campaign_paying_links ADD COLUMN revision INT UNSIGNED NOT NULL DEFAULT 0',
             'ALTER TABLE campaign_paying_links ADD COLUMN progress_updated_at TIMESTAMP NULL DEFAULT NULL',
+            'ALTER TABLE campaign_paying_links ADD COLUMN opened_at TIMESTAMP NULL DEFAULT NULL',
         ];
         foreach ($alters as $sql) {
             try {
