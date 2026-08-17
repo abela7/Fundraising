@@ -250,6 +250,7 @@ final class CampaignPayingLink
                 revision INT UNSIGNED NOT NULL DEFAULT 0,
                 progress_updated_at TIMESTAMP NULL DEFAULT NULL,
                 opened_at TIMESTAMP NULL DEFAULT NULL,
+                call_status VARCHAR(20) NULL DEFAULT NULL,
                 created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 PRIMARY KEY (donor_id),
                 UNIQUE KEY uq_campaign_paying_token (token)

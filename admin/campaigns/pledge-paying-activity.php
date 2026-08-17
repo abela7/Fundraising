@@ -208,6 +208,27 @@ $dash = static function (string $value) use ($h): string {
                                         <div class="dvc-detail-value"><?php echo $dash((string) $activity['booking_label']); ?></div>
                                     </div>
                                     <div class="dvc-detail-row">
+                                        <div class="dvc-detail-label">Call status</div>
+                                        <div class="dvc-detail-value">
+                                            <?php if (!empty($activity['booked'])): ?>
+                                                <?php $callStatus = (string) ($activity['call_status'] ?? 'pending'); ?>
+                                                <select
+                                                    class="form-select form-select-sm dvc-call-status ms-auto"
+                                                    data-call-status-select
+                                                    data-donor-id="<?php echo (int) $activity['donor_id']; ?>"
+                                                    data-status="<?php echo $h($callStatus); ?>"
+                                                    aria-label="Call status"
+                                                >
+                                                    <option value="pending"<?php echo $callStatus === 'pending' ? ' selected' : ''; ?>>Pending</option>
+                                                    <option value="contacted"<?php echo $callStatus === 'contacted' ? ' selected' : ''; ?>>Contacted</option>
+                                                    <option value="not_answering"<?php echo $callStatus === 'not_answering' ? ' selected' : ''; ?>>Not answering</option>
+                                                </select>
+                                            <?php else: ?>
+                                                —
+                                            <?php endif; ?>
+                                        </div>
+                                    </div>
+                                    <div class="dvc-detail-row">
                                         <div class="dvc-detail-label">Number to call</div>
                                         <div class="dvc-detail-value"><?php echo $dash((string) ($activity['contact_phone'] ?? '')); ?></div>
                                     </div>
@@ -250,5 +271,11 @@ $dash = static function (string $value) use ($h): string {
 </div>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="../assets/admin.js"></script>
+<?php if ($activity !== null && $error === ''): ?>
+<script>
+window.PAY_REPORT = <?php echo json_encode(['csrf' => $csrfToken], JSON_UNESCAPED_SLASHES); ?>;
+</script>
+<script src="assets/paying-call-status.js?v=<?php echo (int) (filemtime(__DIR__ . '/assets/paying-call-status.js') ?: time()); ?>"></script>
+<?php endif; ?>
 </body>
 </html>

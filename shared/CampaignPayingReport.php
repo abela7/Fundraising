@@ -17,6 +17,13 @@ final class CampaignPayingReport
     public const FILTER_OPENED = 'opened';
     public const FILTER_ANSWERED = 'answered';
     public const FILTER_BOOKED = 'booked';
+    public const FILTER_PENDING = 'pending';
+    public const FILTER_CONTACTED = 'contacted';
+    public const FILTER_NOT_ANSWERING = 'not_answering';
+
+    public const CALL_PENDING = 'pending';
+    public const CALL_CONTACTED = 'contacted';
+    public const CALL_NOT_ANSWERING = 'not_answering';
 
     /** @var list<string> */
     public const FILTERS = [
@@ -26,6 +33,16 @@ final class CampaignPayingReport
         self::FILTER_OPENED,
         self::FILTER_ANSWERED,
         self::FILTER_BOOKED,
+        self::FILTER_PENDING,
+        self::FILTER_CONTACTED,
+        self::FILTER_NOT_ANSWERING,
+    ];
+
+    /** @var list<string> */
+    public const CALL_STATUSES = [
+        self::CALL_PENDING,
+        self::CALL_CONTACTED,
+        self::CALL_NOT_ANSWERING,
     ];
 
     /**
@@ -36,6 +53,7 @@ final class CampaignPayingReport
      *   answered:bool,
      *   answer:?string,
      *   booked:bool,
+     *   call_status:string,
      *   contact_date:?string,
      *   contact_time:?string,
      *   contact_method:?string
@@ -70,10 +88,47 @@ final class CampaignPayingReport
             'answered' => $answered,
             'answer' => $answer,
             'booked' => $booked,
+            'call_status' => self::resolveCallStatus($booked, $row['call_status'] ?? ''),
             'contact_date' => $date,
             'contact_time' => $time,
             'contact_method' => $method,
         ];
+    }
+
+    public static function sanitizeCallStatus(mixed $value): string
+    {
+        $value = strtolower(trim((string) $value));
+        $value = str_replace([' ', '-'], '_', $value);
+        if ($value === 'notanswering') {
+            $value = self::CALL_NOT_ANSWERING;
+        }
+
+        return in_array($value, self::CALL_STATUSES, true) ? $value : '';
+    }
+
+    public static function resolveCallStatus(bool $booked, mixed $stored): string
+    {
+        if (!$booked) {
+            return '';
+        }
+        $status = self::sanitizeCallStatus($stored);
+
+        return $status !== '' ? $status : self::CALL_PENDING;
+    }
+
+    public static function callStatusLabel(string $status): string
+    {
+        if ($status === self::CALL_CONTACTED) {
+            return 'Contacted';
+        }
+        if ($status === self::CALL_NOT_ANSWERING) {
+            return 'Not answering';
+        }
+        if ($status === self::CALL_PENDING) {
+            return 'Pending';
+        }
+
+        return '';
     }
 
     /**
@@ -97,6 +152,16 @@ final class CampaignPayingReport
         if ($filter === self::FILTER_BOOKED) {
             return !empty($classified['booked']);
         }
+        if (
+            $filter === self::FILTER_PENDING
+            || $filter === self::FILTER_CONTACTED
+            || $filter === self::FILTER_NOT_ANSWERING
+        ) {
+            return self::resolveCallStatus(
+                !empty($classified['booked']),
+                $classified['call_status'] ?? ''
+            ) === $filter;
+        }
 
         return true;
     }
@@ -111,7 +176,10 @@ final class CampaignPayingReport
      *   answered:int,
      *   answered_yes:int,
      *   answered_no:int,
-     *   booked:int
+     *   booked:int,
+     *   call_pending:int,
+     *   call_contacted:int,
+     *   call_not_answering:int
      * }
      */
     public static function summarize(array $rows): array
@@ -125,6 +193,9 @@ final class CampaignPayingReport
             'answered_yes' => 0,
             'answered_no' => 0,
             'booked' => 0,
+            'call_pending' => 0,
+            'call_contacted' => 0,
+            'call_not_answering' => 0,
         ];
         foreach ($rows as $row) {
             $item = isset($row['sent']) || isset($row['opened']) || isset($row['answered'])
@@ -152,6 +223,19 @@ final class CampaignPayingReport
             if (!empty($item['booked'])) {
                 $summary['booked']++;
             }
+            $callStatus = self::resolveCallStatus(
+                !empty($item['booked']),
+                $item['call_status'] ?? ''
+            );
+            if ($callStatus === self::CALL_PENDING) {
+                $summary['call_pending']++;
+            }
+            if ($callStatus === self::CALL_CONTACTED) {
+                $summary['call_contacted']++;
+            }
+            if ($callStatus === self::CALL_NOT_ANSWERING) {
+                $summary['call_not_answering']++;
+            }
         }
 
         return $summary;
@@ -169,6 +253,38 @@ final class CampaignPayingReport
         }
 
         return date('j M Y, g:i A', $timestamp);
+    }
+
+    /**
+     * Staff follow-up after a booked call: pending, contacted, or not answering.
+     *
+     * @return array{donor_id:int,call_status:string,call_status_label:string}|null
+     */
+    public static function setCallStatus(mysqli $db, int $donorId, string $status): ?array
+    {
+        $status = self::sanitizeCallStatus($status);
+        if ($donorId <= 0 || $status === '') {
+            return null;
+        }
+        $donor = self::findDonor($db, $donorId);
+        if ($donor === null || empty($donor['booked'])) {
+            return null;
+        }
+        $stmt = $db->prepare(
+            'UPDATE campaign_paying_links SET call_status = ? WHERE donor_id = ?'
+        );
+        if ($stmt === false) {
+            throw new RuntimeException('Paying call status update failed.');
+        }
+        $stmt->bind_param('si', $status, $donorId);
+        $stmt->execute();
+        $stmt->close();
+
+        return [
+            'donor_id' => $donorId,
+            'call_status' => $status,
+            'call_status_label' => self::callStatusLabel($status),
+        ];
     }
 
     public static function stepLabel(string $step): string
@@ -249,6 +365,8 @@ final class CampaignPayingReport
             'opened' => $classified['opened'],
             'answered' => $classified['answered'],
             'booked' => $classified['booked'],
+            'call_status' => $classified['call_status'],
+            'call_status_label' => self::callStatusLabel($classified['call_status']),
             'answer' => $answer,
             'answer_label' => $answer === 'yes' ? 'Yes' : ($answer === 'no' ? 'No' : 'Not answered'),
             'sent_label' => self::formatWhen($sentAt),
@@ -288,8 +406,8 @@ final class CampaignPayingReport
             ? 'LEFT JOIN campaign_paying_links l ON l.donor_id = d.id'
             : '';
         $linkSelect = $hasLinks
-            ? 'l.token, l.last_sent_at, l.opened_at, l.step, l.answers_json, l.revision, l.progress_updated_at'
-            : 'NULL AS token, NULL AS last_sent_at, NULL AS opened_at, NULL AS step, NULL AS answers_json, 0 AS revision, NULL AS progress_updated_at';
+            ? 'l.token, l.last_sent_at, l.opened_at, l.step, l.answers_json, l.revision, l.progress_updated_at, l.call_status'
+            : 'NULL AS token, NULL AS last_sent_at, NULL AS opened_at, NULL AS step, NULL AS answers_json, 0 AS revision, NULL AS progress_updated_at, NULL AS call_status';
 
         $sql = "
             SELECT
@@ -363,8 +481,8 @@ final class CampaignPayingReport
             ? 'LEFT JOIN campaign_paying_links l ON l.donor_id = d.id'
             : '';
         $linkSelect = $hasLinks
-            ? 'l.last_sent_at, l.opened_at, l.step, l.answers_json, l.revision, l.progress_updated_at'
-            : 'NULL AS last_sent_at, NULL AS opened_at, NULL AS step, NULL AS answers_json, 0 AS revision, NULL AS progress_updated_at';
+            ? 'l.last_sent_at, l.opened_at, l.step, l.answers_json, l.revision, l.progress_updated_at, l.call_status'
+            : 'NULL AS last_sent_at, NULL AS opened_at, NULL AS step, NULL AS answers_json, 0 AS revision, NULL AS progress_updated_at, NULL AS call_status';
 
         $sql = "
             SELECT
@@ -422,6 +540,8 @@ final class CampaignPayingReport
                 'answered' => $classified['answered'],
                 'answer' => $classified['answer'],
                 'booked' => $classified['booked'],
+                'call_status' => $classified['call_status'],
+                'call_status_label' => self::callStatusLabel($classified['call_status']),
                 'contact_date' => $classified['contact_date'],
                 'contact_time' => $classified['contact_time'],
                 'contact_method' => $classified['contact_method'],
@@ -456,6 +576,10 @@ final class CampaignPayingReport
                     . (string) ($row['phone'] ?? '')
                     . ' '
                     . (string) ($row['reference'] ?? '')
+                    . ' '
+                    . (string) ($row['call_status'] ?? '')
+                    . ' '
+                    . (string) ($row['call_status_label'] ?? '')
                 );
                 if (!str_contains($hay, $search)) {
                     continue;

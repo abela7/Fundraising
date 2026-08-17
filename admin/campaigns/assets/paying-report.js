@@ -1,7 +1,11 @@
 (function () {
-  const COLSPAN = 5;
+  const COLSPAN = 6;
   let filter = 'all';
   let page = 1;
+  window.PAY_REPORT = window.PAY_REPORT || {};
+  window.PAY_REPORT.onStatusSaved = function () {
+    load(page);
+  };
 
   function escapeHtml(s) {
     return String(s)
@@ -62,6 +66,9 @@
     setText('kpiAnswered', Number(summary.answered || 0).toLocaleString());
     setText('kpiAnsweredMeta', yes.toLocaleString() + ' yes · ' + no.toLocaleString() + ' no');
     setText('kpiBooked', Number(summary.booked || 0).toLocaleString());
+    setText('kpiPending', Number(summary.call_pending || 0).toLocaleString());
+    setText('kpiContacted', Number(summary.call_contacted || 0).toLocaleString());
+    setText('kpiNotAnswering', Number(summary.call_not_answering || 0).toLocaleString());
   }
 
   function renderFilters() {
@@ -70,6 +77,32 @@
       btn.classList.toggle('active', active);
       btn.setAttribute('aria-pressed', active ? 'true' : 'false');
     });
+  }
+
+  function callStatusCell(row) {
+    if (!row.booked) {
+      return '<span class="text-muted">—</span>';
+    }
+    const status = row.call_status === 'contacted' || row.call_status === 'not_answering'
+      ? row.call_status
+      : 'pending';
+    const id = Number(row.donor_id || row.id || 0);
+    const options = [
+      ['pending', 'Pending'],
+      ['contacted', 'Contacted'],
+      ['not_answering', 'Not answering'],
+    ];
+    return '<select class="form-select form-select-sm dvc-call-status" data-call-status-select data-donor-id="'
+      + id
+      + '" data-status="'
+      + escapeHtml(status)
+      + '" aria-label="Call status">'
+      + options.map(function (opt) {
+        return '<option value="' + opt[0] + '"' + (opt[0] === status ? ' selected' : '') + '>'
+          + opt[1]
+          + '</option>';
+      }).join('')
+      + '</select>';
   }
 
   function renderTable(data) {
@@ -98,6 +131,7 @@
         + '<td data-label="Opened">' + openedCell(r) + '</td>'
         + '<td data-label="Answer">' + answerBadge(r) + '</td>'
         + '<td data-label="Booked time">' + booked + '</td>'
+        + '<td data-label="Status">' + callStatusCell(r) + '</td>'
         + '</tr>';
     }).join('');
   }

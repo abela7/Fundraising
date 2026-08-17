@@ -5,7 +5,10 @@ declare(strict_types=1);
 require_once __DIR__ . '/includes/paying-boot.php';
 
 $page_title = 'Still paying — Report';
-$jsVersion = (int) (filemtime(__DIR__ . '/assets/paying-report.js') ?: time());
+$jsVersion = (int) max(
+    filemtime(__DIR__ . '/assets/paying-report.js') ?: time(),
+    filemtime(__DIR__ . '/assets/paying-call-status.js') ?: time()
+);
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -33,7 +36,7 @@ $jsVersion = (int) (filemtime(__DIR__ . '/assets/paying-report.js') ?: time());
                             <i class="fas fa-chart-column me-2 dvc-title-icon paying"></i>
                             Paying link report
                         </h1>
-                        <p>See who opened the still-paying link, who answered, and who booked a call. Tap a name for their full activity.</p>
+                        <p>See who opened the still-paying link, who answered, and who booked a call. After a booking, mark Pending, Contacted, or Not answering. Tap a name for their full activity.</p>
                     </div>
                     <div class="d-flex gap-2 flex-wrap">
                         <a class="btn btn-outline-secondary" href="pledge-paying.php">
@@ -86,6 +89,27 @@ $jsVersion = (int) (filemtime(__DIR__ . '/assets/paying-report.js') ?: time());
                             <div class="dvc-stat-label">Booked a time</div>
                         </div>
                     </button>
+                    <button type="button" class="dvc-stat-chip" data-filter="pending" aria-pressed="false">
+                        <div class="dvc-stat-icon not-started"><i class="fas fa-clock"></i></div>
+                        <div>
+                            <div class="dvc-stat-value" id="kpiPending">—</div>
+                            <div class="dvc-stat-label">Pending</div>
+                        </div>
+                    </button>
+                    <button type="button" class="dvc-stat-chip" data-filter="contacted" aria-pressed="false">
+                        <div class="dvc-stat-icon completed"><i class="fas fa-phone"></i></div>
+                        <div>
+                            <div class="dvc-stat-value" id="kpiContacted">—</div>
+                            <div class="dvc-stat-label">Contacted</div>
+                        </div>
+                    </button>
+                    <button type="button" class="dvc-stat-chip" data-filter="not_answering" aria-pressed="false">
+                        <div class="dvc-stat-icon review"><i class="fas fa-phone-slash"></i></div>
+                        <div>
+                            <div class="dvc-stat-value" id="kpiNotAnswering">—</div>
+                            <div class="dvc-stat-label">Not answering</div>
+                        </div>
+                    </button>
                 </div>
 
                 <div class="dvc-filter-bar">
@@ -128,11 +152,12 @@ $jsVersion = (int) (filemtime(__DIR__ . '/assets/paying-report.js') ?: time());
                                     <th>Opened</th>
                                     <th>Answer</th>
                                     <th>Booked time</th>
+                                    <th>Status</th>
                                 </tr>
                             </thead>
                             <tbody id="dataBody">
                                 <tr>
-                                    <td colspan="5" class="text-center py-4" style="color: var(--gray-500);">
+                                    <td colspan="6" class="text-center py-4" style="color: var(--gray-500);">
                                         <div class="spinner-border spinner-border-sm me-2" role="status"></div>
                                         Loading...
                                     </td>
@@ -151,6 +176,10 @@ $jsVersion = (int) (filemtime(__DIR__ . '/assets/paying-report.js') ?: time());
 </div>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="../assets/admin.js"></script>
+<script>
+window.PAY_REPORT = <?php echo json_encode(['csrf' => $csrfToken], JSON_UNESCAPED_SLASHES); ?>;
+</script>
+<script src="assets/paying-call-status.js?v=<?php echo $jsVersion; ?>"></script>
 <script src="assets/paying-report.js?v=<?php echo $jsVersion; ?>"></script>
 </body>
 </html>

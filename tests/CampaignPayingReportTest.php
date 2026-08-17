@@ -22,6 +22,7 @@ assertSameValue(false, $none['opened'], 'no link is not opened');
 assertSameValue(false, $none['answered'], 'no link is not answered');
 assertSameValue(null, $none['answer'], 'no answer value');
 assertSameValue(false, $none['booked'], 'no link is not booked');
+assertSameValue('', $none['call_status'], 'no booking has no call status');
 
 $sentOnly = CampaignPayingReport::classify([
     'last_sent_at' => '2026-08-16 10:00:00',
@@ -66,6 +67,7 @@ $booked = CampaignPayingReport::classify([
     ],
 ]);
 assertSameValue(true, $booked['booked'], 'date, time, and method count as booked');
+assertSameValue('pending', $booked['call_status'], 'a new booking starts as pending');
 assertSameValue('2026-08-20', $booked['contact_date'], 'keeps booking date');
 assertSameValue('14:30', $booked['contact_time'], 'keeps booking time');
 assertSameValue('whatsapp', $booked['contact_method'], 'keeps WhatsApp method');
@@ -165,11 +167,82 @@ assertSameValue(
 );
 assertSameValue('07360436171', $activity['contact_phone'], 'presents the number to call');
 assertSameValue('New number', $activity['phone_correct_label'], 'labels a replacement number');
+assertSameValue('pending', $activity['call_status'], 'activity defaults a booking to pending');
+assertSameValue('Pending', $activity['call_status_label'], 'labels pending on activity');
+
+assertSameValue('pending', CampaignPayingReport::sanitizeCallStatus('Pending'), 'accepts pending');
+assertSameValue('contacted', CampaignPayingReport::sanitizeCallStatus('CONTACTED'), 'accepts contacted');
+assertSameValue('not_answering', CampaignPayingReport::sanitizeCallStatus('not answering'), 'accepts not answering');
+assertSameValue('not_answering', CampaignPayingReport::sanitizeCallStatus('not-answering'), 'accepts hyphenated not answering');
+assertSameValue('', CampaignPayingReport::sanitizeCallStatus('closed'), 'rejects unknown call statuses');
+assertSameValue('', CampaignPayingReport::resolveCallStatus(false, 'contacted'), 'hides call status before a booking');
+assertSameValue('pending', CampaignPayingReport::resolveCallStatus(true, ''), 'empty booked status is pending');
+assertSameValue('contacted', CampaignPayingReport::resolveCallStatus(true, 'contacted'), 'keeps a staff call status');
+assertSameValue('Pending', CampaignPayingReport::callStatusLabel('pending'), 'labels pending');
+assertSameValue('Contacted', CampaignPayingReport::callStatusLabel('contacted'), 'labels contacted');
+assertSameValue('Not answering', CampaignPayingReport::callStatusLabel('not_answering'), 'labels not answering');
+
+$contacted = CampaignPayingReport::classify([
+    'answers' => [
+        'status_correct' => 'yes',
+        'contact_date' => '2026-08-20',
+        'contact_time' => '14:30',
+        'contact_method' => 'whatsapp',
+    ],
+    'call_status' => 'contacted',
+]);
+assertSameValue('contacted', $contacted['call_status'], 'keeps contacted after a booking');
+$notAnswering = CampaignPayingReport::classify([
+    'answers' => [
+        'status_correct' => 'yes',
+        'contact_date' => '2026-08-20',
+        'contact_time' => '14:30',
+        'contact_method' => 'phone',
+    ],
+    'call_status' => 'not_answering',
+]);
+assertSameValue(true, CampaignPayingReport::matchesFilter($booked, 'pending'), 'pending filter keeps a new booking');
+assertSameValue(false, CampaignPayingReport::matchesFilter($contacted, 'pending'), 'pending filter drops contacted');
+assertSameValue(true, CampaignPayingReport::matchesFilter($contacted, 'contacted'), 'contacted filter keeps contacted');
+assertSameValue(true, CampaignPayingReport::matchesFilter($notAnswering, 'not_answering'), 'not-answering filter keeps that row');
+assertSameValue(false, CampaignPayingReport::matchesFilter($none, 'pending'), 'pending filter ignores donors who have not booked');
+
+$callSummary = CampaignPayingReport::summarize([$none, $booked, $contacted, $notAnswering]);
+assertSameValue(3, $callSummary['booked'], 'booked still counts every complete booking');
+assertSameValue(1, $callSummary['call_pending'], 'counts pending bookings');
+assertSameValue(1, $callSummary['call_contacted'], 'counts contacted bookings');
+assertSameValue(1, $callSummary['call_not_answering'], 'counts not-answering bookings');
+
+$pendingSearch = CampaignPayingReport::filterRows(
+    [
+        [
+            'name' => 'Abel Demssie',
+            'phone' => '07360436171',
+            'reference' => '1234',
+            'booked' => true,
+            'call_status' => 'pending',
+            'call_status_label' => 'Pending',
+        ],
+        [
+            'name' => 'Other Donor',
+            'phone' => '07000000000',
+            'reference' => '9999',
+            'booked' => true,
+            'call_status' => 'contacted',
+            'call_status_label' => 'Contacted',
+        ],
+    ],
+    'all',
+    'pending'
+);
+assertSameValue(1, count($pendingSearch), 'search finds a call status label');
+assertSameValue('Abel Demssie', $pendingSearch[0]['name'] ?? '', 'search keeps the pending donor');
 
 $emptyActivity = CampaignPayingReport::present(['name' => 'No Link']);
 assertSameValue(false, $emptyActivity['sent'], 'empty activity is not sent');
 assertSameValue('No paying link', $emptyActivity['step_label'], 'empty activity has no page');
 assertSameValue([], $emptyActivity['timeline'], 'empty activity has no timeline');
 assertSameValue('Not answered', $emptyActivity['answer_label'], 'empty activity has no answer');
+assertSameValue('', $emptyActivity['call_status'], 'empty activity has no call status');
 
 fwrite(STDOUT, "PASS campaign paying report tests\n");

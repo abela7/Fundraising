@@ -222,6 +222,28 @@
 }
 .dvc-badge-old { background: rgba(245, 158, 11, 0.1); color: var(--accent-dark); }
 .dvc-badge-new { background: rgba(16, 185, 129, 0.1); color: var(--success); }
+.dvc-call-status {
+  width: 168px;
+  min-width: 148px;
+  max-width: 180px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+.dvc-call-status[data-status="pending"] {
+  border-color: rgba(245, 158, 11, 0.45);
+  color: var(--accent-dark);
+  background: rgba(245, 158, 11, 0.08);
+}
+.dvc-call-status[data-status="contacted"] {
+  border-color: rgba(16, 185, 129, 0.45);
+  color: var(--success);
+  background: rgba(16, 185, 129, 0.08);
+}
+.dvc-call-status[data-status="not_answering"] {
+  border-color: rgba(239, 68, 68, 0.45);
+  color: var(--danger);
+  background: rgba(239, 68, 68, 0.08);
+}
 button.dvc-stat-chip {
   width: 100%;
   border: 1px solid var(--gray-200);
