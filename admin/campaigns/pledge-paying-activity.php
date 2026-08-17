@@ -204,6 +204,87 @@ $dash = static function (string $value) use ($h): string {
                                         <div class="dvc-detail-label">How they paid</div>
                                         <div class="dvc-detail-value"><?php echo $dash((string) ($activity['paid_method_label'] ?? '')); ?></div>
                                     </div>
+                                    <?php if (($activity['paid_method'] ?? '') === 'cash'): ?>
+                                    <div class="dvc-detail-row">
+                                        <div class="dvc-detail-label">Paid when</div>
+                                        <div class="dvc-detail-value"><?php echo $dash((string) ($activity['cash_when_label'] ?? '')); ?></div>
+                                    </div>
+                                    <div class="dvc-detail-row">
+                                        <div class="dvc-detail-label">Paid to</div>
+                                        <div class="dvc-detail-value"><?php echo $dash((string) ($activity['cash_whom'] ?? '')); ?></div>
+                                    </div>
+                                    <div class="dvc-detail-row">
+                                        <div class="dvc-detail-label">Cash memory</div>
+                                        <div class="dvc-detail-value"><?php echo $dash((string) ($activity['cash_remember_label'] ?? '')); ?></div>
+                                    </div>
+                                    <?php endif; ?>
+                                    <?php if (($activity['paid_method'] ?? '') === 'bank'): ?>
+                                    <div class="dvc-detail-row">
+                                        <div class="dvc-detail-label">Can send screenshot</div>
+                                        <div class="dvc-detail-value"><?php echo $dash((string) ($activity['send_proof_label'] ?? '')); ?></div>
+                                    </div>
+                                    <div class="dvc-detail-row">
+                                        <div class="dvc-detail-label">Screenshot</div>
+                                        <div class="dvc-detail-value">
+                                            <?php if (!empty($activity['has_proof']) && (string) ($activity['proof_file'] ?? '') !== ''): ?>
+                                                <a href="<?php echo $h(url_for((string) $activity['proof_file'])); ?>" target="_blank" rel="noopener noreferrer">Open screenshot</a>
+                                            <?php else: ?>
+                                                —
+                                            <?php endif; ?>
+                                        </div>
+                                    </div>
+                                    <div class="dvc-detail-row">
+                                        <div class="dvc-detail-label">Paid date</div>
+                                        <div class="dvc-detail-value"><?php echo $dash((string) ($activity['paid_date_label'] ?? '')); ?></div>
+                                    </div>
+                                    <div class="dvc-detail-row">
+                                        <div class="dvc-detail-label">Date memory</div>
+                                        <div class="dvc-detail-value"><?php echo $dash((string) ($activity['paid_remember_label'] ?? '')); ?></div>
+                                    </div>
+                                    <?php endif; ?>
+                                    <?php if (!empty($activity['booked'])): ?>
+                                    <div class="dvc-detail-row">
+                                        <div class="dvc-detail-label">Call date</div>
+                                        <div class="dvc-detail-value"><?php echo $dash((string) ($activity['contact_date'] ?? '')); ?></div>
+                                    </div>
+                                    <div class="dvc-detail-row">
+                                        <div class="dvc-detail-label">Call time</div>
+                                        <div class="dvc-detail-value"><?php echo $dash((string) ($activity['contact_time'] ?? '')); ?></div>
+                                    </div>
+                                    <div class="dvc-detail-row">
+                                        <div class="dvc-detail-label">Call method</div>
+                                        <div class="dvc-detail-value"><?php echo $dash((string) $activity['method_label']); ?></div>
+                                    </div>
+                                    <div class="dvc-detail-row">
+                                        <div class="dvc-detail-label">Booked slot</div>
+                                        <div class="dvc-detail-value"><?php echo $dash((string) $activity['booking_label']); ?></div>
+                                    </div>
+                                    <div class="dvc-detail-row">
+                                        <div class="dvc-detail-label">Call status</div>
+                                        <div class="dvc-detail-value">
+                                            <?php $callStatus = (string) ($activity['call_status'] ?? 'pending'); ?>
+                                            <select
+                                                class="form-select form-select-sm dvc-call-status ms-auto"
+                                                data-call-status-select
+                                                data-donor-id="<?php echo (int) $activity['donor_id']; ?>"
+                                                data-status="<?php echo $h($callStatus); ?>"
+                                                aria-label="Call status"
+                                            >
+                                                <option value="pending"<?php echo $callStatus === 'pending' ? ' selected' : ''; ?>>Pending</option>
+                                                <option value="contacted"<?php echo $callStatus === 'contacted' ? ' selected' : ''; ?>>Contacted</option>
+                                                <option value="not_answering"<?php echo $callStatus === 'not_answering' ? ' selected' : ''; ?>>Not answering</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="dvc-detail-row">
+                                        <div class="dvc-detail-label"><?php echo !empty($activity['phone_corrected']) ? 'Corrected phone' : 'Number to call'; ?></div>
+                                        <div class="dvc-detail-value"><?php echo $dash((string) ($activity['call_phone'] ?? $activity['contact_phone'] ?? '')); ?></div>
+                                    </div>
+                                    <div class="dvc-detail-row">
+                                        <div class="dvc-detail-label">Phone check</div>
+                                        <div class="dvc-detail-value"><?php echo $h((string) ($activity['phone_correct_label'] ?? 'Not confirmed')); ?></div>
+                                    </div>
+                                    <?php endif; ?>
                                     <?php else: ?>
                                     <div class="dvc-detail-row">
                                         <div class="dvc-detail-label">Call date</div>

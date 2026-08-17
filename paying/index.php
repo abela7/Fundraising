@@ -41,6 +41,15 @@ $correctionAmountLabelHtml = '';
 $correctionMethodAskHtml = '';
 $correctionCashHtml = '';
 $correctionCardHtml = '';
+$cashRememberAskHtml = '';
+$cashWhenLabelHtml = '';
+$cashWhomLabelHtml = '';
+$rememberNoHtml = '';
+$proofAskHtml = '';
+$proofAttachHtml = '';
+$paidDateAskHtml = '';
+$callbackHtml = '';
+$thanksHtml = '';
 $doneHtml = '';
 $phoneAskHtml = '';
 $phoneEnterHtml = '';
@@ -143,6 +152,15 @@ if ($donor === null) {
     $correctionMethodAskHtml = $renderText($correctionMethodAskTemplate);
     $correctionCashHtml = $renderText($correctionCashTemplate);
     $correctionCardHtml = $renderText($correctionCardTemplate);
+    $cashRememberAskHtml = $renderText(CampaignGroupSettings::defaultCashRememberAsk());
+    $cashWhenLabelHtml = $renderText(CampaignGroupSettings::defaultCashWhenLabel());
+    $cashWhomLabelHtml = $renderText(CampaignGroupSettings::defaultCashWhomLabel());
+    $rememberNoHtml = $renderText(CampaignGroupSettings::defaultRememberNoLabel());
+    $proofAskHtml = $renderText(CampaignGroupSettings::defaultProofAsk());
+    $proofAttachHtml = $renderText(CampaignGroupSettings::defaultProofAttachLabel());
+    $paidDateAskHtml = $renderText(CampaignGroupSettings::defaultPaidDateAsk());
+    $callbackHtml = $renderText(CampaignGroupSettings::defaultCallbackMessage());
+    $thanksHtml = $renderText(CampaignGroupSettings::defaultNoPathThanks());
     $doneHtml = $renderText($doneTemplate);
     $phoneAskHtml = $renderText($phoneAskTemplate);
     $phoneEnterHtml = $renderText($phoneEnterTemplate);
@@ -169,6 +187,7 @@ if ($donor !== null && $token !== '') {
         'token' => $token,
         'sign' => CampaignPayingProgress::sign($token),
         'saveUrl' => url_for('paying/api/save.php'),
+        'uploadUrl' => url_for('paying/api/upload.php'),
         'step' => $progress['step'],
         'answers' => CampaignPayingProgress::answersForClient($progress['answers']),
         'revision' => $progress['revision'],
@@ -239,8 +258,11 @@ if ($donor !== null && $token !== '') {
 
             <section class="pay-screen" data-pay-step="contact" id="payContact" hidden aria-label="የመገናኛ ቀን">
                 <div class="pay-stack">
-                    <div class="pay-card pay-welcome">
+                    <div class="pay-card pay-welcome" data-pay-contact-yes>
                         <div class="pay-welcome-text"><?php echo $contactMessageHtml; ?></div>
+                    </div>
+                    <div class="pay-card pay-welcome" data-pay-contact-callback hidden>
+                        <div class="pay-welcome-text"><?php echo $callbackHtml; ?></div>
                     </div>
                     <div class="pay-card">
                         <div class="pay-title"><?php echo $contactAskHtml; ?></div>
@@ -290,9 +312,72 @@ if ($donor !== null && $token !== '') {
                         <div class="pay-field pay-field-last">
                             <div class="pay-choices" role="group" aria-label="<?php echo htmlspecialchars(strip_tags($correctionMethodAskHtml), ENT_QUOTES, 'UTF-8'); ?>">
                                 <button type="button" class="pay-choice" data-pay-choice="paid_method" data-pay-value="cash"><?php echo $correctionCashHtml; ?></button>
-                                <button type="button" class="pay-choice" data-pay-choice="paid_method" data-pay-value="card"><?php echo $correctionCardHtml; ?></button>
+                                <button type="button" class="pay-choice" data-pay-choice="paid_method" data-pay-value="bank"><?php echo $correctionCardHtml; ?></button>
                             </div>
                         </div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="pay-screen" data-pay-step="cash_detail" id="payCashDetail" hidden aria-label="የጥሬ ገንዘብ ዝርዝር">
+                <div class="pay-stack">
+                    <div class="pay-card">
+                        <div class="pay-title"><?php echo $cashRememberAskHtml; ?></div>
+                        <label class="pay-field">
+                            <span class="pay-label"><?php echo $cashWhenLabelHtml; ?></span>
+                            <input type="date" data-pay-field="cash_when" max="<?php echo htmlspecialchars($today, ENT_QUOTES, 'UTF-8'); ?>">
+                        </label>
+                        <label class="pay-field">
+                            <span class="pay-label"><?php echo $cashWhomLabelHtml; ?></span>
+                            <input type="text" data-pay-field="cash_whom" autocomplete="off">
+                        </label>
+                        <div class="pay-field pay-field-last">
+                            <div class="pay-choices pay-choices-one" role="group">
+                                <button type="button" class="pay-choice pay-choice-no" data-pay-choice="cash_remember" data-pay-value="no"><?php echo $rememberNoHtml; ?></button>
+                            </div>
+                        </div>
+                        <button type="button" class="pay-continue pay-continue-inline" data-pay-next data-pay-next-stay>ቀጥል</button>
+                    </div>
+                </div>
+            </section>
+
+            <section class="pay-screen" data-pay-step="bank_proof" id="payBankProof" hidden aria-label="ስክሪንሹት">
+                <div class="pay-stack">
+                    <div class="pay-card">
+                        <div class="pay-title"><?php echo $proofAskHtml; ?></div>
+                        <div class="pay-field pay-field-last">
+                            <div class="pay-choices" role="group" aria-label="<?php echo htmlspecialchars(strip_tags($proofAskHtml), ENT_QUOTES, 'UTF-8'); ?>">
+                                <button type="button" class="pay-choice" data-pay-choice="send_proof" data-pay-value="yes">አዎ</button>
+                                <button type="button" class="pay-choice pay-choice-no" data-pay-choice="send_proof" data-pay-value="no">አይደለም</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="pay-card" data-pay-proof-entry hidden>
+                        <div class="pay-title"><?php echo $proofAttachHtml; ?></div>
+                        <label class="pay-field pay-field-last">
+                            <span class="pay-label"><?php echo $proofAttachHtml; ?></span>
+                            <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" data-pay-proof>
+                            <span class="pay-proof-name" data-pay-proof-name></span>
+                        </label>
+                        <button type="button" class="pay-continue pay-continue-inline" data-pay-next data-pay-next-stay>ቀጥል</button>
+                    </div>
+                </div>
+            </section>
+
+            <section class="pay-screen" data-pay-step="bank_date" id="payBankDate" hidden aria-label="የክፍያ ቀን">
+                <div class="pay-stack">
+                    <div class="pay-card">
+                        <div class="pay-title"><?php echo $paidDateAskHtml; ?></div>
+                        <label class="pay-field">
+                            <span class="pay-label"><?php echo $paidDateAskHtml; ?></span>
+                            <input type="date" data-pay-field="paid_date" max="<?php echo htmlspecialchars($today, ENT_QUOTES, 'UTF-8'); ?>">
+                        </label>
+                        <div class="pay-field pay-field-last">
+                            <div class="pay-choices pay-choices-one" role="group">
+                                <button type="button" class="pay-choice pay-choice-no" data-pay-choice="paid_remember" data-pay-value="no"><?php echo $rememberNoHtml; ?></button>
+                            </div>
+                        </div>
+                        <button type="button" class="pay-continue pay-continue-inline" data-pay-next data-pay-next-stay>ቀጥል</button>
                     </div>
                 </div>
             </section>
@@ -322,8 +407,11 @@ if ($donor !== null && $token !== '') {
             </section>
 
             <section class="pay-screen" data-pay-step="done" id="payDone" hidden aria-label="እናመሰግናለን">
-                <div class="pay-card pay-welcome">
+                <div class="pay-card pay-welcome" data-pay-done="booking">
                     <div class="pay-welcome-text"><?php echo $doneHtml; ?></div>
+                </div>
+                <div class="pay-card pay-welcome" data-pay-done="thanks" hidden>
+                    <div class="pay-welcome-text"><?php echo $thanksHtml; ?></div>
                 </div>
             </section>
 

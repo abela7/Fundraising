@@ -25,6 +25,9 @@ assertSameValue('done', CampaignPayingProgress::sanitizeStep('done'), 'allows th
 assertSameValue('phone', CampaignPayingProgress::sanitizeStep('phone'), 'allows the phone-check step');
 assertSameValue('correction', CampaignPayingProgress::sanitizeStep('correction'), 'allows the after-no paid step');
 assertSameValue('pay_method', CampaignPayingProgress::sanitizeStep('pay_method'), 'allows the how-they-paid step');
+assertSameValue('cash_detail', CampaignPayingProgress::sanitizeStep('cash_detail'), 'allows the cash when-and-whom step');
+assertSameValue('bank_proof', CampaignPayingProgress::sanitizeStep('bank_proof'), 'allows the bank screenshot step');
+assertSameValue('bank_date', CampaignPayingProgress::sanitizeStep('bank_date'), 'allows the bank paid-date step');
 assertSameValue('welcome', CampaignPayingProgress::sanitizeStep('../admin'), 'unknown steps fall back to welcome');
 assertSameValue(
     'contact',
@@ -224,9 +227,14 @@ assertSameValue(
     'stores cash as how they paid'
 );
 assertSameValue(
-    'card',
+    'bank',
     CampaignPayingProgress::sanitizeAnswers(['paid_method' => 'Card'])['paid_method'] ?? null,
-    'stores card as how they paid'
+    'stores the old card choice as bank transfer'
+);
+assertSameValue(
+    'bank',
+    CampaignPayingProgress::sanitizeAnswers(['paid_method' => 'bank'])['paid_method'] ?? null,
+    'stores bank transfer as how they paid'
 );
 assertSameValue(
     false,
@@ -242,6 +250,215 @@ assertSameValue(
     false,
     CampaignPayingProgress::isPaidMethodComplete(['paid_method' => '']),
     'an empty how-they-paid method is not complete'
+);
+assertSameValue(
+    true,
+    CampaignPayingProgress::isPaidMethodComplete(['paid_method' => 'bank']),
+    'bank transfer completes the how-they-paid step'
+);
+assertSameValue(
+    true,
+    CampaignPayingProgress::isPaidMethodComplete(['paid_method' => 'card']),
+    'the old card choice still counts as a complete method'
+);
+assertSameValue(
+    'bank',
+    CampaignPayingProgress::normalizePaidMethod('card'),
+    'normalizes the old card choice to bank'
+);
+assertSameValue(
+    '2026-03-01',
+    CampaignPayingProgress::sanitizeAnswers(['cash_when' => '2026-03-01'])['cash_when'] ?? null,
+    'stores the cash paid-when date'
+);
+assertSameValue(
+    'Abeba',
+    CampaignPayingProgress::sanitizeAnswers(['cash_whom' => 'Abeba'])['cash_whom'] ?? null,
+    'stores who they paid in cash'
+);
+assertSameValue(
+    'no',
+    CampaignPayingProgress::sanitizeAnswers(['cash_remember' => 'no'])['cash_remember'] ?? null,
+    'stores that they do not remember the cash details'
+);
+assertSameValue(
+    'yes',
+    CampaignPayingProgress::sanitizeAnswers(['send_proof' => 'Yes'])['send_proof'] ?? null,
+    'stores whether they can send a bank screenshot'
+);
+assertSameValue(
+    '2026-03-01',
+    CampaignPayingProgress::sanitizeAnswers(['paid_date' => '2026-03-01'])['paid_date'] ?? null,
+    'stores the bank paid date'
+);
+assertSameValue(
+    'no',
+    CampaignPayingProgress::sanitizeAnswers(['paid_remember' => 'NO'])['paid_remember'] ?? null,
+    'stores that they do not remember the bank paid date'
+);
+$proofPath = 'uploads/paying_proofs/a1b2c3d4e5f67890_0123456789abcdef0123456789abcdef.jpg';
+assertSameValue(
+    $proofPath,
+    CampaignPayingProgress::sanitizeAnswers(['proof_file' => $proofPath])['proof_file'] ?? null,
+    'stores a paying-proof path'
+);
+assertSameValue(
+    false,
+    array_key_exists('proof_file', CampaignPayingProgress::sanitizeAnswers([
+        'proof_file' => '../uploads/paying_proofs/secret.jpg',
+    ])),
+    'rejects a proof path outside the paying-proofs folder'
+);
+assertSameValue(
+    true,
+    CampaignPayingProgress::isCashDetailComplete([
+        'paid_method' => 'cash',
+        'cash_remember' => 'no',
+    ]),
+    'I do not remember completes the cash follow-up'
+);
+assertSameValue(
+    true,
+    CampaignPayingProgress::isCashDetailComplete([
+        'paid_method' => 'cash',
+        'cash_when' => '2026-03-01',
+        'cash_whom' => 'Abeba',
+    ]),
+    'when and whom complete the cash follow-up'
+);
+assertSameValue(
+    false,
+    CampaignPayingProgress::isCashDetailComplete(['paid_method' => 'cash']),
+    'cash without a memory answer is not complete'
+);
+assertSameValue(
+    true,
+    CampaignPayingProgress::needsCallback([
+        'status_correct' => 'no',
+        'paid_method' => 'bank',
+        'send_proof' => 'no',
+        'paid_remember' => 'no',
+    ]),
+    'bank, no screenshot, and I do not remember needs a callback booking'
+);
+assertSameValue(
+    false,
+    CampaignPayingProgress::needsCallback([
+        'status_correct' => 'no',
+        'paid_method' => 'cash',
+        'cash_remember' => 'no',
+    ]),
+    'cash I do not remember does not open the callback booking'
+);
+assertSameValue(
+    'cash_detail',
+    CampaignPayingProgress::resolveStep('cash_detail', [
+        'status_correct' => 'no',
+        'reported_paid' => '80.00',
+        'paid_method' => 'cash',
+    ]),
+    'cash opens the when-and-whom step'
+);
+assertSameValue(
+    'done',
+    CampaignPayingProgress::resolveStep('done', [
+        'status_correct' => 'no',
+        'reported_paid' => '80.00',
+        'paid_method' => 'cash',
+        'cash_remember' => 'yes',
+        'cash_when' => '2026-03-01',
+        'cash_whom' => 'Abeba',
+    ]),
+    'cash details can finish on thank-you without a booking'
+);
+assertSameValue(
+    'bank_proof',
+    CampaignPayingProgress::resolveStep('bank_proof', [
+        'status_correct' => 'no',
+        'reported_paid' => '80.00',
+        'paid_method' => 'bank',
+    ]),
+    'bank transfer opens the screenshot step'
+);
+assertSameValue(
+    'done',
+    CampaignPayingProgress::resolveStep('done', [
+        'status_correct' => 'no',
+        'reported_paid' => '80.00',
+        'paid_method' => 'bank',
+        'send_proof' => 'yes',
+        'proof_file' => $proofPath,
+    ]),
+    'a bank screenshot can finish on thank-you'
+);
+assertSameValue(
+    'bank_date',
+    CampaignPayingProgress::resolveStep('bank_date', [
+        'status_correct' => 'no',
+        'reported_paid' => '80.00',
+        'paid_method' => 'bank',
+        'send_proof' => 'no',
+    ]),
+    'no screenshot opens the bank paid-date step'
+);
+assertSameValue(
+    'done',
+    CampaignPayingProgress::resolveStep('done', [
+        'status_correct' => 'no',
+        'reported_paid' => '80.00',
+        'paid_method' => 'bank',
+        'send_proof' => 'no',
+        'paid_date' => '2026-03-01',
+    ]),
+    'a remembered bank date can finish on thank-you'
+);
+assertSameValue(
+    'contact',
+    CampaignPayingProgress::resolveStep('contact', [
+        'status_correct' => 'no',
+        'reported_paid' => '80.00',
+        'paid_method' => 'bank',
+        'send_proof' => 'no',
+        'paid_remember' => 'no',
+    ]),
+    'I do not remember the bank date opens the callback booking'
+);
+assertSameValue(
+    'contact',
+    CampaignPayingProgress::resolveStep('phone', [
+        'status_correct' => 'no',
+        'reported_paid' => '80.00',
+        'paid_method' => 'bank',
+        'send_proof' => 'no',
+        'paid_remember' => 'no',
+    ]),
+    'callback phone check waits for a booked slot'
+);
+assertSameValue(
+    'done',
+    CampaignPayingProgress::resolveStep('done', [
+        'status_correct' => 'no',
+        'reported_paid' => '80.00',
+        'paid_method' => 'bank',
+        'send_proof' => 'no',
+        'paid_remember' => 'no',
+        'contact_date' => '2026-08-20',
+        'contact_time' => '14:30',
+        'contact_method' => 'phone',
+        'phone_correct' => 'yes',
+        'contact_phone' => '07360436171',
+    ]),
+    'callback thank-you is allowed after the same booking and phone check'
+);
+assertSameValue(
+    'jpg',
+    CampaignPayingProgress::proofExtensionForMime('image/jpeg'),
+    'accepts a jpeg screenshot'
+);
+assertSameValue(
+    null,
+    CampaignPayingProgress::proofExtensionForMime('application/pdf'),
+    'rejects a non-image screenshot'
 );
 assertSameValue(
     '14:30',
@@ -312,6 +529,26 @@ assertSameValue(
         'paid_method' => 'cash',
     ]),
     'an empty page-open cannot rewind the how-they-paid step'
+);
+assertSameValue(
+    'cash_detail',
+    CampaignPayingProgress::preferStep('welcome', 'cash_detail', [
+        'status_correct' => 'no',
+        'reported_paid' => '80.00',
+        'paid_method' => 'cash',
+    ]),
+    'an empty page-open cannot rewind the cash follow-up'
+);
+assertSameValue(
+    'contact',
+    CampaignPayingProgress::preferStep('welcome', 'contact', [
+        'status_correct' => 'no',
+        'reported_paid' => '80.00',
+        'paid_method' => 'bank',
+        'send_proof' => 'no',
+        'paid_remember' => 'no',
+    ]),
+    'an empty page-open cannot rewind a callback booking'
 );
 assertSameValue(
     ['status_correct' => 'yes'],

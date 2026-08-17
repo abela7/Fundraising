@@ -150,6 +150,43 @@
     return String(state.answers.status_correct || '');
   }
 
+  function paidMethod() {
+    syncChoicesIntoAnswers();
+    const method = String(state.answers.paid_method || '');
+    return method === 'card' ? 'bank' : method;
+  }
+
+  function needsCallback() {
+    return statusAnswer() === 'no'
+      && paidMethod() === 'bank'
+      && String(state.answers.send_proof || '') === 'no'
+      && String(state.answers.paid_remember || '') === 'no';
+  }
+
+  function cashDetailComplete() {
+    readFields();
+    syncChoicesIntoAnswers();
+    if (paidMethod() !== 'cash') {
+      return false;
+    }
+    const remember = String(state.answers.cash_remember || '');
+    if (remember === 'yes' || remember === 'no') {
+      return true;
+    }
+    return String(state.answers.cash_when || '') !== '' || String(state.answers.cash_whom || '').trim() !== '';
+  }
+
+  function proofComplete() {
+    return /^uploads\/paying_proofs\/[a-f0-9]{16}_[a-f0-9]{32}\.(jpe?g|png|webp|gif)$/i.test(
+      String(state.answers.proof_file || '')
+    );
+  }
+
+  function paidDateComplete() {
+    readFields();
+    return /^\d{4}-\d{2}-\d{2}$/.test(String(state.answers.paid_date || ''));
+  }
+
   function nextStepName() {
     if (state.step === 'welcome') {
       return 'status';
@@ -169,6 +206,33 @@
     if (state.step === 'correction') {
       return 'pay_method';
     }
+    if (state.step === 'pay_method') {
+      if (paidMethod() === 'cash') {
+        return 'cash_detail';
+      }
+      if (paidMethod() === 'bank') {
+        return 'bank_proof';
+      }
+      return '';
+    }
+    if (state.step === 'cash_detail') {
+      return 'done';
+    }
+    if (state.step === 'bank_proof') {
+      if (String(state.answers.send_proof || '') === 'no') {
+        return 'bank_date';
+      }
+      if (String(state.answers.send_proof || '') === 'yes') {
+        return 'done';
+      }
+      return '';
+    }
+    if (state.step === 'bank_date') {
+      if (String(state.answers.paid_remember || '') === 'no') {
+        return 'contact';
+      }
+      return 'done';
+    }
     if (state.step === 'phone') {
       return 'done';
     }
@@ -179,16 +243,37 @@
     if (state.step === 'status') {
       return 'welcome';
     }
-    if (state.step === 'contact' || state.step === 'correction') {
+    if (state.step === 'correction') {
       return 'status';
     }
     if (state.step === 'pay_method') {
       return 'correction';
     }
+    if (state.step === 'cash_detail' || state.step === 'bank_proof') {
+      return 'pay_method';
+    }
+    if (state.step === 'bank_date') {
+      return 'bank_proof';
+    }
+    if (state.step === 'contact') {
+      return statusAnswer() === 'no' ? 'bank_date' : 'status';
+    }
     if (state.step === 'phone') {
       return 'contact';
     }
     if (state.step === 'done') {
+      if (statusAnswer() === 'yes' || needsCallback()) {
+        return 'phone';
+      }
+      if (paidMethod() === 'cash') {
+        return 'cash_detail';
+      }
+      if (String(state.answers.send_proof || '') === 'yes') {
+        return 'bank_proof';
+      }
+      if (paidMethod() === 'bank') {
+        return 'bank_date';
+      }
       return 'phone';
     }
     return '';
@@ -199,31 +284,61 @@
       return 'welcome';
     }
     syncChoicesIntoAnswers();
-    if (step === 'correction') {
-      if (statusAnswer() === 'no') {
-        return 'correction';
-      }
-      return statusAnswer() === 'yes' ? 'contact' : 'status';
-    }
-    if (step === 'pay_method') {
-      if (statusAnswer() !== 'no') {
-        return statusAnswer() === 'yes' ? 'contact' : 'status';
+    if (statusAnswer() === 'no') {
+      if (step === 'welcome' || step === 'status' || step === 'correction') {
+        return step;
       }
       if (!reportedPaidComplete()) {
         return 'correction';
       }
-      return 'pay_method';
-    }
-    if (step === 'contact') {
-      if (statusAnswer() === 'yes') {
+      if (step === 'pay_method') {
+        return 'pay_method';
+      }
+      if (paidMethod() === '') {
+        return 'pay_method';
+      }
+      if (paidMethod() === 'cash') {
+        if (step === 'done' && cashDetailComplete()) {
+          return 'done';
+        }
+        return 'cash_detail';
+      }
+      if (needsCallback()) {
+        if (step === 'contact') {
+          return 'contact';
+        }
+        if (step === 'phone' || step === 'done') {
+          if (!bookingComplete()) {
+            return 'contact';
+          }
+          if (step === 'done' && !phoneReady()) {
+            return 'phone';
+          }
+          return step;
+        }
         return 'contact';
       }
-      return statusAnswer() === 'no' ? 'correction' : 'status';
+      if (String(state.answers.send_proof || '') === 'yes') {
+        if (step === 'done' && proofComplete()) {
+          return 'done';
+        }
+        return 'bank_proof';
+      }
+      if (String(state.answers.send_proof || '') === 'no') {
+        if (step === 'done' && paidDateComplete()) {
+          return 'done';
+        }
+        return 'bank_date';
+      }
+      return 'bank_proof';
+    }
+    if (step === 'correction' || step === 'pay_method' || step === 'cash_detail' || step === 'bank_proof' || step === 'bank_date') {
+      return statusAnswer() === 'yes' ? 'contact' : 'status';
+    }
+    if (step === 'contact') {
+      return statusAnswer() === 'yes' ? 'contact' : 'status';
     }
     if (step === 'phone' || step === 'done') {
-      if (statusAnswer() === 'no') {
-        return reportedPaidComplete() ? 'pay_method' : 'correction';
-      }
       if (statusAnswer() !== 'yes') {
         return 'status';
       }
@@ -248,6 +363,18 @@
     if (state.step === 'correction' && !reportedPaidComplete()) {
       return false;
     }
+    if (state.step === 'pay_method' && paidMethod() !== 'cash' && paidMethod() !== 'bank') {
+      return false;
+    }
+    if (state.step === 'cash_detail') {
+      return true;
+    }
+    if (state.step === 'bank_proof') {
+      return String(state.answers.send_proof || '') === 'yes' && proofComplete();
+    }
+    if (state.step === 'bank_date') {
+      return paidDateComplete();
+    }
     if (state.step === 'contact' && !bookingComplete()) {
       return false;
     }
@@ -255,6 +382,31 @@
       return false;
     }
     return true;
+  }
+
+  function updatePathCopy() {
+    const callback = needsCallback();
+    const bookingDone = statusAnswer() === 'yes' || callback;
+    document.querySelectorAll('[data-pay-contact-yes]').forEach(function (el) {
+      el.hidden = callback;
+    });
+    document.querySelectorAll('[data-pay-contact-callback]').forEach(function (el) {
+      el.hidden = !callback;
+    });
+    document.querySelectorAll('[data-pay-done="booking"]').forEach(function (el) {
+      el.hidden = !bookingDone;
+    });
+    document.querySelectorAll('[data-pay-done="thanks"]').forEach(function (el) {
+      el.hidden = bookingDone;
+    });
+    const proofWrap = document.querySelector('[data-pay-proof-entry]');
+    if (proofWrap) {
+      proofWrap.hidden = String(state.answers.send_proof || '') !== 'yes';
+    }
+    const proofName = document.querySelector('[data-pay-proof-name]');
+    if (proofName) {
+      proofName.textContent = proofComplete() ? String(state.answers.proof_file || '').split('/').pop() : '';
+    }
   }
 
   function applyFields() {
@@ -308,7 +460,8 @@
   }
 
   function updateNav() {
-    const hasInlineNext = !!document.querySelector('.pay-screen.is-active [data-pay-next-stay]');
+    const stayBtn = document.querySelector('.pay-screen.is-active [data-pay-next-stay]');
+    const hasInlineNext = !!(stayBtn && !stayBtn.closest('[hidden]'));
     document.querySelectorAll('[data-pay-back]').forEach(function (btn) {
       btn.hidden = prevStepName() === '';
     });
@@ -344,6 +497,7 @@
     }
     updatePhoneEntry();
     updateReportedPaidDisplay();
+    updatePathCopy();
     updateNav();
     if (!fromHistory) {
       const hash = '#' + step;
@@ -413,6 +567,7 @@
         applyChoices();
         updatePhoneEntry();
         updateReportedPaidDisplay();
+        updatePathCopy();
         updateNav();
       }
     }).catch(function () {
@@ -428,6 +583,9 @@
 
   document.querySelectorAll('[data-pay-next]').forEach(function (btn) {
     btn.addEventListener('click', function () {
+      if (state.step === 'cash_detail' && String(state.answers.cash_remember || '') !== 'no') {
+        state.answers.cash_remember = 'yes';
+      }
       const next = nextStepName();
       if (next) {
         showStep(next, false);
@@ -472,13 +630,60 @@
       applyChoices();
       updatePhoneEntry();
       updateReportedPaidDisplay();
+      updatePathCopy();
       updateNav();
       queueSave();
       if (key === 'phone_correct' && value === 'yes') {
         showStep('done', false);
       }
+      if (key === 'paid_method' && (value === 'cash' || value === 'bank')) {
+        showStep(value === 'cash' ? 'cash_detail' : 'bank_proof', false);
+      }
+      if (key === 'send_proof' && value === 'no') {
+        showStep('bank_date', false);
+      }
+      if (key === 'cash_remember' && value === 'no') {
+        showStep('done', false);
+      }
+      if (key === 'paid_remember' && value === 'no') {
+        showStep('contact', false);
+      }
     });
   });
+
+  const proofInput = document.querySelector('[data-pay-proof]');
+  if (proofInput) {
+    proofInput.addEventListener('change', function () {
+      const file = proofInput.files && proofInput.files[0];
+      if (!file || !state.token || !state.sign || !config.uploadUrl) {
+        return;
+      }
+      const body = new FormData();
+      body.append('token', state.token);
+      body.append('sign', state.sign);
+      body.append('file', file);
+      fetch(config.uploadUrl, {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { Accept: 'application/json' },
+        body: body
+      }).then(function (res) {
+        return res.json().then(function (data) {
+          return { res: res, data: data };
+        });
+      }).then(function (result) {
+        if (result.res.ok && result.data && result.data.success && result.data.proof_file) {
+          state.answers.proof_file = result.data.proof_file;
+          state.revision = Number(result.data.revision || state.revision);
+          updatePathCopy();
+          updateNav();
+          queueSave();
+        }
+      }).catch(function () {
+        // Keep the local file; the donor can try again.
+      });
+    });
+  }
 
   window.addEventListener('popstate', function (event) {
     const step = (event.state && event.state.step)

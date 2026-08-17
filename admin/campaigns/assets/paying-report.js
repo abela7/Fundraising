@@ -67,6 +67,27 @@
     if (row.answer === 'no' && row.paid_method_label) {
       extras.push(escapeHtml(row.paid_method_label));
     }
+    if (row.answer === 'no' && row.cash_when_label) {
+      extras.push('Paid ' + escapeHtml(row.cash_when_label));
+    }
+    if (row.answer === 'no' && row.cash_whom) {
+      extras.push('To ' + escapeHtml(row.cash_whom));
+    }
+    if (row.answer === 'no' && row.cash_remember_label === 'I do not remember') {
+      extras.push('Does not remember cash details');
+    }
+    if (row.answer === 'no' && row.send_proof_label) {
+      extras.push(row.send_proof_label === 'Yes' ? 'Screenshot yes' : 'Screenshot no');
+    }
+    if (row.answer === 'no' && row.has_proof) {
+      extras.push('Screenshot attached');
+    }
+    if (row.answer === 'no' && row.paid_date_label) {
+      extras.push('Paid ' + escapeHtml(row.paid_date_label));
+    }
+    if (row.answer === 'no' && row.paid_remember_label === 'I do not remember') {
+      extras.push('Does not remember the date');
+    }
     if (row.phone_corrected && (row.call_phone || row.contact_phone)) {
       extras.push('Corrected ' + escapeHtml(row.call_phone || row.contact_phone));
     }

@@ -8,7 +8,7 @@
     amountLabel: config.default_correction_amount_label || 'የተከፈለ መጠን (£)',
     methodAsk: config.default_correction_method_ask || 'እንዴት ከፍለዋል?',
     cashLabel: config.default_correction_cash_label || 'ጥሬ ገንዘብ',
-    cardLabel: config.default_correction_card_label || 'ካርድ'
+    cardLabel: config.default_correction_card_label || 'ባንክ ትራንስፈር'
   };
   const messageEl = document.getElementById('dvcCorrectionMessage');
   const askEl = document.getElementById('dvcCorrectionAsk');

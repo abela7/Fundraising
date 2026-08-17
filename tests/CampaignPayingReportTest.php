@@ -126,6 +126,9 @@ assertSameValue('Phone check', CampaignPayingReport::stepLabel('phone'), 'labels
 assertSameValue('Thank you', CampaignPayingReport::stepLabel('done'), 'labels the thank-you step');
 assertSameValue('Paid so far', CampaignPayingReport::stepLabel('correction'), 'labels the after-no paid step');
 assertSameValue('How they paid', CampaignPayingReport::stepLabel('pay_method'), 'labels the how-they-paid step');
+assertSameValue('Cash details', CampaignPayingReport::stepLabel('cash_detail'), 'labels the cash when-and-whom step');
+assertSameValue('Bank screenshot', CampaignPayingReport::stepLabel('bank_proof'), 'labels the bank screenshot step');
+assertSameValue('Bank paid date', CampaignPayingReport::stepLabel('bank_date'), 'labels the bank paid-date step');
 
 $activity = CampaignPayingReport::present([
     'id' => 4,
@@ -193,6 +196,74 @@ assertSameValue('£80.00', $noActivity['reported_paid_label'], 'presents the pai
 assertSameValue('£19.55', $noActivity['paid_label'], 'keeps the recorded paid amount');
 assertSameValue('Cash', $noActivity['paid_method_label'], 'presents cash as how they paid');
 assertSameValue('How they paid', $noActivity['step_label'], 'presents the how-they-paid page when a method is saved');
+
+$bankActivity = CampaignPayingReport::present([
+    'id' => 8,
+    'name' => 'Abeba',
+    'token' => 'e5f678901ab2c3d4',
+    'step' => 'bank_proof',
+    'answers' => [
+        'status_correct' => 'no',
+        'reported_paid' => '80.00',
+        'paid_method' => 'card',
+        'send_proof' => 'yes',
+        'proof_file' => 'uploads/paying_proofs/a1b2c3d4e5f67890_0123456789abcdef0123456789abcdef.jpg',
+    ],
+]);
+assertSameValue('Bank transfer', $bankActivity['paid_method_label'], 'presents the old card choice as bank transfer');
+assertSameValue('Yes', $bankActivity['send_proof_label'], 'presents that they can send a screenshot');
+assertSameValue(true, $bankActivity['has_proof'], 'flags an attached screenshot');
+
+$cashMemory = CampaignPayingReport::present([
+    'id' => 9,
+    'name' => 'Abeba',
+    'token' => 'f678901ab2c3d4e5',
+    'step' => 'cash_detail',
+    'answers' => [
+        'status_correct' => 'no',
+        'reported_paid' => '40.00',
+        'paid_method' => 'cash',
+        'cash_remember' => 'yes',
+        'cash_when' => '2026-03-01',
+        'cash_whom' => 'Abeba',
+    ],
+]);
+assertSameValue('1 Mar 2026', $cashMemory['cash_when_label'], 'presents when they paid in cash');
+assertSameValue('Abeba', $cashMemory['cash_whom'], 'presents who they paid in cash');
+
+$callbackBooked = CampaignPayingReport::present([
+    'id' => 10,
+    'name' => 'Abeba',
+    'token' => '078901ab2c3d4e5f',
+    'step' => 'contact',
+    'answers' => [
+        'status_correct' => 'no',
+        'reported_paid' => '80.00',
+        'paid_method' => 'bank',
+        'send_proof' => 'no',
+        'paid_remember' => 'no',
+        'contact_date' => '2026-08-20',
+        'contact_time' => '14:30',
+        'contact_method' => 'phone',
+    ],
+]);
+assertSameValue(true, $callbackBooked['booked'], 'a no-path callback booking still counts as booked');
+
+$cashDone = CampaignPayingReport::present([
+    'id' => 11,
+    'name' => 'Abeba',
+    'token' => '18901ab2c3d4e5f6',
+    'step' => 'done',
+    'answers' => [
+        'status_correct' => 'no',
+        'reported_paid' => '40.00',
+        'paid_method' => 'cash',
+        'cash_remember' => 'yes',
+        'cash_when' => '2026-03-01',
+    ],
+]);
+assertSameValue(false, $cashDone['booked'], 'finishing cash details is not a call booking');
+assertSameValue('I do not remember', $callbackBooked['paid_remember_label'], 'presents that they do not remember the bank date');
 
 $corrected = CampaignPayingReport::present([
     'id' => 6,

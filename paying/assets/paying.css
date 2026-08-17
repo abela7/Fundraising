@@ -153,10 +153,22 @@ body {
   padding-bottom: 1.15rem;
 }
 
+.pay-choices-one {
+  grid-template-columns: 1fr;
+}
+
+.pay-proof-name {
+  color: var(--pay-muted);
+  font-size: 0.92rem;
+  font-weight: 600;
+  word-break: break-all;
+}
+
 .pay-field input[type="date"],
 .pay-field input[type="time"],
 .pay-field input[type="tel"],
-.pay-field input[type="text"] {
+.pay-field input[type="text"],
+.pay-field input[type="file"] {
   width: 100%;
   min-height: 2.85rem;
   border: 1px solid var(--pay-line);
@@ -169,10 +181,16 @@ body {
   background: #fff;
 }
 
+.pay-field input[type="file"] {
+  padding: 0.55rem 0.2rem;
+  font-size: 0.95rem;
+}
+
 .pay-field input[type="date"]:focus,
 .pay-field input[type="time"]:focus,
 .pay-field input[type="tel"]:focus,
-.pay-field input[type="text"]:focus {
+.pay-field input[type="text"]:focus,
+.pay-field input[type="file"]:focus {
   outline: 3px solid var(--pay-gold);
   outline-offset: 2px;
   border-color: var(--pay-blue);

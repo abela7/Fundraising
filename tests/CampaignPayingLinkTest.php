@@ -217,6 +217,22 @@ assertSameValue(
     'after-no method ask has a default prompt'
 );
 assertSameValue('ጥሬ ገንዘብ', CampaignGroupSettings::defaultCorrectionCashLabel(), 'cash has a default label');
-assertSameValue('ካርድ', CampaignGroupSettings::defaultCorrectionCardLabel(), 'card has a default label');
+assertSameValue('ባንክ ትራንስፈር', CampaignGroupSettings::defaultCorrectionCardLabel(), 'bank transfer has a default label');
+assertSameValue(
+    'ባንክ ትራንስፈር',
+    CampaignGroupSettings::correctionCardLabelText('ካርድ'),
+    'the old card label falls forward to bank transfer'
+);
+assertSameValue(
+    'መቼ እና ለማን እንደከፈሉ ያስታውሳሉ?',
+    CampaignGroupSettings::defaultCashRememberAsk(),
+    'cash follow-up asks when and to whom'
+);
+assertSameValue('አላስታውስም', CampaignGroupSettings::defaultRememberNoLabel(), 'I do not remember has a default label');
+assertSameValue(
+    'የክፍያውን ስክሪንሹት ልከው ይችላሉ?',
+    CampaignGroupSettings::defaultProofAsk(),
+    'bank follow-up asks for a screenshot'
+);
 
 fwrite(STDOUT, "PASS campaign paying link tests\n");

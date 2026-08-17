@@ -87,7 +87,8 @@ final class CampaignPayingReport
         if ($answer === null && $reachedContact) {
             $answer = 'yes';
         }
-        $booked = ($date !== null && $time !== null && $method !== null) || $reachedPhone;
+        $booked = CampaignPayingProgress::isBookingComplete($answers)
+            || ($reachedPhone && $answer === 'yes');
         $answered = $answer !== null;
         $opened = self::hasTime($row['opened_at'] ?? null)
             || self::hasTime($row['progress_updated_at'] ?? null)
@@ -338,6 +339,15 @@ final class CampaignPayingReport
         if ($step === CampaignPayingProgress::STEP_PAY_METHOD) {
             return 'How they paid';
         }
+        if ($step === CampaignPayingProgress::STEP_CASH_DETAIL) {
+            return 'Cash details';
+        }
+        if ($step === CampaignPayingProgress::STEP_BANK_PROOF) {
+            return 'Bank screenshot';
+        }
+        if ($step === CampaignPayingProgress::STEP_BANK_DATE) {
+            return 'Bank paid date';
+        }
 
         return 'Welcome page';
     }
@@ -422,6 +432,19 @@ final class CampaignPayingReport
             'reported_paid_label' => $form['reported_paid_label'],
             'paid_method' => $form['paid_method'],
             'paid_method_label' => $form['paid_method_label'],
+            'cash_when' => $form['cash_when'],
+            'cash_when_label' => $form['cash_when_label'],
+            'cash_whom' => $form['cash_whom'],
+            'cash_remember' => $form['cash_remember'],
+            'cash_remember_label' => $form['cash_remember_label'],
+            'send_proof' => $form['send_proof'],
+            'send_proof_label' => $form['send_proof_label'],
+            'proof_file' => $form['proof_file'],
+            'has_proof' => $form['has_proof'],
+            'paid_date' => $form['paid_date'],
+            'paid_date_label' => $form['paid_date_label'],
+            'paid_remember' => $form['paid_remember'],
+            'paid_remember_label' => $form['paid_remember_label'],
             'answers' => $answers,
             'timeline' => $timeline,
         ];
@@ -593,6 +616,19 @@ final class CampaignPayingReport
                 'reported_paid_label' => $form['reported_paid_label'],
                 'paid_method' => $form['paid_method'],
                 'paid_method_label' => $form['paid_method_label'],
+                'cash_when' => $form['cash_when'],
+                'cash_when_label' => $form['cash_when_label'],
+                'cash_whom' => $form['cash_whom'],
+                'cash_remember' => $form['cash_remember'],
+                'cash_remember_label' => $form['cash_remember_label'],
+                'send_proof' => $form['send_proof'],
+                'send_proof_label' => $form['send_proof_label'],
+                'proof_file' => $form['proof_file'],
+                'has_proof' => $form['has_proof'],
+                'paid_date' => $form['paid_date'],
+                'paid_date_label' => $form['paid_date_label'],
+                'paid_remember' => $form['paid_remember'],
+                'paid_remember_label' => $form['paid_remember_label'],
             ];
         }
         $stmt->close();
@@ -627,6 +663,8 @@ final class CampaignPayingReport
                     . (string) ($row['call_status'] ?? '')
                     . ' '
                     . (string) ($row['call_status_label'] ?? '')
+                    . ' '
+                    . (string) ($row['cash_whom'] ?? '')
                 );
                 if (!str_contains($hay, $search)) {
                     continue;
@@ -708,13 +746,19 @@ final class CampaignPayingReport
             $phoneLabel = 'New number';
         }
         $reportedPaid = CampaignPayingProgress::normalizeMoney($answers['reported_paid'] ?? null);
-        $paidMethod = strtolower(trim((string) ($answers['paid_method'] ?? '')));
+        $paidMethod = CampaignPayingProgress::normalizePaidMethod($answers['paid_method'] ?? '') ?? '';
         $paidMethodLabel = '';
         if ($paidMethod === 'cash') {
             $paidMethodLabel = 'Cash';
-        } elseif ($paidMethod === 'card') {
-            $paidMethodLabel = 'Card';
+        } elseif ($paidMethod === 'bank') {
+            $paidMethodLabel = 'Bank transfer';
         }
+        $cashWhen = CampaignPayingProgress::normalizeIsoDate($answers['cash_when'] ?? null) ?? '';
+        $cashRemember = strtolower(trim((string) ($answers['cash_remember'] ?? '')));
+        $sendProof = strtolower(trim((string) ($answers['send_proof'] ?? '')));
+        $proofFile = CampaignPayingProgress::normalizeProofPath($answers['proof_file'] ?? null) ?? '';
+        $paidDate = CampaignPayingProgress::normalizeIsoDate($answers['paid_date'] ?? null) ?? '';
+        $paidRemember = strtolower(trim((string) ($answers['paid_remember'] ?? '')));
 
         return [
             'contact_phone' => $contactPhone,
@@ -728,7 +772,46 @@ final class CampaignPayingReport
                 : '',
             'paid_method' => $paidMethod,
             'paid_method_label' => $paidMethodLabel,
+            'cash_when' => $cashWhen,
+            'cash_when_label' => self::formatDate($cashWhen),
+            'cash_whom' => trim((string) ($answers['cash_whom'] ?? '')),
+            'cash_remember' => $cashRemember,
+            'cash_remember_label' => self::yesNoRememberLabel($cashRemember),
+            'send_proof' => $sendProof,
+            'send_proof_label' => $sendProof === 'yes' ? 'Yes' : ($sendProof === 'no' ? 'No' : ''),
+            'proof_file' => $proofFile,
+            'has_proof' => $proofFile !== '',
+            'paid_date' => $paidDate,
+            'paid_date_label' => self::formatDate($paidDate),
+            'paid_remember' => $paidRemember,
+            'paid_remember_label' => self::yesNoRememberLabel($paidRemember),
         ];
+    }
+
+    public static function formatDate(mixed $date): string
+    {
+        $value = CampaignPayingProgress::normalizeIsoDate($date);
+        if ($value === null) {
+            return '';
+        }
+        $timestamp = strtotime($value);
+        if ($timestamp === false) {
+            return '';
+        }
+
+        return date('j M Y', $timestamp);
+    }
+
+    private static function yesNoRememberLabel(string $value): string
+    {
+        if ($value === 'no') {
+            return 'I do not remember';
+        }
+        if ($value === 'yes') {
+            return 'Remembered';
+        }
+
+        return '';
     }
 
     /**

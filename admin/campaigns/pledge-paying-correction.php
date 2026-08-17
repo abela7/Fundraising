@@ -65,7 +65,7 @@ $pageConfig = [
                             <i class="fas fa-pen-to-square me-2 dvc-title-icon paying"></i>
                             After No page
                         </h1>
-                        <p>After the donor says the amounts are not correct, they enter how much they have paid so far, then choose cash or card.</p>
+                        <p>After the donor says the amounts are not correct, they enter how much they have paid so far, then choose cash or bank transfer.</p>
                     </div>
                     <div class="d-flex gap-2">
                         <a class="btn btn-outline-secondary" href="pledge-paying-settings.php">
@@ -78,7 +78,7 @@ $pageConfig = [
                     <div class="dvc-settings-head">
                         <div>
                             <h6>Write every line on the after-no page</h6>
-                            <p>The message, the amount prompt, the field label, and the cash / card labels are all editable. Saving does not send WhatsApp.</p>
+                            <p>The message, the amount prompt, the field label, and the cash / bank transfer labels are all editable. Saving does not send WhatsApp.</p>
                         </div>
                     </div>
                     <div class="dvc-settings-body">
@@ -102,7 +102,7 @@ $pageConfig = [
                         <textarea class="form-control dvc-am-text" id="dvcCorrectionMethodAsk" rows="2" maxlength="4000" lang="am" dir="auto"><?php echo htmlspecialchars($savedMethodAsk, ENT_QUOTES, 'UTF-8'); ?></textarea>
                         <label class="form-label mt-3" for="dvcCorrectionCash">Cash label</label>
                         <input class="form-control dvc-am-text" id="dvcCorrectionCash" type="text" maxlength="200" lang="am" dir="auto" value="<?php echo htmlspecialchars($savedCashLabel, ENT_QUOTES, 'UTF-8'); ?>">
-                        <label class="form-label mt-3" for="dvcCorrectionCard">Card label</label>
+                        <label class="form-label mt-3" for="dvcCorrectionCard">Bank transfer label</label>
                         <input class="form-control dvc-am-text" id="dvcCorrectionCard" type="text" maxlength="200" lang="am" dir="auto" value="<?php echo htmlspecialchars($savedCardLabel, ENT_QUOTES, 'UTF-8'); ?>">
                         <div class="dvc-msg-meta">
                             <span id="dvcMsgCount">0 / 4000</span>

@@ -14,19 +14,26 @@ final class CampaignPayingProgress
     public const STEP_DONE = 'done';
     public const STEP_CORRECTION = 'correction';
     public const STEP_PAY_METHOD = 'pay_method';
+    public const STEP_CASH_DETAIL = 'cash_detail';
+    public const STEP_BANK_PROOF = 'bank_proof';
+    public const STEP_BANK_DATE = 'bank_date';
     public const MAX_JSON_BYTES = 16384;
     public const MAX_KEYS = 40;
     public const MAX_STRING = 500;
+    public const MAX_PROOF_BYTES = 5242880;
 
     /** @var list<string> */
     public const STEPS = [
         self::STEP_WELCOME,
         self::STEP_STATUS,
+        self::STEP_CORRECTION,
+        self::STEP_PAY_METHOD,
+        self::STEP_CASH_DETAIL,
+        self::STEP_BANK_PROOF,
+        self::STEP_BANK_DATE,
         self::STEP_CONTACT,
         self::STEP_PHONE,
         self::STEP_DONE,
-        self::STEP_CORRECTION,
-        self::STEP_PAY_METHOD,
     ];
 
     /** @var list<string> */
@@ -76,7 +83,8 @@ final class CampaignPayingProgress
     }
 
     /**
-     * Yes path: contact → phone → thanks. No path: paid-so-far correction.
+     * Yes path: contact → phone → thanks.
+     * No path: paid-so-far → cash/bank follow-up, or a callback booking.
      *
      * @param array<string, mixed> $answers
      */
@@ -84,40 +92,43 @@ final class CampaignPayingProgress
     {
         $step = self::sanitizeStep($step);
         $answer = (string) ($answers['status_correct'] ?? '');
-
-        if ($step === self::STEP_CORRECTION) {
-            if ($answer === 'no') {
-                return self::STEP_CORRECTION;
-            }
-
-            return $answer === 'yes' ? self::STEP_CONTACT : self::STEP_STATUS;
+        if ($answer === 'no') {
+            return self::resolveNoPathStep($step, $answers);
         }
-        if ($step === self::STEP_PAY_METHOD) {
-            if ($answer !== 'no') {
-                return $answer === 'yes' ? self::STEP_CONTACT : self::STEP_STATUS;
-            }
-            if (!self::isReportedPaidComplete($answers)) {
-                return self::STEP_CORRECTION;
-            }
-
-            return self::STEP_PAY_METHOD;
+        if ($answer === 'yes') {
+            return self::resolveYesPathStep($step, $answers);
         }
-        if ($step === self::STEP_CONTACT) {
-            if ($answer === 'yes') {
-                return self::STEP_CONTACT;
-            }
+        if (in_array($step, [
+            self::STEP_CONTACT,
+            self::STEP_PHONE,
+            self::STEP_DONE,
+            self::STEP_CORRECTION,
+            self::STEP_PAY_METHOD,
+            self::STEP_CASH_DETAIL,
+            self::STEP_BANK_PROOF,
+            self::STEP_BANK_DATE,
+        ], true)) {
+            return self::STEP_STATUS;
+        }
 
-            return $answer === 'no' ? self::STEP_CORRECTION : self::STEP_STATUS;
+        return $step;
+    }
+
+    /**
+     * @param array<string, mixed> $answers
+     */
+    private static function resolveYesPathStep(string $step, array $answers): string
+    {
+        if (in_array($step, [
+            self::STEP_CORRECTION,
+            self::STEP_PAY_METHOD,
+            self::STEP_CASH_DETAIL,
+            self::STEP_BANK_PROOF,
+            self::STEP_BANK_DATE,
+        ], true)) {
+            return self::STEP_CONTACT;
         }
         if ($step === self::STEP_PHONE || $step === self::STEP_DONE) {
-            if ($answer === 'no') {
-                return self::isReportedPaidComplete($answers)
-                    ? self::STEP_PAY_METHOD
-                    : self::STEP_CORRECTION;
-            }
-            if ($answer !== 'yes') {
-                return self::STEP_STATUS;
-            }
             if (!self::isBookingComplete($answers)) {
                 return self::STEP_CONTACT;
             }
@@ -127,6 +138,69 @@ final class CampaignPayingProgress
         }
 
         return $step;
+    }
+
+    /**
+     * @param array<string, mixed> $answers
+     */
+    private static function resolveNoPathStep(string $step, array $answers): string
+    {
+        if (!self::isReportedPaidComplete($answers)) {
+            return self::STEP_CORRECTION;
+        }
+        if ($step === self::STEP_CORRECTION || $step === self::STEP_WELCOME || $step === self::STEP_STATUS) {
+            return $step;
+        }
+        if (!self::isPaidMethodComplete($answers)) {
+            return $step === self::STEP_PAY_METHOD ? self::STEP_PAY_METHOD : self::STEP_CORRECTION;
+        }
+        if ($step === self::STEP_PAY_METHOD) {
+            return self::STEP_PAY_METHOD;
+        }
+
+        $method = self::normalizePaidMethod($answers['paid_method'] ?? '');
+        if ($method === 'cash') {
+            if ($step === self::STEP_DONE && self::isCashDetailComplete($answers)) {
+                return self::STEP_DONE;
+            }
+
+            return self::STEP_CASH_DETAIL;
+        }
+
+        $sendProof = strtolower(trim((string) ($answers['send_proof'] ?? '')));
+        if (self::needsCallback($answers)) {
+            if ($step === self::STEP_CONTACT) {
+                return self::STEP_CONTACT;
+            }
+            if ($step === self::STEP_PHONE || $step === self::STEP_DONE) {
+                if (!self::isBookingComplete($answers)) {
+                    return self::STEP_CONTACT;
+                }
+                if ($step === self::STEP_DONE && !self::isPhoneConfirmed($answers)) {
+                    return self::STEP_PHONE;
+                }
+
+                return $step;
+            }
+
+            return self::STEP_CONTACT;
+        }
+        if ($sendProof === 'yes') {
+            if ($step === self::STEP_DONE && self::isProofComplete($answers)) {
+                return self::STEP_DONE;
+            }
+
+            return self::STEP_BANK_PROOF;
+        }
+        if ($sendProof === 'no') {
+            if ($step === self::STEP_DONE && self::isPaidDateComplete($answers)) {
+                return self::STEP_DONE;
+            }
+
+            return self::STEP_BANK_DATE;
+        }
+
+        return self::STEP_BANK_PROOF;
     }
 
     /**
@@ -142,9 +216,93 @@ final class CampaignPayingProgress
      */
     public static function isPaidMethodComplete(array $answers): bool
     {
-        $method = strtolower(trim((string) ($answers['paid_method'] ?? '')));
+        return self::normalizePaidMethod($answers['paid_method'] ?? null) !== null;
+    }
 
-        return in_array($method, ['cash', 'card'], true);
+    public static function normalizePaidMethod(mixed $value): ?string
+    {
+        $method = strtolower(trim((string) $value));
+        if ($method === 'card') {
+            $method = 'bank';
+        }
+
+        return in_array($method, ['cash', 'bank'], true) ? $method : null;
+    }
+
+    /**
+     * @param array<string, mixed> $answers
+     */
+    public static function isCashDetailComplete(array $answers): bool
+    {
+        if (self::normalizePaidMethod($answers['paid_method'] ?? null) !== 'cash') {
+            return false;
+        }
+        $remember = strtolower(trim((string) ($answers['cash_remember'] ?? '')));
+        if (in_array($remember, ['yes', 'no'], true)) {
+            return true;
+        }
+        $when = trim((string) ($answers['cash_when'] ?? ''));
+        $whom = trim((string) ($answers['cash_whom'] ?? ''));
+
+        return $when !== '' || $whom !== '';
+    }
+
+    /**
+     * @param array<string, mixed> $answers
+     */
+    public static function isProofComplete(array $answers): bool
+    {
+        return self::normalizeProofPath($answers['proof_file'] ?? null) !== null;
+    }
+
+    /**
+     * @param array<string, mixed> $answers
+     */
+    public static function isPaidDateComplete(array $answers): bool
+    {
+        return self::normalizeIsoDate($answers['paid_date'] ?? null) !== null;
+    }
+
+    /**
+     * Bank transfer, no screenshot, and they do not remember the day.
+     *
+     * @param array<string, mixed> $answers
+     */
+    public static function needsCallback(array $answers): bool
+    {
+        return (string) ($answers['status_correct'] ?? '') === 'no'
+            && self::normalizePaidMethod($answers['paid_method'] ?? null) === 'bank'
+            && strtolower(trim((string) ($answers['send_proof'] ?? ''))) === 'no'
+            && strtolower(trim((string) ($answers['paid_remember'] ?? ''))) === 'no';
+    }
+
+    public static function normalizeProofPath(mixed $value): ?string
+    {
+        $path = strtolower(trim((string) $value));
+        if (preg_match('#^uploads/paying_proofs/[a-f0-9]{16}_[a-f0-9]{32}\.(jpe?g|png|webp|gif)$#', $path) !== 1) {
+            return null;
+        }
+
+        return $path;
+    }
+
+    public static function proofExtensionForMime(string $mime): ?string
+    {
+        $map = [
+            'image/jpeg' => 'jpg',
+            'image/png' => 'png',
+            'image/webp' => 'webp',
+            'image/gif' => 'gif',
+        ];
+
+        return $map[strtolower(trim($mime))] ?? null;
+    }
+
+    public static function normalizeIsoDate(mixed $value): ?string
+    {
+        $value = trim((string) $value);
+
+        return preg_match('/^\d{4}-\d{2}-\d{2}$/', $value) === 1 ? $value : null;
     }
 
     /**
@@ -556,10 +714,8 @@ final class CampaignPayingProgress
 
             return in_array($value, ['whatsapp', 'phone'], true) ? $value : '__reject__';
         }
-        if ($key === 'contact_date') {
-            $value = trim((string) $value);
-
-            return preg_match('/^\d{4}-\d{2}-\d{2}$/', $value) === 1 ? $value : '__reject__';
+        if ($key === 'contact_date' || $key === 'cash_when' || $key === 'paid_date') {
+            return self::normalizeIsoDate($value) ?? '__reject__';
         }
         if ($key === 'contact_time') {
             $value = trim((string) $value);
@@ -593,9 +749,15 @@ final class CampaignPayingProgress
             return self::normalizeMoney($value) ?? '__reject__';
         }
         if ($key === 'paid_method') {
+            return self::normalizePaidMethod($value) ?? '__reject__';
+        }
+        if ($key === 'cash_remember' || $key === 'send_proof' || $key === 'paid_remember') {
             $value = strtolower(trim((string) $value));
 
-            return in_array($value, ['cash', 'card'], true) ? $value : '__reject__';
+            return in_array($value, ['yes', 'no'], true) ? $value : '__reject__';
+        }
+        if ($key === 'proof_file') {
+            return self::normalizeProofPath($value) ?? '__reject__';
         }
 
         return $value;

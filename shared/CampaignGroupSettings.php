@@ -122,7 +122,7 @@ final class CampaignGroupSettings
     }
 
     /**
-     * Default prompt for cash or card after they enter a corrected amount.
+     * Default prompt for cash or bank transfer after they enter a corrected amount.
      */
     public static function defaultCorrectionMethodAsk(): string
     {
@@ -138,11 +138,83 @@ final class CampaignGroupSettings
     }
 
     /**
-     * Default card choice on the after-no method step.
+     * Default bank-transfer choice on the after-no method step.
      */
     public static function defaultCorrectionCardLabel(): string
     {
-        return 'ካርድ';
+        return 'ባንክ ትራንስፈር';
+    }
+
+    /**
+     * Default cash follow-up: when and to whom they paid.
+     */
+    public static function defaultCashRememberAsk(): string
+    {
+        return 'መቼ እና ለማን እንደከፈሉ ያስታውሳሉ?';
+    }
+
+    /**
+     * Default label for the optional cash paid-when date.
+     */
+    public static function defaultCashWhenLabel(): string
+    {
+        return 'መቼ ከፈሉ?';
+    }
+
+    /**
+     * Default label for who received the cash.
+     */
+    public static function defaultCashWhomLabel(): string
+    {
+        return 'ለማን ከፈሉ?';
+    }
+
+    /**
+     * Default I-do-not-remember button.
+     */
+    public static function defaultRememberNoLabel(): string
+    {
+        return 'አላስታውስም';
+    }
+
+    /**
+     * Default bank follow-up: can they send a screenshot?
+     */
+    public static function defaultProofAsk(): string
+    {
+        return 'የክፍያውን ስክሪንሹት ልከው ይችላሉ?';
+    }
+
+    /**
+     * Default attach-screenshot label.
+     */
+    public static function defaultProofAttachLabel(): string
+    {
+        return 'ስክሪንሹት ያያይዙ';
+    }
+
+    /**
+     * Default prompt when they cannot send a screenshot.
+     */
+    public static function defaultPaidDateAsk(): string
+    {
+        return 'መቼ ከፈሉ?';
+    }
+
+    /**
+     * Default message before the callback booking on the no path.
+     */
+    public static function defaultCallbackMessage(): string
+    {
+        return "እናመሰግናለን የተከበሩ {name}።\n\nቢያስታውሱም እናገኝዎታለን። እባክዎ የሚመችዎትን ቀን፣ ሰዓት እና የመገናኛ መንገድ ይምረጡ።";
+    }
+
+    /**
+     * Default thank-you after cash details, a screenshot, or a paid date.
+     */
+    public static function defaultNoPathThanks(): string
+    {
+        return "እናመሰግናለን የተከበሩ {name}።\n\nመረጃዎ ደርሶናል።";
     }
 
     /**
@@ -243,8 +315,11 @@ final class CampaignGroupSettings
     public static function correctionCardLabelText(string $saved): string
     {
         $saved = trim($saved);
+        if ($saved === '' || $saved === 'ካርድ') {
+            return self::defaultCorrectionCardLabel();
+        }
 
-        return $saved !== '' ? $saved : self::defaultCorrectionCardLabel();
+        return $saved;
     }
 
     /**
