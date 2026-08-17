@@ -114,6 +114,22 @@ final class CampaignGroupSettings
     }
 
     /**
+     * Default Amharic question showing the stored phone number.
+     */
+    public static function defaultPhoneAsk(): string
+    {
+        return 'በዚህ ቁጥር ብንደዉል እናገኝዎታለን {phone}?';
+    }
+
+    /**
+     * Default prompt when the stored number is wrong.
+     */
+    public static function defaultPhoneEnter(): string
+    {
+        return 'የስልክ ቁጥርዎን ያስገቡ';
+    }
+
+    /**
      * @return array{date:string,time:string,method:string,whatsapp:string,phone:string}
      */
     public static function defaultContactLabels(): array
@@ -912,6 +928,7 @@ final class CampaignGroupSettings
 
         $map = [
             '{name}' => $name,
+            '{phone}' => trim((string) ($donor['phone'] ?? '')),
             '{pledge_amount}' => self::formatMoney((float) ($donor['pledged'] ?? 400)),
             '{total_paid}' => self::formatMoney((float) ($donor['paid'] ?? 120)),
             '{remaining_amount}' => self::formatMoney((float) ($donor['balance'] ?? 280)),
@@ -931,6 +948,7 @@ final class CampaignGroupSettings
 
         return self::preview($template, [
             'name' => $name !== '' ? $name : 'ጓደኛችን',
+            'phone' => trim((string) ($donor['phone'] ?? '')),
             'pledged' => (float) ($donor['total_pledged'] ?? $donor['pledged'] ?? 0),
             'paid' => (float) ($donor['total_paid'] ?? $donor['paid'] ?? 0),
             'balance' => (float) ($donor['balance'] ?? 0),

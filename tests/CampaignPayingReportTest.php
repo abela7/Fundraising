@@ -116,6 +116,7 @@ assertSameValue('Welcome page', CampaignPayingReport::stepLabel('welcome'), 'lab
 assertSameValue('Status check', CampaignPayingReport::stepLabel('status'), 'labels the status step');
 assertSameValue('Status check', CampaignPayingReport::stepLabel('info'), 'maps the old info step');
 assertSameValue('Contact page', CampaignPayingReport::stepLabel('contact'), 'labels the contact step');
+assertSameValue('Phone check', CampaignPayingReport::stepLabel('phone'), 'labels the phone-check step');
 assertSameValue('Thank you', CampaignPayingReport::stepLabel('done'), 'labels the thank-you step');
 
 $activity = CampaignPayingReport::present([
@@ -137,6 +138,8 @@ $activity = CampaignPayingReport::present([
         'contact_date' => '2026-08-20',
         'contact_time' => '14:30',
         'contact_method' => 'whatsapp',
+        'phone_correct' => 'no',
+        'contact_phone' => '+447360436171',
     ],
 ]);
 assertSameValue(4, $activity['donor_id'], 'keeps the donor id');
@@ -160,6 +163,8 @@ assertSameValue(
     $activity['booking_label'],
     'presents the booked slot'
 );
+assertSameValue('07360436171', $activity['contact_phone'], 'presents the number to call');
+assertSameValue('New number', $activity['phone_correct_label'], 'labels a replacement number');
 
 $emptyActivity = CampaignPayingReport::present(['name' => 'No Link']);
 assertSameValue(false, $emptyActivity['sent'], 'empty activity is not sent');

@@ -154,7 +154,8 @@ body {
 }
 
 .pay-field input[type="date"],
-.pay-field input[type="time"] {
+.pay-field input[type="time"],
+.pay-field input[type="tel"] {
   width: 100%;
   min-height: 2.85rem;
   border: 1px solid var(--pay-line);
@@ -168,10 +169,20 @@ body {
 }
 
 .pay-field input[type="date"]:focus,
-.pay-field input[type="time"]:focus {
+.pay-field input[type="time"]:focus,
+.pay-field input[type="tel"]:focus {
   outline: 3px solid var(--pay-gold);
   outline-offset: 2px;
   border-color: var(--pay-blue);
+}
+
+.pay-phone-display {
+  padding: 0.2rem 1.1rem 1rem;
+  color: var(--pay-blue);
+  font-size: 1.45rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  word-break: break-word;
 }
 
 .pay-title + .pay-field {

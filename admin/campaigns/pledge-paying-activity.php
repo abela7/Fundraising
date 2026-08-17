@@ -207,6 +207,14 @@ $dash = static function (string $value) use ($h): string {
                                         <div class="dvc-detail-label">Booked slot</div>
                                         <div class="dvc-detail-value"><?php echo $dash((string) $activity['booking_label']); ?></div>
                                     </div>
+                                    <div class="dvc-detail-row">
+                                        <div class="dvc-detail-label">Number to call</div>
+                                        <div class="dvc-detail-value"><?php echo $dash((string) ($activity['contact_phone'] ?? '')); ?></div>
+                                    </div>
+                                    <div class="dvc-detail-row">
+                                        <div class="dvc-detail-label">Phone check</div>
+                                        <div class="dvc-detail-value"><?php echo $h((string) ($activity['phone_correct_label'] ?? 'Not confirmed')); ?></div>
+                                    </div>
                                 </div>
                             </div>
                         </div>

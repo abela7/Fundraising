@@ -10,6 +10,7 @@ final class CampaignPayingProgress
     public const STEP_WELCOME = 'welcome';
     public const STEP_STATUS = 'status';
     public const STEP_CONTACT = 'contact';
+    public const STEP_PHONE = 'phone';
     public const STEP_DONE = 'done';
     public const MAX_JSON_BYTES = 16384;
     public const MAX_KEYS = 40;
@@ -20,6 +21,7 @@ final class CampaignPayingProgress
         self::STEP_WELCOME,
         self::STEP_STATUS,
         self::STEP_CONTACT,
+        self::STEP_PHONE,
         self::STEP_DONE,
     ];
 
@@ -70,7 +72,7 @@ final class CampaignPayingProgress
     }
 
     /**
-     * Contact is only reachable after Yes. Thank-you needs a full booking.
+     * Contact after Yes. Phone check after a booking. Thank-you after a confirmed number.
      *
      * @param array<string, mixed> $answers
      */
@@ -80,12 +82,23 @@ final class CampaignPayingProgress
         if ($step === self::STEP_CONTACT && ($answers['status_correct'] ?? '') !== 'yes') {
             return self::STEP_STATUS;
         }
+        if ($step === self::STEP_PHONE) {
+            if (($answers['status_correct'] ?? '') !== 'yes') {
+                return self::STEP_STATUS;
+            }
+            if (!self::isBookingComplete($answers)) {
+                return self::STEP_CONTACT;
+            }
+        }
         if ($step === self::STEP_DONE) {
             if (($answers['status_correct'] ?? '') !== 'yes') {
                 return self::STEP_STATUS;
             }
             if (!self::isBookingComplete($answers)) {
                 return self::STEP_CONTACT;
+            }
+            if (!self::isPhoneConfirmed($answers)) {
+                return self::STEP_PHONE;
             }
         }
 
@@ -104,6 +117,49 @@ final class CampaignPayingProgress
         return preg_match('/^\d{4}-\d{2}-\d{2}$/', $date) === 1
             && preg_match('/^\d{2}:\d{2}/', $time) === 1
             && in_array($method, ['whatsapp', 'phone'], true);
+    }
+
+    /**
+     * @param array<string, mixed> $answers
+     */
+    public static function isPhoneConfirmed(array $answers): bool
+    {
+        $choice = strtolower(trim((string) ($answers['phone_correct'] ?? '')));
+        if ($choice === 'yes') {
+            return true;
+        }
+        if ($choice !== 'no') {
+            return false;
+        }
+
+        return self::normalizeUkPhone((string) ($answers['contact_phone'] ?? '')) !== null;
+    }
+
+    /**
+     * Accept 07XXXXXXXXX, +447XXXXXXXXX, 447XXXXXXXXX, or 00447XXXXXXXXX.
+     */
+    public static function normalizeUkPhone(string $raw): ?string
+    {
+        $compact = preg_replace('/[^\d+]/', '', $raw) ?? '';
+        if (str_starts_with($compact, '0044')) {
+            $compact = '+44' . substr($compact, 4);
+        }
+        if (str_starts_with($compact, '+44')) {
+            $rest = substr($compact, 3);
+            if (preg_match('/^7\d{9}$/', $rest) === 1) {
+                return '0' . $rest;
+            }
+
+            return null;
+        }
+        if (preg_match('/^447\d{9}$/', $compact) === 1) {
+            return '0' . substr($compact, 2);
+        }
+        if (preg_match('/^07\d{9}$/', $compact) === 1) {
+            return $compact;
+        }
+
+        return null;
     }
 
     /**
@@ -268,6 +324,9 @@ final class CampaignPayingProgress
             if (!$ok) {
                 return null;
             }
+            if ($step === self::STEP_DONE) {
+                self::syncDonorPhone($db, $token, $answers);
+            }
 
             return self::load($db, $token);
         } catch (Throwable $e) {
@@ -366,6 +425,16 @@ final class CampaignPayingProgress
 
             return in_array($value, ['yes', 'no'], true) ? $value : '__reject__';
         }
+        if ($key === 'phone_correct') {
+            $value = strtolower(trim((string) $value));
+
+            return in_array($value, ['yes', 'no'], true) ? $value : '__reject__';
+        }
+        if ($key === 'contact_phone') {
+            $phone = self::normalizeUkPhone((string) $value);
+
+            return $phone ?? '__reject__';
+        }
 
         return $value;
     }
@@ -404,6 +473,33 @@ final class CampaignPayingProgress
         }
 
         return '__reject__';
+    }
+
+    private static function syncDonorPhone(mysqli $db, string $token, array $answers): void
+    {
+        if (($answers['phone_correct'] ?? '') !== 'no') {
+            return;
+        }
+        $phone = self::normalizeUkPhone((string) ($answers['contact_phone'] ?? ''));
+        if ($phone === null) {
+            return;
+        }
+        try {
+            $stmt = $db->prepare(
+                'UPDATE donors d
+                 INNER JOIN campaign_paying_links l ON l.donor_id = d.id
+                 SET d.phone = ?
+                 WHERE l.token = ?'
+            );
+            if ($stmt === false) {
+                return;
+            }
+            $stmt->bind_param('ss', $phone, $token);
+            $stmt->execute();
+            $stmt->close();
+        } catch (Throwable $e) {
+            error_log('Paying phone update failed: ' . $e->getMessage());
+        }
     }
 
     private static function secret(): string

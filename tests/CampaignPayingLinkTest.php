@@ -173,5 +173,20 @@ assertSameValue(
     str_contains(CampaignGroupSettings::defaultDoneMessage(), '{name}'),
     'thank-you after booking includes the name'
 );
+assertSameValue(
+    true,
+    str_contains(CampaignGroupSettings::defaultPhoneAsk(), '{phone}'),
+    'phone check includes the stored number'
+);
+assertSameValue(
+    'የስልክ ቁጥርዎን ያስገቡ',
+    CampaignGroupSettings::defaultPhoneEnter(),
+    'phone enter prompt asks for a new number'
+);
+assertSameValue(
+    'Abeba 07360436171',
+    CampaignGroupSettings::preview('Abeba {phone}', ['name' => 'Abeba', 'phone' => '07360436171']),
+    'preview replaces {phone}'
+);
 
 fwrite(STDOUT, "PASS campaign paying link tests\n");

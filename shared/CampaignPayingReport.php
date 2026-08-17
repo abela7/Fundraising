@@ -180,6 +180,9 @@ final class CampaignPayingReport
         if ($step === CampaignPayingProgress::STEP_CONTACT) {
             return 'Contact page';
         }
+        if ($step === CampaignPayingProgress::STEP_PHONE) {
+            return 'Phone check';
+        }
         if ($step === CampaignPayingProgress::STEP_DONE) {
             return 'Thank you';
         }
@@ -216,6 +219,14 @@ final class CampaignPayingReport
         $pledged = (float) ($row['total_pledged'] ?? $row['pledged'] ?? 0);
         $paid = (float) ($row['total_paid'] ?? $row['paid'] ?? 0);
         $balance = (float) ($row['balance'] ?? 0);
+        $answers = self::answersFromRow($row);
+        $phoneChoice = (string) ($answers['phone_correct'] ?? '');
+        $phoneLabel = 'Not confirmed';
+        if ($phoneChoice === 'yes') {
+            $phoneLabel = 'Stored number';
+        } elseif ($phoneChoice === 'no') {
+            $phoneLabel = 'New number';
+        }
 
         return [
             'donor_id' => (int) ($row['id'] ?? $row['donor_id'] ?? 0),
@@ -254,7 +265,10 @@ final class CampaignPayingReport
                 $classified['contact_time'],
                 $classified['contact_method']
             ),
-            'answers' => self::answersFromRow($row),
+            'contact_phone' => (string) ($answers['contact_phone'] ?? ''),
+            'phone_correct' => $phoneChoice,
+            'phone_correct_label' => $phoneLabel,
+            'answers' => $answers,
             'timeline' => $timeline,
         ];
     }

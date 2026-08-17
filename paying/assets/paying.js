@@ -2,7 +2,7 @@
   const config = window.PAY_SYNC || {};
   const steps = Array.isArray(config.steps) && config.steps.length
     ? config.steps
-    : ['welcome', 'status', 'contact', 'done'];
+    : ['welcome', 'status', 'contact', 'phone', 'done'];
   const screens = {};
   document.querySelectorAll('[data-pay-step]').forEach(function (el) {
     screens[el.getAttribute('data-pay-step')] = el;
@@ -69,6 +69,43 @@
       && (method === 'whatsapp' || method === 'phone');
   }
 
+  function normalizeUkPhone(raw) {
+    let compact = String(raw || '').replace(/[^\d+]/g, '');
+    if (compact.indexOf('0044') === 0) {
+      compact = '+44' + compact.slice(4);
+    }
+    if (compact.indexOf('+44') === 0) {
+      const rest = compact.slice(3);
+      return /^7\d{9}$/.test(rest) ? '0' + rest : '';
+    }
+    if (/^447\d{9}$/.test(compact)) {
+      return '0' + compact.slice(2);
+    }
+    if (/^07\d{9}$/.test(compact)) {
+      return compact;
+    }
+    return '';
+  }
+
+  function phoneReady() {
+    readFields();
+    syncChoicesIntoAnswers();
+    if (state.answers.phone_correct === 'yes') {
+      return true;
+    }
+    if (state.answers.phone_correct !== 'no') {
+      return false;
+    }
+    return normalizeUkPhone(state.answers.contact_phone) !== '';
+  }
+
+  function updatePhoneEntry() {
+    const wrap = document.querySelector('[data-pay-phone-entry]');
+    if (wrap) {
+      wrap.hidden = state.answers.phone_correct !== 'no';
+    }
+  }
+
   function allowedStep(step) {
     if (steps.indexOf(step) < 0) {
       return steps[0];
@@ -77,12 +114,23 @@
     if (step === 'contact' && state.answers.status_correct !== 'yes') {
       return 'status';
     }
+    if (step === 'phone') {
+      if (state.answers.status_correct !== 'yes') {
+        return 'status';
+      }
+      if (!bookingComplete()) {
+        return 'contact';
+      }
+    }
     if (step === 'done') {
       if (state.answers.status_correct !== 'yes') {
         return 'status';
       }
       if (!bookingComplete()) {
         return 'contact';
+      }
+      if (!phoneReady()) {
+        return 'phone';
       }
     }
     return step;
@@ -98,6 +146,9 @@
       return false;
     }
     if (state.step === 'contact' && !bookingComplete()) {
+      return false;
+    }
+    if (state.step === 'phone' && !phoneReady()) {
       return false;
     }
     return true;
@@ -141,7 +192,7 @@
   function readFields() {
     document.querySelectorAll('[data-pay-field]').forEach(function (el) {
       const key = el.getAttribute('data-pay-field');
-      if (!key) {
+      if (!key || el.closest('[hidden]')) {
         return;
       }
       if (el.type === 'checkbox') {
@@ -183,6 +234,11 @@
       screen.hidden = !active;
       screen.classList.toggle('is-active', active);
     });
+    if (step === 'phone' && !String(config.phone || '').replace(/\s/g, '') && state.answers.phone_correct !== 'yes') {
+      state.answers.phone_correct = 'no';
+      applyChoices();
+    }
+    updatePhoneEntry();
     updateNav();
     if (!fromHistory) {
       const hash = '#' + step;
@@ -245,6 +301,7 @@
         state.answers = Object.assign({}, incoming, state.answers);
         syncChoicesIntoAnswers();
         applyChoices();
+        updatePhoneEntry();
         updateNav();
       }
     }).catch(function () {
@@ -293,9 +350,19 @@
       }
       state.answers = asAnswerMap(state.answers);
       state.answers[key] = value;
+      if (key === 'phone_correct' && value === 'yes') {
+        const stored = normalizeUkPhone(config.phone) || String(config.phone || '').trim();
+        if (stored) {
+          state.answers.contact_phone = stored;
+        }
+      }
       applyChoices();
+      updatePhoneEntry();
       updateNav();
       queueSave();
+      if (key === 'phone_correct' && value === 'yes') {
+        showStep('done', false);
+      }
     });
   });
 

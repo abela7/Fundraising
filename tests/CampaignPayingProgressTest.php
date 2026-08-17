@@ -22,6 +22,7 @@ assertSameValue('status', CampaignPayingProgress::sanitizeStep('info'), 'maps th
 assertSameValue('status', CampaignPayingProgress::sanitizeStep('status'), 'allows the status step');
 assertSameValue('contact', CampaignPayingProgress::sanitizeStep('contact'), 'allows the contact step');
 assertSameValue('done', CampaignPayingProgress::sanitizeStep('done'), 'allows the thank-you step');
+assertSameValue('phone', CampaignPayingProgress::sanitizeStep('phone'), 'allows the phone-check step');
 assertSameValue('welcome', CampaignPayingProgress::sanitizeStep('../admin'), 'unknown steps fall back to welcome');
 assertSameValue(
     'contact',
@@ -39,14 +40,53 @@ assertSameValue(
     'contact is blocked before a status answer'
 );
 assertSameValue(
-    'done',
+    'phone',
     CampaignPayingProgress::resolveStep('done', [
         'status_correct' => 'yes',
         'contact_date' => '2026-08-20',
         'contact_time' => '14:30',
         'contact_method' => 'phone',
     ]),
-    'thank-you is allowed after a complete booking'
+    'thank-you is blocked until the phone number is confirmed'
+);
+assertSameValue(
+    'done',
+    CampaignPayingProgress::resolveStep('done', [
+        'status_correct' => 'yes',
+        'contact_date' => '2026-08-20',
+        'contact_time' => '14:30',
+        'contact_method' => 'phone',
+        'phone_correct' => 'yes',
+        'contact_phone' => '07360436171',
+    ]),
+    'thank-you is allowed after the stored phone is confirmed'
+);
+assertSameValue(
+    'done',
+    CampaignPayingProgress::resolveStep('done', [
+        'status_correct' => 'yes',
+        'contact_date' => '2026-08-20',
+        'contact_time' => '14:30',
+        'contact_method' => 'whatsapp',
+        'phone_correct' => 'no',
+        'contact_phone' => '+447360436171',
+    ]),
+    'thank-you is allowed after a new UK number is entered'
+);
+assertSameValue(
+    'phone',
+    CampaignPayingProgress::resolveStep('phone', [
+        'status_correct' => 'yes',
+        'contact_date' => '2026-08-20',
+        'contact_time' => '14:30',
+        'contact_method' => 'phone',
+    ]),
+    'phone check is allowed after a complete booking'
+);
+assertSameValue(
+    'contact',
+    CampaignPayingProgress::resolveStep('phone', ['status_correct' => 'yes']),
+    'phone check is blocked before date, time, and method'
 );
 assertSameValue(
     'contact',
@@ -69,6 +109,30 @@ assertSameValue(
         'contact_method' => 'phone',
     ]),
     'missing time is not a complete booking'
+);
+assertSameValue('07360436171', CampaignPayingProgress::normalizeUkPhone('07360436171'), 'keeps a 07 mobile number');
+assertSameValue('07360436171', CampaignPayingProgress::normalizeUkPhone('+447360436171'), 'normalizes +44 to 07');
+assertSameValue('07360436171', CampaignPayingProgress::normalizeUkPhone('44 7360 436171'), 'normalizes 44 to 07');
+assertSameValue('07360436171', CampaignPayingProgress::normalizeUkPhone('00447360436171'), 'normalizes 0044 to 07');
+assertSameValue(null, CampaignPayingProgress::normalizeUkPhone('01632960001'), 'rejects a UK landline');
+assertSameValue(null, CampaignPayingProgress::normalizeUkPhone('07'), 'rejects a short 07 number');
+assertSameValue(
+    true,
+    CampaignPayingProgress::isPhoneConfirmed(['phone_correct' => 'yes']),
+    'yes on the stored number is confirmed'
+);
+assertSameValue(
+    true,
+    CampaignPayingProgress::isPhoneConfirmed([
+        'phone_correct' => 'no',
+        'contact_phone' => '+447360436171',
+    ]),
+    'a new valid UK number is confirmed'
+);
+assertSameValue(
+    false,
+    CampaignPayingProgress::isPhoneConfirmed(['phone_correct' => 'no', 'contact_phone' => '07']),
+    'an invalid new number is not confirmed'
 );
 assertSameValue(
     '{}',

@@ -36,6 +36,9 @@ $contactMethodLabelHtml = '';
 $contactWhatsappHtml = '';
 $contactPhoneHtml = '';
 $doneHtml = '';
+$phoneAskHtml = '';
+$phoneEnterHtml = '';
+$displayPhone = '';
 try {
     if ($token !== '') {
         $donor = CampaignPayingLink::donorByToken(db(), $token);
@@ -56,6 +59,8 @@ if ($donor === null) {
     $contactAskTemplate = CampaignGroupSettings::defaultContactAsk();
     $contactLabels = CampaignGroupSettings::defaultContactLabels();
     $doneTemplate = CampaignGroupSettings::defaultDoneMessage();
+    $phoneAskTemplate = CampaignGroupSettings::defaultPhoneAsk();
+    $phoneEnterTemplate = CampaignGroupSettings::defaultPhoneEnter();
     try {
         $settings = CampaignGroupSettings::get(db(), CampaignGroupSettings::GROUP_PAYING);
         if (trim((string) ($settings['welcome_message'] ?? '')) !== '') {
@@ -103,6 +108,9 @@ if ($donor === null) {
     $contactWhatsappHtml = $renderText($contactLabels['whatsapp']);
     $contactPhoneHtml = $renderText($contactLabels['phone']);
     $doneHtml = $renderText($doneTemplate);
+    $phoneAskHtml = $renderText($phoneAskTemplate);
+    $phoneEnterHtml = $renderText($phoneEnterTemplate);
+    $displayPhone = trim((string) ($donor['phone'] ?? ''));
 }
 
 $cssPath = url_for('paying/assets/paying.css');
@@ -129,6 +137,7 @@ if ($donor !== null && $token !== '') {
         'answers' => CampaignPayingProgress::answersForClient($progress['answers']),
         'revision' => $progress['revision'],
         'steps' => CampaignPayingProgress::STEPS,
+        'phone' => trim((string) ($donor['phone'] ?? '')),
     ];
 }
 ?>
@@ -213,6 +222,30 @@ if ($donor !== null && $token !== '') {
                                 <button type="button" class="pay-choice" data-pay-choice="contact_method" data-pay-value="phone"><?php echo $contactPhoneHtml; ?></button>
                             </div>
                         </div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="pay-screen" data-pay-step="phone" id="payPhone" hidden aria-label="ስልክ ቁጥር">
+                <div class="pay-stack">
+                    <div class="pay-card">
+                        <div class="pay-title"><?php echo $phoneAskHtml; ?></div>
+                        <?php if ($displayPhone !== ''): ?>
+                            <div class="pay-phone-display"><?php echo htmlspecialchars($displayPhone, ENT_QUOTES, 'UTF-8'); ?></div>
+                        <?php endif; ?>
+                        <div class="pay-field pay-field-last">
+                            <div class="pay-choices" role="group" aria-label="<?php echo htmlspecialchars(strip_tags($phoneAskHtml), ENT_QUOTES, 'UTF-8'); ?>">
+                                <button type="button" class="pay-choice" data-pay-choice="phone_correct" data-pay-value="yes">አዎ</button>
+                                <button type="button" class="pay-choice pay-choice-no" data-pay-choice="phone_correct" data-pay-value="no">አይደለም</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="pay-card" data-pay-phone-entry hidden>
+                        <div class="pay-title"><?php echo $phoneEnterHtml; ?></div>
+                        <label class="pay-field pay-field-last">
+                            <span class="pay-label">07 ወይም +44</span>
+                            <input type="tel" data-pay-field="contact_phone" inputmode="tel" autocomplete="tel" placeholder="07XXXXXXXXX ወይም +44...">
+                        </label>
                     </div>
                 </div>
             </section>
