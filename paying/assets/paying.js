@@ -44,7 +44,9 @@
   let saveTimer = 0;
   let saving = false;
   let saveAgain = false;
+  let dirty = false;
   let homeTimer = 0;
+  const DRAFT_MAX_AGE_SECONDS = 2592000;
 
   function homeUrl() {
     const url = String(config.homeUrl || 'https://donate.abuneteklehaymanot.org/').trim();
@@ -547,21 +549,155 @@
     };
   }
 
+  function draftStorageKey() {
+    return state.token ? ('pay-draft:' + state.token) : '';
+  }
+
+  function isUsableDraft(draft) {
+    if (!draft || typeof draft !== 'object') {
+      return false;
+    }
+    const savedAt = draft.saved_at != null ? draft.saved_at : draft.savedAt;
+    if (savedAt == null || savedAt === '') {
+      return true;
+    }
+    let stamp = Number(savedAt);
+    if (!isFinite(stamp) || stamp <= 0) {
+      return false;
+    }
+    if (stamp > 20000000000) {
+      stamp = Math.floor(stamp / 1000);
+    }
+    return (Date.now() / 1000 - stamp) <= DRAFT_MAX_AGE_SECONDS;
+  }
+
+  function writeDraft() {
+    const key = draftStorageKey();
+    if (!key) {
+      return;
+    }
+    try {
+      localStorage.setItem(key, JSON.stringify({
+        token: state.token,
+        step: state.step,
+        answers: asAnswerMap(state.answers),
+        revision: state.revision,
+        saved_at: Math.floor(Date.now() / 1000)
+      }));
+    } catch (e) {
+      // Private mode or full storage; the next server save still runs.
+    }
+  }
+
+  function readDraft() {
+    const key = draftStorageKey();
+    if (!key) {
+      return null;
+    }
+    try {
+      const raw = localStorage.getItem(key);
+      if (!raw) {
+        return null;
+      }
+      const draft = JSON.parse(raw);
+      if (!draft || typeof draft !== 'object' || String(draft.token || '') !== state.token) {
+        return null;
+      }
+      if (!isUsableDraft(draft)) {
+        localStorage.removeItem(key);
+        return null;
+      }
+      return draft;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function clearDraft() {
+    const key = draftStorageKey();
+    if (!key) {
+      return;
+    }
+    try {
+      localStorage.removeItem(key);
+    } catch (e) {
+      // Ignore storage errors.
+    }
+  }
+
+  function mergeDraftAnswers(incoming) {
+    const add = asAnswerMap(incoming);
+    Object.keys(add).forEach(function (key) {
+      if (add[key] === '' || add[key] == null) {
+        return;
+      }
+      state.answers[key] = add[key];
+    });
+  }
+
+  function restoreDraft() {
+    const draft = readDraft();
+    if (!draft) {
+      return false;
+    }
+    mergeDraftAnswers(draft.answers);
+    const draftRevision = Number(draft.revision || 0);
+    const draftStep = String(draft.step || '');
+    if (draftRevision >= state.revision && draftStep !== '' && draftStep !== 'welcome' && screens[draftStep]) {
+      state.step = draftStep;
+    }
+    return true;
+  }
+
   function queueSave() {
+    readFields();
+    syncChoicesIntoAnswers();
+    dirty = true;
+    writeDraft();
     window.clearTimeout(saveTimer);
     saveTimer = window.setTimeout(function () {
       flushSave(false);
     }, 400);
   }
 
+  function postSave(body, keepalive) {
+    return fetch(state.saveUrl, {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: body,
+      keepalive: keepalive === true
+    });
+  }
+
   function flushSave(useBeacon) {
     if (!state.token || !state.sign || !state.saveUrl) {
       return;
     }
+    window.clearTimeout(saveTimer);
+    saveTimer = 0;
     readFields();
+    syncChoicesIntoAnswers();
+    writeDraft();
+    if (useBeacon !== true && typeof navigator !== 'undefined' && navigator.onLine === false) {
+      return;
+    }
     const body = JSON.stringify(payload());
-    if (useBeacon === true && navigator.sendBeacon) {
-      navigator.sendBeacon(state.saveUrl, new Blob([body], { type: 'application/json' }));
+    if (useBeacon === true) {
+      let sent = false;
+      if (navigator.sendBeacon) {
+        try {
+          sent = navigator.sendBeacon(state.saveUrl, new Blob([body], { type: 'application/json' }));
+        } catch (e) {
+          sent = false;
+        }
+      }
+      if (!sent) {
+        postSave(body, true).catch(function () {
+          dirty = true;
+          writeDraft();
+        });
+      }
       return;
     }
     if (saving) {
@@ -569,13 +705,8 @@
       return;
     }
     saving = true;
-    fetch(state.saveUrl, {
-      method: 'POST',
-      credentials: 'same-origin',
-      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-      body: body,
-      keepalive: true
-    }).then(function (res) {
+    dirty = false;
+    postSave(body, true).then(function (res) {
       return res.json().then(function (data) {
         return { res: res, data: data };
       });
@@ -590,9 +721,18 @@
         updateReportedPaidDisplay();
         updatePathCopy();
         updateNav();
+        if (!dirty) {
+          clearDraft();
+        } else {
+          writeDraft();
+        }
+        return;
       }
+      dirty = true;
+      writeDraft();
     }).catch(function () {
-      // Keep local answers; the next change retries.
+      dirty = true;
+      writeDraft();
     }).then(function () {
       saving = false;
       if (saveAgain) {
@@ -600,6 +740,16 @@
         flushSave(false);
       }
     });
+  }
+
+  function leaveSave() {
+    flushSave(true);
+  }
+
+  function resumeSave() {
+    if (dirty || readDraft()) {
+      flushSave(false);
+    }
   }
 
   document.querySelectorAll('[data-pay-next]').forEach(function (btn) {
@@ -722,14 +872,25 @@
   });
   document.addEventListener('visibilitychange', function () {
     if (document.visibilityState === 'hidden') {
-      flushSave(true);
+      leaveSave();
+      return;
+    }
+    if (document.visibilityState === 'visible') {
+      resumeSave();
     }
   });
-  window.addEventListener('pagehide', function () {
-    flushSave(true);
-  });
+  window.addEventListener('pagehide', leaveSave);
+  window.addEventListener('beforeunload', leaveSave);
+  window.addEventListener('pageshow', resumeSave);
+  window.addEventListener('online', resumeSave);
+  document.addEventListener('freeze', leaveSave);
+  document.addEventListener('resume', resumeSave);
 
   applyFields();
+  const hadDraft = restoreDraft();
+  if (hadDraft) {
+    applyFields();
+  }
   const hashStepRaw = location.hash ? location.hash.replace('#', '') : '';
   const hashStep = hashStepRaw === 'info' ? 'status' : hashStepRaw;
   const start = allowedStep(screens[hashStep] ? hashStep : state.step);
@@ -738,4 +899,7 @@
     history.pushState({ step: start }, '', '#' + start);
   }
   showStep(start, true, false);
+  if (hadDraft) {
+    flushSave(false);
+  }
 })();

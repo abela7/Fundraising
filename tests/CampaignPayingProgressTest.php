@@ -717,6 +717,115 @@ assertSameValue(
     'accepts already-decoded answer arrays'
 );
 
+$leftBrowser = CampaignPayingProgress::applyDraft(
+    [
+        'step' => 'correction',
+        'answers' => ['status_correct' => 'no'],
+        'revision' => 2,
+    ],
+    [
+        'step' => 'pay_method',
+        'answers' => ['status_correct' => 'no', 'reported_paid' => '80.00'],
+        'revision' => 2,
+    ]
+);
+assertSameValue('80.00', $leftBrowser['answers']['reported_paid'] ?? null, 'a draft typed before leaving the browser is kept');
+assertSameValue('pay_method', $leftBrowser['step'], 'a same-revision draft can keep the page they were on');
+
+$olderDraft = CampaignPayingProgress::applyDraft(
+    [
+        'step' => 'done',
+        'answers' => [
+            'status_correct' => 'yes',
+            'contact_date' => '2026-08-20',
+            'contact_time' => '14:30',
+            'contact_method' => 'phone',
+            'phone_correct' => 'yes',
+        ],
+        'revision' => 8,
+    ],
+    [
+        'step' => 'status',
+        'answers' => ['status_correct' => 'yes', 'reported_paid' => '10.00'],
+        'revision' => 3,
+    ]
+);
+assertSameValue('done', $olderDraft['step'], 'an older phone draft cannot rewind a newer server thank-you');
+assertSameValue('yes', $olderDraft['answers']['status_correct'] ?? null, 'the newer yes answer is kept');
+assertSameValue('10.00', $olderDraft['answers']['reported_paid'] ?? null, 'an extra draft field is still merged');
+assertSameValue('2026-08-20', $olderDraft['answers']['contact_date'] ?? null, 'the server booking is not wiped by an older draft');
+
+$emptyLeave = CampaignPayingProgress::applyDraft(
+    [
+        'step' => 'contact',
+        'answers' => ['status_correct' => 'yes', 'contact_date' => '2026-08-20'],
+        'revision' => 4,
+    ],
+    [
+        'step' => 'contact',
+        'answers' => [],
+        'revision' => 4,
+    ]
+);
+assertSameValue('yes', $emptyLeave['answers']['status_correct'] ?? null, 'an empty leave-flush does not wipe answers');
+assertSameValue('2026-08-20', $emptyLeave['answers']['contact_date'] ?? null, 'an empty leave-flush keeps the booking date');
+
+$welcomeOpen = CampaignPayingProgress::applyDraft(
+    [
+        'step' => 'cash_detail',
+        'answers' => ['status_correct' => 'no', 'reported_paid' => '80.00', 'paid_method' => 'cash'],
+        'revision' => 5,
+    ],
+    [
+        'step' => 'welcome',
+        'answers' => ['status_correct' => 'no'],
+        'revision' => 5,
+    ]
+);
+assertSameValue('cash_detail', $welcomeOpen['step'], 'a welcome draft cannot rewind cash details');
+
+$explicitBack = CampaignPayingProgress::applyDraft(
+    [
+        'step' => 'contact',
+        'answers' => [
+            'status_correct' => 'no',
+            'reported_paid' => '80.00',
+            'paid_method' => 'bank',
+            'send_proof' => 'no',
+            'paid_remember' => 'no',
+        ],
+        'revision' => 6,
+    ],
+    [
+        'step' => 'bank_date',
+        'answers' => [
+            'status_correct' => 'no',
+            'reported_paid' => '80.00',
+            'paid_method' => 'bank',
+            'send_proof' => 'no',
+            'paid_remember' => 'no',
+        ],
+        'revision' => 6,
+    ]
+);
+assertSameValue('bank_date', $explicitBack['step'], 'a leave after Back keeps the earlier page');
+
+$staleDraft = CampaignPayingProgress::applyDraft(
+    [
+        'step' => 'status',
+        'answers' => ['status_correct' => 'yes'],
+        'revision' => 1,
+    ],
+    [
+        'step' => 'contact',
+        'answers' => ['status_correct' => 'yes', 'contact_date' => '2026-08-20'],
+        'revision' => 1,
+        'saved_at' => time() - (31 * 24 * 60 * 60),
+    ]
+);
+assertSameValue('status', $staleDraft['step'], 'a draft older than 30 days is ignored');
+assertSameValue(false, isset($staleDraft['answers']['contact_date']), 'a stale draft does not add old answers');
+
 $sign = CampaignPayingProgress::sign('a1b2c3d4e5f67890');
 assertSameValue(64, strlen($sign), 'sync signatures are 64 hex characters');
 assertSameValue(true, CampaignPayingProgress::verifySign('a1b2c3d4e5f67890', $sign), 'accepts a valid sync signature');

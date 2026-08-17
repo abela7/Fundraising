@@ -21,6 +21,7 @@ final class CampaignPayingProgress
     public const MAX_KEYS = 40;
     public const MAX_STRING = 500;
     public const MAX_PROOF_BYTES = 5242880;
+    public const DRAFT_MAX_AGE_SECONDS = 2592000;
 
     /** @var list<string> */
     public const STEPS = [
@@ -513,6 +514,65 @@ final class CampaignPayingProgress
         }
 
         return $merged;
+    }
+
+    /**
+     * Re-apply a device draft after the donor left and came back.
+     *
+     * @param array{step?:string,answers?:mixed,revision?:mixed,saved_at?:mixed} $server
+     * @param array{step?:string,answers?:mixed,revision?:mixed,saved_at?:mixed} $draft
+     * @return array{step:string,answers:array<string,mixed>}
+     */
+    public static function applyDraft(array $server, array $draft): array
+    {
+        $serverAnswers = self::sanitizeAnswers($server['answers'] ?? []);
+        $serverStep = self::resolveStep((string) ($server['step'] ?? self::STEP_WELCOME), $serverAnswers);
+        $serverRevision = max(0, (int) ($server['revision'] ?? 0));
+
+        if (!self::isUsableDraft($draft)) {
+            return [
+                'step' => $serverStep,
+                'answers' => $serverAnswers,
+            ];
+        }
+
+        $draftAnswers = self::sanitizeAnswers($draft['answers'] ?? []);
+        $merged = self::mergeAnswers($serverAnswers, $draftAnswers);
+        $draftRevision = max(0, (int) ($draft['revision'] ?? 0));
+        if ($draftRevision < $serverRevision) {
+            return [
+                'step' => self::resolveStep($serverStep, $merged),
+                'answers' => $merged,
+            ];
+        }
+
+        return [
+            'step' => self::preferStep((string) ($draft['step'] ?? self::STEP_WELCOME), $serverStep, $merged),
+            'answers' => $merged,
+        ];
+    }
+
+    /**
+     * @param array<string, mixed> $draft
+     */
+    public static function isUsableDraft(array $draft): bool
+    {
+        $savedAt = $draft['saved_at'] ?? $draft['savedAt'] ?? null;
+        if ($savedAt === null || $savedAt === '') {
+            return true;
+        }
+        if (!is_numeric($savedAt)) {
+            return false;
+        }
+        $stamp = (int) $savedAt;
+        if ($stamp > 20000000000) {
+            $stamp = (int) floor($stamp / 1000);
+        }
+        if ($stamp <= 0) {
+            return false;
+        }
+
+        return (time() - $stamp) <= self::DRAFT_MAX_AGE_SECONDS;
     }
 
     /**
