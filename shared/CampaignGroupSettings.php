@@ -106,6 +106,14 @@ final class CampaignGroupSettings
     }
 
     /**
+     * Default Amharic thank-you after the donor books a call.
+     */
+    public static function defaultDoneMessage(): string
+    {
+        return "እናመሰግናለን የተከበሩ {name}።\n\nበመረጡት ቀን እና ሰዓት እንደውልዎታለን።";
+    }
+
+    /**
      * @return array{date:string,time:string,method:string,whatsapp:string,phone:string}
      */
     public static function defaultContactLabels(): array

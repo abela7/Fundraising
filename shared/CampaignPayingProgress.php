@@ -10,6 +10,7 @@ final class CampaignPayingProgress
     public const STEP_WELCOME = 'welcome';
     public const STEP_STATUS = 'status';
     public const STEP_CONTACT = 'contact';
+    public const STEP_DONE = 'done';
     public const MAX_JSON_BYTES = 16384;
     public const MAX_KEYS = 40;
     public const MAX_STRING = 500;
@@ -19,6 +20,7 @@ final class CampaignPayingProgress
         self::STEP_WELCOME,
         self::STEP_STATUS,
         self::STEP_CONTACT,
+        self::STEP_DONE,
     ];
 
     /** @var list<string> */
@@ -68,7 +70,7 @@ final class CampaignPayingProgress
     }
 
     /**
-     * Contact is only reachable after the donor confirms the amounts.
+     * Contact is only reachable after Yes. Thank-you needs a full booking.
      *
      * @param array<string, mixed> $answers
      */
@@ -78,8 +80,30 @@ final class CampaignPayingProgress
         if ($step === self::STEP_CONTACT && ($answers['status_correct'] ?? '') !== 'yes') {
             return self::STEP_STATUS;
         }
+        if ($step === self::STEP_DONE) {
+            if (($answers['status_correct'] ?? '') !== 'yes') {
+                return self::STEP_STATUS;
+            }
+            if (!self::isBookingComplete($answers)) {
+                return self::STEP_CONTACT;
+            }
+        }
 
         return $step;
+    }
+
+    /**
+     * @param array<string, mixed> $answers
+     */
+    public static function isBookingComplete(array $answers): bool
+    {
+        $date = trim((string) ($answers['contact_date'] ?? ''));
+        $time = trim((string) ($answers['contact_time'] ?? ''));
+        $method = strtolower(trim((string) ($answers['contact_method'] ?? '')));
+
+        return preg_match('/^\d{4}-\d{2}-\d{2}$/', $date) === 1
+            && preg_match('/^\d{2}:\d{2}/', $time) === 1
+            && in_array($method, ['whatsapp', 'phone'], true);
     }
 
     /**

@@ -116,6 +116,7 @@ assertSameValue('Welcome page', CampaignPayingReport::stepLabel('welcome'), 'lab
 assertSameValue('Status check', CampaignPayingReport::stepLabel('status'), 'labels the status step');
 assertSameValue('Status check', CampaignPayingReport::stepLabel('info'), 'maps the old info step');
 assertSameValue('Contact page', CampaignPayingReport::stepLabel('contact'), 'labels the contact step');
+assertSameValue('Thank you', CampaignPayingReport::stepLabel('done'), 'labels the thank-you step');
 
 $activity = CampaignPayingReport::present([
     'id' => 4,

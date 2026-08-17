@@ -21,6 +21,7 @@ assertSameValue(null, CampaignPayingProgress::normalizeToken('not-a-token'), 're
 assertSameValue('status', CampaignPayingProgress::sanitizeStep('info'), 'maps the old info step to status');
 assertSameValue('status', CampaignPayingProgress::sanitizeStep('status'), 'allows the status step');
 assertSameValue('contact', CampaignPayingProgress::sanitizeStep('contact'), 'allows the contact step');
+assertSameValue('done', CampaignPayingProgress::sanitizeStep('done'), 'allows the thank-you step');
 assertSameValue('welcome', CampaignPayingProgress::sanitizeStep('../admin'), 'unknown steps fall back to welcome');
 assertSameValue(
     'contact',
@@ -36,6 +37,38 @@ assertSameValue(
     'status',
     CampaignPayingProgress::resolveStep('contact', []),
     'contact is blocked before a status answer'
+);
+assertSameValue(
+    'done',
+    CampaignPayingProgress::resolveStep('done', [
+        'status_correct' => 'yes',
+        'contact_date' => '2026-08-20',
+        'contact_time' => '14:30',
+        'contact_method' => 'phone',
+    ]),
+    'thank-you is allowed after a complete booking'
+);
+assertSameValue(
+    'contact',
+    CampaignPayingProgress::resolveStep('done', ['status_correct' => 'yes']),
+    'thank-you is blocked before date, time, and method'
+);
+assertSameValue(
+    true,
+    CampaignPayingProgress::isBookingComplete([
+        'contact_date' => '2026-08-20',
+        'contact_time' => '10:30',
+        'contact_method' => 'phone',
+    ]),
+    'a full date, time, and method is a complete booking'
+);
+assertSameValue(
+    false,
+    CampaignPayingProgress::isBookingComplete([
+        'contact_date' => '2026-08-20',
+        'contact_method' => 'phone',
+    ]),
+    'missing time is not a complete booking'
 );
 assertSameValue(
     '{}',

@@ -180,6 +180,9 @@ final class CampaignPayingReport
         if ($step === CampaignPayingProgress::STEP_CONTACT) {
             return 'Contact page';
         }
+        if ($step === CampaignPayingProgress::STEP_DONE) {
+            return 'Thank you';
+        }
 
         return 'Welcome page';
     }

@@ -168,5 +168,10 @@ assertSameValue(
     CampaignGroupSettings::contactMessageText('እናመሰግናለን።'),
     'saved contact message is kept'
 );
+assertSameValue(
+    true,
+    str_contains(CampaignGroupSettings::defaultDoneMessage(), '{name}'),
+    'thank-you after booking includes the name'
+);
 
 fwrite(STDOUT, "PASS campaign paying link tests\n");

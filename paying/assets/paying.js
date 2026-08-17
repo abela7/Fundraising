@@ -2,7 +2,7 @@
   const config = window.PAY_SYNC || {};
   const steps = Array.isArray(config.steps) && config.steps.length
     ? config.steps
-    : ['welcome', 'status', 'contact'];
+    : ['welcome', 'status', 'contact', 'done'];
   const screens = {};
   document.querySelectorAll('[data-pay-step]').forEach(function (el) {
     screens[el.getAttribute('data-pay-step')] = el;
@@ -58,6 +58,17 @@
     });
   }
 
+  function bookingComplete() {
+    readFields();
+    syncChoicesIntoAnswers();
+    const date = String(state.answers.contact_date || '');
+    const time = String(state.answers.contact_time || '');
+    const method = String(state.answers.contact_method || '');
+    return /^\d{4}-\d{2}-\d{2}$/.test(date)
+      && /^\d{2}:\d{2}/.test(time)
+      && (method === 'whatsapp' || method === 'phone');
+  }
+
   function allowedStep(step) {
     if (steps.indexOf(step) < 0) {
       return steps[0];
@@ -65,6 +76,14 @@
     syncChoicesIntoAnswers();
     if (step === 'contact' && state.answers.status_correct !== 'yes') {
       return 'status';
+    }
+    if (step === 'done') {
+      if (state.answers.status_correct !== 'yes') {
+        return 'status';
+      }
+      if (!bookingComplete()) {
+        return 'contact';
+      }
     }
     return step;
   }
@@ -76,6 +95,9 @@
     }
     syncChoicesIntoAnswers();
     if (state.step === 'status' && state.answers.status_correct !== 'yes') {
+      return false;
+    }
+    if (state.step === 'contact' && !bookingComplete()) {
       return false;
     }
     return true;
@@ -253,8 +275,14 @@
     });
   });
   document.querySelectorAll('[data-pay-field]').forEach(function (el) {
-    el.addEventListener('input', queueSave);
-    el.addEventListener('change', queueSave);
+    el.addEventListener('input', function () {
+      queueSave();
+      updateNav();
+    });
+    el.addEventListener('change', function () {
+      queueSave();
+      updateNav();
+    });
   });
   document.querySelectorAll('[data-pay-choice]').forEach(function (btn) {
     btn.addEventListener('click', function () {

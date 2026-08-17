@@ -35,6 +35,7 @@ $contactTimeLabelHtml = '';
 $contactMethodLabelHtml = '';
 $contactWhatsappHtml = '';
 $contactPhoneHtml = '';
+$doneHtml = '';
 try {
     if ($token !== '') {
         $donor = CampaignPayingLink::donorByToken(db(), $token);
@@ -54,6 +55,7 @@ if ($donor === null) {
     $contactMessageTemplate = CampaignGroupSettings::defaultContactMessage();
     $contactAskTemplate = CampaignGroupSettings::defaultContactAsk();
     $contactLabels = CampaignGroupSettings::defaultContactLabels();
+    $doneTemplate = CampaignGroupSettings::defaultDoneMessage();
     try {
         $settings = CampaignGroupSettings::get(db(), CampaignGroupSettings::GROUP_PAYING);
         if (trim((string) ($settings['welcome_message'] ?? '')) !== '') {
@@ -100,6 +102,7 @@ if ($donor === null) {
     $contactMethodLabelHtml = $renderText($contactLabels['method']);
     $contactWhatsappHtml = $renderText($contactLabels['whatsapp']);
     $contactPhoneHtml = $renderText($contactLabels['phone']);
+    $doneHtml = $renderText($doneTemplate);
 }
 
 $cssPath = url_for('paying/assets/paying.css');
@@ -214,9 +217,15 @@ if ($donor !== null && $token !== '') {
                 </div>
             </section>
 
+            <section class="pay-screen" data-pay-step="done" id="payDone" hidden aria-label="እናመሰግናለን">
+                <div class="pay-card pay-welcome">
+                    <div class="pay-welcome-text"><?php echo $doneHtml; ?></div>
+                </div>
+            </section>
+
             <div class="pay-actions">
-                <button type="button" class="pay-back" data-pay-back hidden>ተመለስ</button>
                 <button type="button" class="pay-continue" data-pay-next>ቀጥል</button>
+                <button type="button" class="pay-back" data-pay-back hidden>ተመለስ</button>
             </div>
         <?php endif; ?>
     </main>
