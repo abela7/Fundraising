@@ -38,6 +38,9 @@ $contactPhoneHtml = '';
 $correctionMessageHtml = '';
 $correctionAskHtml = '';
 $correctionAmountLabelHtml = '';
+$correctionMethodAskHtml = '';
+$correctionCashHtml = '';
+$correctionCardHtml = '';
 $doneHtml = '';
 $phoneAskHtml = '';
 $phoneEnterHtml = '';
@@ -64,6 +67,9 @@ if ($donor === null) {
     $correctionMessageTemplate = CampaignGroupSettings::defaultCorrectionMessage();
     $correctionAskTemplate = CampaignGroupSettings::defaultCorrectionAsk();
     $correctionAmountLabelTemplate = CampaignGroupSettings::defaultCorrectionAmountLabel();
+    $correctionMethodAskTemplate = CampaignGroupSettings::defaultCorrectionMethodAsk();
+    $correctionCashTemplate = CampaignGroupSettings::defaultCorrectionCashLabel();
+    $correctionCardTemplate = CampaignGroupSettings::defaultCorrectionCardLabel();
     $doneTemplate = CampaignGroupSettings::defaultDoneMessage();
     $phoneAskTemplate = CampaignGroupSettings::defaultPhoneAsk();
     $phoneEnterTemplate = CampaignGroupSettings::defaultPhoneEnter();
@@ -99,6 +105,15 @@ if ($donor === null) {
         $correctionAmountLabelTemplate = CampaignGroupSettings::correctionAmountLabelText(
             (string) ($settings['correction_amount_label'] ?? '')
         );
+        $correctionMethodAskTemplate = CampaignGroupSettings::correctionMethodAskText(
+            (string) ($settings['correction_method_ask'] ?? '')
+        );
+        $correctionCashTemplate = CampaignGroupSettings::correctionCashLabelText(
+            (string) ($settings['correction_cash_label'] ?? '')
+        );
+        $correctionCardTemplate = CampaignGroupSettings::correctionCardLabelText(
+            (string) ($settings['correction_card_label'] ?? '')
+        );
     } catch (Throwable $e) {
         error_log('Paying page text load failed: ' . $e->getMessage());
     }
@@ -125,6 +140,9 @@ if ($donor === null) {
     $correctionMessageHtml = $renderText($correctionMessageTemplate);
     $correctionAskHtml = $renderText($correctionAskTemplate);
     $correctionAmountLabelHtml = $renderText($correctionAmountLabelTemplate);
+    $correctionMethodAskHtml = $renderText($correctionMethodAskTemplate);
+    $correctionCashHtml = $renderText($correctionCashTemplate);
+    $correctionCardHtml = $renderText($correctionCardTemplate);
     $doneHtml = $renderText($doneTemplate);
     $phoneAskHtml = $renderText($phoneAskTemplate);
     $phoneEnterHtml = $renderText($phoneEnterTemplate);
@@ -256,6 +274,24 @@ if ($donor !== null && $token !== '') {
                             <span class="pay-label"><?php echo $correctionAmountLabelHtml; ?></span>
                             <input type="text" data-pay-field="reported_paid" inputmode="decimal" autocomplete="off">
                         </label>
+                    </div>
+                </div>
+            </section>
+
+            <section class="pay-screen" data-pay-step="pay_method" id="payMethod" hidden aria-label="እንዴት ከፍለዋል">
+                <div class="pay-stack">
+                    <div class="pay-card">
+                        <div class="pay-title"><?php echo $correctionAmountLabelHtml; ?></div>
+                        <div class="pay-phone-display" data-pay-reported-paid></div>
+                    </div>
+                    <div class="pay-card">
+                        <div class="pay-title"><?php echo $correctionMethodAskHtml; ?></div>
+                        <div class="pay-field pay-field-last">
+                            <div class="pay-choices" role="group" aria-label="<?php echo htmlspecialchars(strip_tags($correctionMethodAskHtml), ENT_QUOTES, 'UTF-8'); ?>">
+                                <button type="button" class="pay-choice" data-pay-choice="paid_method" data-pay-value="cash"><?php echo $correctionCashHtml; ?></button>
+                                <button type="button" class="pay-choice" data-pay-choice="paid_method" data-pay-value="card"><?php echo $correctionCardHtml; ?></button>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </section>

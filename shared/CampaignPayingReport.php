@@ -335,6 +335,9 @@ final class CampaignPayingReport
         if ($step === CampaignPayingProgress::STEP_CORRECTION) {
             return 'Paid so far';
         }
+        if ($step === CampaignPayingProgress::STEP_PAY_METHOD) {
+            return 'How they paid';
+        }
 
         return 'Welcome page';
     }
@@ -417,6 +420,8 @@ final class CampaignPayingReport
             'phone_correct_label' => $form['phone_correct_label'],
             'reported_paid' => $form['reported_paid'],
             'reported_paid_label' => $form['reported_paid_label'],
+            'paid_method' => $form['paid_method'],
+            'paid_method_label' => $form['paid_method_label'],
             'answers' => $answers,
             'timeline' => $timeline,
         ];
@@ -586,6 +591,8 @@ final class CampaignPayingReport
                 'phone_correct_label' => $form['phone_correct_label'],
                 'reported_paid' => $form['reported_paid'],
                 'reported_paid_label' => $form['reported_paid_label'],
+                'paid_method' => $form['paid_method'],
+                'paid_method_label' => $form['paid_method_label'],
             ];
         }
         $stmt->close();
@@ -679,7 +686,9 @@ final class CampaignPayingReport
      *     phone_correct:string,
      *     phone_correct_label:string,
      *     reported_paid:string,
-     *     reported_paid_label:string
+     *     reported_paid_label:string,
+     *     paid_method:string,
+     *     paid_method_label:string
      * }
      */
     private static function formAnswerFields(array $answers, string $storedPhone): array
@@ -699,6 +708,13 @@ final class CampaignPayingReport
             $phoneLabel = 'New number';
         }
         $reportedPaid = CampaignPayingProgress::normalizeMoney($answers['reported_paid'] ?? null);
+        $paidMethod = strtolower(trim((string) ($answers['paid_method'] ?? '')));
+        $paidMethodLabel = '';
+        if ($paidMethod === 'cash') {
+            $paidMethodLabel = 'Cash';
+        } elseif ($paidMethod === 'card') {
+            $paidMethodLabel = 'Card';
+        }
 
         return [
             'contact_phone' => $contactPhone,
@@ -710,6 +726,8 @@ final class CampaignPayingReport
             'reported_paid_label' => $reportedPaid !== null
                 ? CampaignPayingLink::formatMoney((float) $reportedPaid)
                 : '',
+            'paid_method' => $paidMethod,
+            'paid_method_label' => $paidMethodLabel,
         ];
     }
 

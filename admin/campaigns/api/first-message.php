@@ -48,6 +48,12 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'GET') {
             'default_correction_ask' => $settings['default_correction_ask'],
             'correction_amount_label' => $settings['correction_amount_label'],
             'default_correction_amount_label' => $settings['default_correction_amount_label'],
+            'correction_method_ask' => $settings['correction_method_ask'],
+            'default_correction_method_ask' => $settings['default_correction_method_ask'],
+            'correction_cash_label' => $settings['correction_cash_label'],
+            'default_correction_cash_label' => $settings['default_correction_cash_label'],
+            'correction_card_label' => $settings['correction_card_label'],
+            'default_correction_card_label' => $settings['default_correction_card_label'],
             'correction_variables' => CampaignGroupSettings::correctionVariables(),
         ]);
     } catch (Throwable $e) {
@@ -240,6 +246,9 @@ try {
         $message = (string) ($_POST['correction_message'] ?? '');
         $ask = (string) ($_POST['correction_ask'] ?? '');
         $amountLabel = (string) ($_POST['correction_amount_label'] ?? '');
+        $methodAsk = (string) ($_POST['correction_method_ask'] ?? '');
+        $cashLabel = (string) ($_POST['correction_cash_label'] ?? '');
+        $cardLabel = (string) ($_POST['correction_card_label'] ?? '');
         if (trim($message) === '') {
             http_response_code(400);
             echo json_encode(['success' => false, 'error' => 'Write the after-no message before saving.']);
@@ -255,20 +264,43 @@ try {
             echo json_encode(['success' => false, 'error' => 'Write the amount field label before saving.']);
             exit;
         }
+        if (trim($methodAsk) === '') {
+            http_response_code(400);
+            echo json_encode(['success' => false, 'error' => 'Write the how-they-paid prompt before saving.']);
+            exit;
+        }
+        if (trim($cashLabel) === '' || trim($cardLabel) === '') {
+            http_response_code(400);
+            echo json_encode(['success' => false, 'error' => 'Write both payment method labels before saving.']);
+            exit;
+        }
         $messageLength = function_exists('mb_strlen') ? mb_strlen($message) : strlen($message);
         $askLength = function_exists('mb_strlen') ? mb_strlen($ask) : strlen($ask);
+        $methodAskLength = function_exists('mb_strlen') ? mb_strlen($methodAsk) : strlen($methodAsk);
         $labelLength = function_exists('mb_strlen') ? mb_strlen(trim($amountLabel)) : strlen(trim($amountLabel));
-        if ($messageLength > CampaignGroupSettings::MAX_MESSAGE_LENGTH || $askLength > CampaignGroupSettings::MAX_MESSAGE_LENGTH) {
+        $cashLength = function_exists('mb_strlen') ? mb_strlen(trim($cashLabel)) : strlen(trim($cashLabel));
+        $cardLength = function_exists('mb_strlen') ? mb_strlen(trim($cardLabel)) : strlen(trim($cardLabel));
+        if ($messageLength > CampaignGroupSettings::MAX_MESSAGE_LENGTH || $askLength > CampaignGroupSettings::MAX_MESSAGE_LENGTH || $methodAskLength > CampaignGroupSettings::MAX_MESSAGE_LENGTH) {
             http_response_code(400);
             echo json_encode(['success' => false, 'error' => 'Message is too long.']);
             exit;
         }
-        if ($labelLength > CampaignGroupSettings::MAX_TITLE_LENGTH) {
+        if ($labelLength > CampaignGroupSettings::MAX_TITLE_LENGTH || $cashLength > CampaignGroupSettings::MAX_TITLE_LENGTH || $cardLength > CampaignGroupSettings::MAX_TITLE_LENGTH) {
             http_response_code(400);
             echo json_encode(['success' => false, 'error' => 'A label is too long.']);
             exit;
         }
-        $ok = CampaignGroupSettings::saveCorrectionCopy($db, $group, $message, $ask, $amountLabel, $userId);
+        $ok = CampaignGroupSettings::saveCorrectionCopy(
+            $db,
+            $group,
+            $message,
+            $ask,
+            $amountLabel,
+            $userId,
+            $methodAsk,
+            $cashLabel,
+            $cardLabel
+        );
         if (!$ok) {
             throw new RuntimeException('Could not save after-no page.');
         }
@@ -277,6 +309,9 @@ try {
             'correction_message' => CampaignGroupSettings::correctionMessageText($message),
             'correction_ask' => CampaignGroupSettings::correctionAskText($ask),
             'correction_amount_label' => CampaignGroupSettings::correctionAmountLabelText($amountLabel),
+            'correction_method_ask' => CampaignGroupSettings::correctionMethodAskText($methodAsk),
+            'correction_cash_label' => CampaignGroupSettings::correctionCashLabelText($cashLabel),
+            'correction_card_label' => CampaignGroupSettings::correctionCardLabelText($cardLabel),
         ]);
         exit;
     }

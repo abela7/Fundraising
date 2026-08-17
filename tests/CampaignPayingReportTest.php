@@ -125,6 +125,7 @@ assertSameValue('Contact page', CampaignPayingReport::stepLabel('contact'), 'lab
 assertSameValue('Phone check', CampaignPayingReport::stepLabel('phone'), 'labels the phone-check step');
 assertSameValue('Thank you', CampaignPayingReport::stepLabel('done'), 'labels the thank-you step');
 assertSameValue('Paid so far', CampaignPayingReport::stepLabel('correction'), 'labels the after-no paid step');
+assertSameValue('How they paid', CampaignPayingReport::stepLabel('pay_method'), 'labels the how-they-paid step');
 
 $activity = CampaignPayingReport::present([
     'id' => 4,
@@ -179,15 +180,19 @@ $noActivity = CampaignPayingReport::present([
     'id' => 5,
     'name' => 'Abeba',
     'token' => 'b2c3d4e5f678901a',
-    'step' => 'correction',
+    'step' => 'pay_method',
+    'total_paid' => 19.55,
     'answers' => [
         'status_correct' => 'no',
         'reported_paid' => '80.00',
+        'paid_method' => 'cash',
     ],
 ]);
 assertSameValue('No', $noActivity['answer_label'], 'labels a no answer');
 assertSameValue('£80.00', $noActivity['reported_paid_label'], 'presents the paid-so-far amount');
-assertSameValue('Paid so far', $noActivity['step_label'], 'presents the after-no page');
+assertSameValue('£19.55', $noActivity['paid_label'], 'keeps the recorded paid amount');
+assertSameValue('Cash', $noActivity['paid_method_label'], 'presents cash as how they paid');
+assertSameValue('How they paid', $noActivity['step_label'], 'presents the how-they-paid page when a method is saved');
 
 $corrected = CampaignPayingReport::present([
     'id' => 6,

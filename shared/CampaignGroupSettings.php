@@ -122,6 +122,30 @@ final class CampaignGroupSettings
     }
 
     /**
+     * Default prompt for cash or card after they enter a corrected amount.
+     */
+    public static function defaultCorrectionMethodAsk(): string
+    {
+        return 'እንዴት ከፍለዋል?';
+    }
+
+    /**
+     * Default cash choice on the after-no method step.
+     */
+    public static function defaultCorrectionCashLabel(): string
+    {
+        return 'ጥሬ ገንዘብ';
+    }
+
+    /**
+     * Default card choice on the after-no method step.
+     */
+    public static function defaultCorrectionCardLabel(): string
+    {
+        return 'ካርድ';
+    }
+
+    /**
      * Default prompt to pick date, time, and contact method.
      */
     public static function defaultContactAsk(): string
@@ -200,6 +224,27 @@ final class CampaignGroupSettings
         $saved = trim($saved);
 
         return $saved !== '' ? $saved : self::defaultCorrectionAmountLabel();
+    }
+
+    public static function correctionMethodAskText(string $saved): string
+    {
+        $saved = trim($saved);
+
+        return $saved !== '' ? $saved : self::defaultCorrectionMethodAsk();
+    }
+
+    public static function correctionCashLabelText(string $saved): string
+    {
+        $saved = trim($saved);
+
+        return $saved !== '' ? $saved : self::defaultCorrectionCashLabel();
+    }
+
+    public static function correctionCardLabelText(string $saved): string
+    {
+        $saved = trim($saved);
+
+        return $saved !== '' ? $saved : self::defaultCorrectionCardLabel();
     }
 
     /**
@@ -521,6 +566,21 @@ final class CampaignGroupSettings
             'ALTER TABLE campaign_group_settings ADD COLUMN correction_amount_label TEXT NULL AFTER correction_ask',
             'Campaign after-no amount label column failed: '
         );
+        self::addColumnIfMissing(
+            $db,
+            'ALTER TABLE campaign_group_settings ADD COLUMN correction_method_ask TEXT NULL AFTER correction_amount_label',
+            'Campaign after-no method ask column failed: '
+        );
+        self::addColumnIfMissing(
+            $db,
+            'ALTER TABLE campaign_group_settings ADD COLUMN correction_cash_label TEXT NULL AFTER correction_method_ask',
+            'Campaign after-no cash label column failed: '
+        );
+        self::addColumnIfMissing(
+            $db,
+            'ALTER TABLE campaign_group_settings ADD COLUMN correction_card_label TEXT NULL AFTER correction_cash_label',
+            'Campaign after-no card label column failed: '
+        );
     }
 
     private static function addColumnIfMissing(mysqli $db, string $sql, string $logPrefix): void
@@ -563,6 +623,12 @@ final class CampaignGroupSettings
      *     default_correction_ask:string,
      *     correction_amount_label:string,
      *     default_correction_amount_label:string,
+     *     correction_method_ask:string,
+     *     default_correction_method_ask:string,
+     *     correction_cash_label:string,
+     *     default_correction_cash_label:string,
+     *     correction_card_label:string,
+     *     default_correction_card_label:string,
      *     recipient_mode:string,
      *     donor_ids:list<int>
      * }
@@ -593,6 +659,12 @@ final class CampaignGroupSettings
             'default_correction_ask' => self::defaultCorrectionAsk(),
             'correction_amount_label' => self::defaultCorrectionAmountLabel(),
             'default_correction_amount_label' => self::defaultCorrectionAmountLabel(),
+            'correction_method_ask' => self::defaultCorrectionMethodAsk(),
+            'default_correction_method_ask' => self::defaultCorrectionMethodAsk(),
+            'correction_cash_label' => self::defaultCorrectionCashLabel(),
+            'default_correction_cash_label' => self::defaultCorrectionCashLabel(),
+            'correction_card_label' => self::defaultCorrectionCardLabel(),
+            'default_correction_card_label' => self::defaultCorrectionCardLabel(),
             'recipient_mode' => self::MODE_ALL,
             'donor_ids' => [],
         ];
@@ -610,11 +682,22 @@ final class CampaignGroupSettings
             $stmt = $db->prepare(
                 'SELECT first_message, welcome_message, status_message, status_title, status_labels,
                         contact_message, contact_ask, contact_labels,
-                        correction_message, correction_ask, correction_amount_label, recipient_mode
+                        correction_message, correction_ask, correction_amount_label,
+                        correction_method_ask, correction_cash_label, correction_card_label, recipient_mode
                  FROM campaign_group_settings
                  WHERE group_key = ?
                  LIMIT 1'
             );
+            if ($stmt === false) {
+                $stmt = $db->prepare(
+                    'SELECT first_message, welcome_message, status_message, status_title, status_labels,
+                            contact_message, contact_ask, contact_labels,
+                            correction_message, correction_ask, correction_amount_label, recipient_mode
+                     FROM campaign_group_settings
+                     WHERE group_key = ?
+                     LIMIT 1'
+                );
+            }
             if ($stmt === false) {
                 $stmt = $db->prepare(
                     'SELECT first_message, welcome_message, status_message, status_title, status_labels,
@@ -690,6 +773,15 @@ final class CampaignGroupSettings
                 );
                 $defaults['correction_amount_label'] = self::correctionAmountLabelText(
                     (string) ($row['correction_amount_label'] ?? '')
+                );
+                $defaults['correction_method_ask'] = self::correctionMethodAskText(
+                    (string) ($row['correction_method_ask'] ?? '')
+                );
+                $defaults['correction_cash_label'] = self::correctionCashLabelText(
+                    (string) ($row['correction_cash_label'] ?? '')
+                );
+                $defaults['correction_card_label'] = self::correctionCardLabelText(
+                    (string) ($row['correction_card_label'] ?? '')
                 );
                 $mode = (string) ($row['recipient_mode'] ?? self::MODE_ALL);
                 $defaults['recipient_mode'] = $mode === self::MODE_SELECTED ? self::MODE_SELECTED : self::MODE_ALL;
@@ -923,7 +1015,10 @@ final class CampaignGroupSettings
         string $message,
         string $ask,
         string $amountLabel,
-        int $updatedBy
+        int $updatedBy,
+        string $methodAsk = '',
+        string $cashLabel = '',
+        string $cardLabel = ''
     ): bool {
         if (!self::isAllowedGroup($group)) {
             return false;
@@ -931,16 +1026,40 @@ final class CampaignGroupSettings
         $message = trim($message);
         $ask = trim($ask);
         $amountLabel = trim($amountLabel);
+        $methodAsk = trim($methodAsk);
+        $cashLabel = trim($cashLabel);
+        $cardLabel = trim($cardLabel);
+        if ($methodAsk === '') {
+            $methodAsk = self::defaultCorrectionMethodAsk();
+        }
+        if ($cashLabel === '') {
+            $cashLabel = self::defaultCorrectionCashLabel();
+        }
+        if ($cardLabel === '') {
+            $cardLabel = self::defaultCorrectionCardLabel();
+        }
         $messageLength = function_exists('mb_strlen') ? mb_strlen($message) : strlen($message);
         $askLength = function_exists('mb_strlen') ? mb_strlen($ask) : strlen($ask);
+        $methodAskLength = function_exists('mb_strlen') ? mb_strlen($methodAsk) : strlen($methodAsk);
         $labelLength = function_exists('mb_strlen') ? mb_strlen($amountLabel) : strlen($amountLabel);
+        $cashLength = function_exists('mb_strlen') ? mb_strlen($cashLabel) : strlen($cashLabel);
+        $cardLength = function_exists('mb_strlen') ? mb_strlen($cardLabel) : strlen($cardLabel);
         if ($message === '' || $messageLength > self::MAX_MESSAGE_LENGTH) {
             return false;
         }
         if ($ask === '' || $askLength > self::MAX_MESSAGE_LENGTH) {
             return false;
         }
+        if ($methodAskLength > self::MAX_MESSAGE_LENGTH) {
+            return false;
+        }
         if ($amountLabel === '' || $labelLength > self::MAX_TITLE_LENGTH) {
+            return false;
+        }
+        if ($cashLabel === '' || $cashLength > self::MAX_TITLE_LENGTH) {
+            return false;
+        }
+        if ($cardLabel === '' || $cardLength > self::MAX_TITLE_LENGTH) {
             return false;
         }
         self::ensureTables($db);
@@ -950,25 +1069,33 @@ final class CampaignGroupSettings
         $mode = $existing['recipient_mode'];
         $stmt = $db->prepare(
             'INSERT INTO campaign_group_settings
-                (group_key, first_message, welcome_message, correction_message, correction_ask, correction_amount_label, recipient_mode, updated_by)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                (group_key, first_message, welcome_message, correction_message, correction_ask,
+                 correction_amount_label, correction_method_ask, correction_cash_label, correction_card_label,
+                 recipient_mode, updated_by)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
              ON DUPLICATE KEY UPDATE
                 correction_message = VALUES(correction_message),
                 correction_ask = VALUES(correction_ask),
                 correction_amount_label = VALUES(correction_amount_label),
+                correction_method_ask = VALUES(correction_method_ask),
+                correction_cash_label = VALUES(correction_cash_label),
+                correction_card_label = VALUES(correction_card_label),
                 updated_by = VALUES(updated_by)'
         );
         if ($stmt === false) {
             return false;
         }
         $stmt->bind_param(
-            'sssssssi',
+            'ssssssssssi',
             $group,
             $first,
             $welcome,
             $message,
             $ask,
             $amountLabel,
+            $methodAsk,
+            $cashLabel,
+            $cardLabel,
             $mode,
             $updatedBy
         );

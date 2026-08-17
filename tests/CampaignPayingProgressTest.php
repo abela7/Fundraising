@@ -24,6 +24,7 @@ assertSameValue('contact', CampaignPayingProgress::sanitizeStep('contact'), 'all
 assertSameValue('done', CampaignPayingProgress::sanitizeStep('done'), 'allows the thank-you step');
 assertSameValue('phone', CampaignPayingProgress::sanitizeStep('phone'), 'allows the phone-check step');
 assertSameValue('correction', CampaignPayingProgress::sanitizeStep('correction'), 'allows the after-no paid step');
+assertSameValue('pay_method', CampaignPayingProgress::sanitizeStep('pay_method'), 'allows the how-they-paid step');
 assertSameValue('welcome', CampaignPayingProgress::sanitizeStep('../admin'), 'unknown steps fall back to welcome');
 assertSameValue(
     'contact',
@@ -44,6 +45,24 @@ assertSameValue(
     'contact',
     CampaignPayingProgress::resolveStep('correction', ['status_correct' => 'yes']),
     'a later yes leaves the after-no step'
+);
+assertSameValue(
+    'correction',
+    CampaignPayingProgress::resolveStep('pay_method', ['status_correct' => 'no']),
+    'how-they-paid waits until a paid-so-far amount is entered'
+);
+assertSameValue(
+    'pay_method',
+    CampaignPayingProgress::resolveStep('pay_method', [
+        'status_correct' => 'no',
+        'reported_paid' => '80.00',
+    ]),
+    'how-they-paid opens after a corrected amount'
+);
+assertSameValue(
+    'contact',
+    CampaignPayingProgress::resolveStep('pay_method', ['status_correct' => 'yes']),
+    'a later yes leaves the how-they-paid step'
 );
 assertSameValue(
     'status',
@@ -200,6 +219,31 @@ assertSameValue(
     'an empty paid-so-far amount is not complete'
 );
 assertSameValue(
+    'cash',
+    CampaignPayingProgress::sanitizeAnswers(['paid_method' => 'cash'])['paid_method'] ?? null,
+    'stores cash as how they paid'
+);
+assertSameValue(
+    'card',
+    CampaignPayingProgress::sanitizeAnswers(['paid_method' => 'Card'])['paid_method'] ?? null,
+    'stores card as how they paid'
+);
+assertSameValue(
+    false,
+    array_key_exists('paid_method', CampaignPayingProgress::sanitizeAnswers(['paid_method' => 'cheque'])),
+    'rejects an unknown how-they-paid method'
+);
+assertSameValue(
+    true,
+    CampaignPayingProgress::isPaidMethodComplete(['paid_method' => 'cash']),
+    'cash completes the how-they-paid step'
+);
+assertSameValue(
+    false,
+    CampaignPayingProgress::isPaidMethodComplete(['paid_method' => '']),
+    'an empty how-they-paid method is not complete'
+);
+assertSameValue(
     '14:30',
     CampaignPayingProgress::sanitizeAnswers(['contact_time' => '14:30:00.000'])['contact_time'] ?? null,
     'normalizes a time with milliseconds'
@@ -259,6 +303,15 @@ assertSameValue(
         'reported_paid' => '80.00',
     ]),
     'an empty page-open cannot rewind the after-no paid step'
+);
+assertSameValue(
+    'pay_method',
+    CampaignPayingProgress::preferStep('welcome', 'pay_method', [
+        'status_correct' => 'no',
+        'reported_paid' => '80.00',
+        'paid_method' => 'cash',
+    ]),
+    'an empty page-open cannot rewind the how-they-paid step'
 );
 assertSameValue(
     ['status_correct' => 'yes'],

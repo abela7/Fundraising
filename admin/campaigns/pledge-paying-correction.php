@@ -14,14 +14,29 @@ $savedAsk = CampaignGroupSettings::correctionAskText(
 $savedAmountLabel = CampaignGroupSettings::correctionAmountLabelText(
     (string) ($campaignSettings['correction_amount_label'] ?? '')
 );
+$savedMethodAsk = CampaignGroupSettings::correctionMethodAskText(
+    (string) ($campaignSettings['correction_method_ask'] ?? '')
+);
+$savedCashLabel = CampaignGroupSettings::correctionCashLabelText(
+    (string) ($campaignSettings['correction_cash_label'] ?? '')
+);
+$savedCardLabel = CampaignGroupSettings::correctionCardLabelText(
+    (string) ($campaignSettings['correction_card_label'] ?? '')
+);
 $defaultMessage = (string) ($campaignSettings['default_correction_message'] ?? CampaignGroupSettings::defaultCorrectionMessage());
 $defaultAsk = (string) ($campaignSettings['default_correction_ask'] ?? CampaignGroupSettings::defaultCorrectionAsk());
 $defaultAmountLabel = (string) ($campaignSettings['default_correction_amount_label'] ?? CampaignGroupSettings::defaultCorrectionAmountLabel());
+$defaultMethodAsk = (string) ($campaignSettings['default_correction_method_ask'] ?? CampaignGroupSettings::defaultCorrectionMethodAsk());
+$defaultCashLabel = (string) ($campaignSettings['default_correction_cash_label'] ?? CampaignGroupSettings::defaultCorrectionCashLabel());
+$defaultCardLabel = (string) ($campaignSettings['default_correction_card_label'] ?? CampaignGroupSettings::defaultCorrectionCardLabel());
 $pageConfig = [
     'csrf' => $csrfToken,
     'default_correction_message' => $defaultMessage,
     'default_correction_ask' => $defaultAsk,
     'default_correction_amount_label' => $defaultAmountLabel,
+    'default_correction_method_ask' => $defaultMethodAsk,
+    'default_correction_cash_label' => $defaultCashLabel,
+    'default_correction_card_label' => $defaultCardLabel,
 ];
 ?>
 <!DOCTYPE html>
@@ -50,7 +65,7 @@ $pageConfig = [
                             <i class="fas fa-pen-to-square me-2 dvc-title-icon paying"></i>
                             After No page
                         </h1>
-                        <p>After the donor says the amounts are not correct, they see this message and enter how much they have paid so far.</p>
+                        <p>After the donor says the amounts are not correct, they enter how much they have paid so far, then choose cash or card.</p>
                     </div>
                     <div class="d-flex gap-2">
                         <a class="btn btn-outline-secondary" href="pledge-paying-settings.php">
@@ -63,7 +78,7 @@ $pageConfig = [
                     <div class="dvc-settings-head">
                         <div>
                             <h6>Write every line on the after-no page</h6>
-                            <p>The message, the amount prompt, and the field label are all editable. Saving does not send WhatsApp.</p>
+                            <p>The message, the amount prompt, the field label, and the cash / card labels are all editable. Saving does not send WhatsApp.</p>
                         </div>
                     </div>
                     <div class="dvc-settings-body">
@@ -83,6 +98,12 @@ $pageConfig = [
                         <textarea class="form-control dvc-am-text" id="dvcCorrectionAsk" rows="3" maxlength="4000" lang="am" dir="auto"><?php echo htmlspecialchars($savedAsk, ENT_QUOTES, 'UTF-8'); ?></textarea>
                         <label class="form-label mt-3" for="dvcCorrectionAmount">Amount field label</label>
                         <input class="form-control dvc-am-text" id="dvcCorrectionAmount" type="text" maxlength="200" lang="am" dir="auto" value="<?php echo htmlspecialchars($savedAmountLabel, ENT_QUOTES, 'UTF-8'); ?>">
+                        <label class="form-label mt-3" for="dvcCorrectionMethodAsk">How they paid prompt</label>
+                        <textarea class="form-control dvc-am-text" id="dvcCorrectionMethodAsk" rows="2" maxlength="4000" lang="am" dir="auto"><?php echo htmlspecialchars($savedMethodAsk, ENT_QUOTES, 'UTF-8'); ?></textarea>
+                        <label class="form-label mt-3" for="dvcCorrectionCash">Cash label</label>
+                        <input class="form-control dvc-am-text" id="dvcCorrectionCash" type="text" maxlength="200" lang="am" dir="auto" value="<?php echo htmlspecialchars($savedCashLabel, ENT_QUOTES, 'UTF-8'); ?>">
+                        <label class="form-label mt-3" for="dvcCorrectionCard">Card label</label>
+                        <input class="form-control dvc-am-text" id="dvcCorrectionCard" type="text" maxlength="200" lang="am" dir="auto" value="<?php echo htmlspecialchars($savedCardLabel, ENT_QUOTES, 'UTF-8'); ?>">
                         <div class="dvc-msg-meta">
                             <span id="dvcMsgCount">0 / 4000</span>
                             <button type="button" class="btn btn-link btn-sm px-0" id="dvcResetCorrection">Reset to default</button>

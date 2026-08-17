@@ -13,6 +13,7 @@ final class CampaignPayingProgress
     public const STEP_PHONE = 'phone';
     public const STEP_DONE = 'done';
     public const STEP_CORRECTION = 'correction';
+    public const STEP_PAY_METHOD = 'pay_method';
     public const MAX_JSON_BYTES = 16384;
     public const MAX_KEYS = 40;
     public const MAX_STRING = 500;
@@ -25,6 +26,7 @@ final class CampaignPayingProgress
         self::STEP_PHONE,
         self::STEP_DONE,
         self::STEP_CORRECTION,
+        self::STEP_PAY_METHOD,
     ];
 
     /** @var list<string> */
@@ -90,6 +92,16 @@ final class CampaignPayingProgress
 
             return $answer === 'yes' ? self::STEP_CONTACT : self::STEP_STATUS;
         }
+        if ($step === self::STEP_PAY_METHOD) {
+            if ($answer !== 'no') {
+                return $answer === 'yes' ? self::STEP_CONTACT : self::STEP_STATUS;
+            }
+            if (!self::isReportedPaidComplete($answers)) {
+                return self::STEP_CORRECTION;
+            }
+
+            return self::STEP_PAY_METHOD;
+        }
         if ($step === self::STEP_CONTACT) {
             if ($answer === 'yes') {
                 return self::STEP_CONTACT;
@@ -99,7 +111,9 @@ final class CampaignPayingProgress
         }
         if ($step === self::STEP_PHONE || $step === self::STEP_DONE) {
             if ($answer === 'no') {
-                return self::STEP_CORRECTION;
+                return self::isReportedPaidComplete($answers)
+                    ? self::STEP_PAY_METHOD
+                    : self::STEP_CORRECTION;
             }
             if ($answer !== 'yes') {
                 return self::STEP_STATUS;
@@ -121,6 +135,16 @@ final class CampaignPayingProgress
     public static function isReportedPaidComplete(array $answers): bool
     {
         return self::normalizeMoney($answers['reported_paid'] ?? null) !== null;
+    }
+
+    /**
+     * @param array<string, mixed> $answers
+     */
+    public static function isPaidMethodComplete(array $answers): bool
+    {
+        $method = strtolower(trim((string) ($answers['paid_method'] ?? '')));
+
+        return in_array($method, ['cash', 'card'], true);
     }
 
     /**
@@ -567,6 +591,11 @@ final class CampaignPayingProgress
         }
         if ($key === 'reported_paid') {
             return self::normalizeMoney($value) ?? '__reject__';
+        }
+        if ($key === 'paid_method') {
+            $value = strtolower(trim((string) $value));
+
+            return in_array($value, ['cash', 'card'], true) ? $value : '__reject__';
         }
 
         return $value;

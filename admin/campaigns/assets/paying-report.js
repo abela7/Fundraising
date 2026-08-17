@@ -64,6 +64,9 @@
     if (row.answer === 'no' && row.reported_paid_label) {
       extras.push(escapeHtml(row.reported_paid_label) + ' paid so far');
     }
+    if (row.answer === 'no' && row.paid_method_label) {
+      extras.push(escapeHtml(row.paid_method_label));
+    }
     if (row.phone_corrected && (row.call_phone || row.contact_phone)) {
       extras.push('Corrected ' + escapeHtml(row.call_phone || row.contact_phone));
     }

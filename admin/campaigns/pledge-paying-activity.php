@@ -183,7 +183,7 @@ $dash = static function (string $value) use ($h): string {
                                 <div class="dvc-settings-head">
                                     <div>
                                         <h6>Answers</h6>
-                                        <p>What they confirmed and booked on the form.</p>
+                                        <p>What they told us on the paying form.</p>
                                     </div>
                                 </div>
                                 <div class="dvc-settings-body">
@@ -191,10 +191,20 @@ $dash = static function (string $value) use ($h): string {
                                         <div class="dvc-detail-label">Amounts correct</div>
                                         <div class="dvc-detail-value"><?php echo $h((string) $activity['answer_label']); ?></div>
                                     </div>
+                                    <?php if (($activity['answer'] ?? '') === 'no'): ?>
                                     <div class="dvc-detail-row">
-                                        <div class="dvc-detail-label">Paid so far</div>
+                                        <div class="dvc-detail-label">Recorded paid</div>
+                                        <div class="dvc-detail-value"><?php echo $dash((string) ($activity['paid_label'] ?? '')); ?></div>
+                                    </div>
+                                    <div class="dvc-detail-row">
+                                        <div class="dvc-detail-label">Corrected paid</div>
                                         <div class="dvc-detail-value"><?php echo $dash((string) ($activity['reported_paid_label'] ?? '')); ?></div>
                                     </div>
+                                    <div class="dvc-detail-row">
+                                        <div class="dvc-detail-label">How they paid</div>
+                                        <div class="dvc-detail-value"><?php echo $dash((string) ($activity['paid_method_label'] ?? '')); ?></div>
+                                    </div>
+                                    <?php else: ?>
                                     <div class="dvc-detail-row">
                                         <div class="dvc-detail-label">Call date</div>
                                         <div class="dvc-detail-value"><?php echo $dash((string) ($activity['contact_date'] ?? '')); ?></div>
@@ -240,6 +250,7 @@ $dash = static function (string $value) use ($h): string {
                                         <div class="dvc-detail-label">Phone check</div>
                                         <div class="dvc-detail-value"><?php echo $h((string) ($activity['phone_correct_label'] ?? 'Not confirmed')); ?></div>
                                     </div>
+                                    <?php endif; ?>
                                 </div>
                             </div>
                         </div>

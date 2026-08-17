@@ -36,6 +36,12 @@ $campaignSettings = [
     'default_correction_ask' => CampaignGroupSettings::defaultCorrectionAsk(),
     'correction_amount_label' => CampaignGroupSettings::defaultCorrectionAmountLabel(),
     'default_correction_amount_label' => CampaignGroupSettings::defaultCorrectionAmountLabel(),
+    'correction_method_ask' => CampaignGroupSettings::defaultCorrectionMethodAsk(),
+    'default_correction_method_ask' => CampaignGroupSettings::defaultCorrectionMethodAsk(),
+    'correction_cash_label' => CampaignGroupSettings::defaultCorrectionCashLabel(),
+    'default_correction_cash_label' => CampaignGroupSettings::defaultCorrectionCashLabel(),
+    'correction_card_label' => CampaignGroupSettings::defaultCorrectionCardLabel(),
+    'default_correction_card_label' => CampaignGroupSettings::defaultCorrectionCardLabel(),
     'recipient_mode' => CampaignGroupSettings::MODE_ALL,
     'donor_ids' => [],
 ];

@@ -211,5 +211,12 @@ assertSameValue(
     CampaignGroupSettings::correctionMessageText(''),
     'empty after-no message falls back to the default'
 );
+assertSameValue(
+    'እንዴት ከፍለዋል?',
+    CampaignGroupSettings::defaultCorrectionMethodAsk(),
+    'after-no method ask has a default prompt'
+);
+assertSameValue('ጥሬ ገንዘብ', CampaignGroupSettings::defaultCorrectionCashLabel(), 'cash has a default label');
+assertSameValue('ካርድ', CampaignGroupSettings::defaultCorrectionCardLabel(), 'card has a default label');
 
 fwrite(STDOUT, "PASS campaign paying link tests\n");
