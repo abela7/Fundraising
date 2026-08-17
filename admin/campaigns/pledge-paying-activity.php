@@ -233,8 +233,8 @@ $dash = static function (string $value) use ($h): string {
                                         </div>
                                     </div>
                                     <div class="dvc-detail-row">
-                                        <div class="dvc-detail-label">Number to call</div>
-                                        <div class="dvc-detail-value"><?php echo $dash((string) ($activity['contact_phone'] ?? '')); ?></div>
+                                        <div class="dvc-detail-label"><?php echo !empty($activity['phone_corrected']) ? 'Corrected phone' : 'Number to call'; ?></div>
+                                        <div class="dvc-detail-value"><?php echo $dash((string) ($activity['call_phone'] ?? $activity['contact_phone'] ?? '')); ?></div>
                                     </div>
                                     <div class="dvc-detail-row">
                                         <div class="dvc-detail-label">Phone check</div>

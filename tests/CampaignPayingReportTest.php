@@ -172,6 +172,8 @@ assertSameValue(
 );
 assertSameValue('07360436171', $activity['contact_phone'], 'presents the number to call');
 assertSameValue('New number', $activity['phone_correct_label'], 'labels a replacement number');
+assertSameValue(true, $activity['phone_corrected'], 'flags a replacement number');
+assertSameValue('07360436171', $activity['call_phone'], 'uses the number they entered as the call number');
 
 $noActivity = CampaignPayingReport::present([
     'id' => 5,
@@ -186,6 +188,43 @@ $noActivity = CampaignPayingReport::present([
 assertSameValue('No', $noActivity['answer_label'], 'labels a no answer');
 assertSameValue('£80.00', $noActivity['reported_paid_label'], 'presents the paid-so-far amount');
 assertSameValue('Paid so far', $noActivity['step_label'], 'presents the after-no page');
+
+$corrected = CampaignPayingReport::present([
+    'id' => 6,
+    'name' => 'Abeba',
+    'phone' => '07360436171',
+    'token' => 'c3d4e5f678901ab2',
+    'step' => 'done',
+    'answers' => [
+        'status_correct' => 'yes',
+        'contact_date' => '2026-08-20',
+        'contact_time' => '14:30',
+        'contact_method' => 'phone',
+        'phone_correct' => 'no',
+        'contact_phone' => '07911111111',
+    ],
+]);
+assertSameValue('07360436171', $corrected['phone'], 'keeps the stored phone on the donor record');
+assertSameValue('07911111111', $corrected['call_phone'], 'presents the corrected phone to call');
+assertSameValue(true, $corrected['phone_corrected'], 'marks the phone as corrected');
+assertSameValue('New number', $corrected['phone_correct_label'], 'labels the corrected phone');
+
+$storedPhone = CampaignPayingReport::present([
+    'id' => 7,
+    'name' => 'Abeba',
+    'phone' => '07360436171',
+    'token' => 'd4e5f678901ab2c3',
+    'step' => 'done',
+    'answers' => [
+        'status_correct' => 'yes',
+        'contact_date' => '2026-08-20',
+        'contact_time' => '14:30',
+        'contact_method' => 'phone',
+        'phone_correct' => 'yes',
+    ],
+]);
+assertSameValue(false, $storedPhone['phone_corrected'], 'a confirmed stored number is not a correction');
+assertSameValue('07360436171', $storedPhone['call_phone'], 'uses the stored number when they confirm it');
 assertSameValue('pending', $activity['call_status'], 'activity defaults a booking to pending');
 assertSameValue('Pending', $activity['call_status_label'], 'labels pending on activity');
 
@@ -256,6 +295,27 @@ $pendingSearch = CampaignPayingReport::filterRows(
 );
 assertSameValue(1, count($pendingSearch), 'search finds a call status label');
 assertSameValue('Abel Demssie', $pendingSearch[0]['name'] ?? '', 'search keeps the pending donor');
+
+$phoneSearch = CampaignPayingReport::filterRows(
+    [
+        [
+            'name' => 'Abeba',
+            'phone' => '07360436171',
+            'call_phone' => '07911111111',
+            'contact_phone' => '07911111111',
+        ],
+        [
+            'name' => 'Other Donor',
+            'phone' => '07000000000',
+            'call_phone' => '07000000000',
+            'contact_phone' => '',
+        ],
+    ],
+    'all',
+    '07911111111'
+);
+assertSameValue(1, count($phoneSearch), 'search finds a corrected phone');
+assertSameValue('Abeba', $phoneSearch[0]['name'] ?? '', 'search keeps the donor who corrected their number');
 
 $emptyActivity = CampaignPayingReport::present(['name' => 'No Link']);
 assertSameValue(false, $emptyActivity['sent'], 'empty activity is not sent');

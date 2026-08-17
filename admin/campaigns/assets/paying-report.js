@@ -58,6 +58,21 @@
     window.history.replaceState({}, '', next);
   }
 
+  function answerCell(row) {
+    let html = answerBadge(row);
+    const extras = [];
+    if (row.answer === 'no' && row.reported_paid_label) {
+      extras.push(escapeHtml(row.reported_paid_label) + ' paid so far');
+    }
+    if (row.phone_corrected && (row.call_phone || row.contact_phone)) {
+      extras.push('Corrected ' + escapeHtml(row.call_phone || row.contact_phone));
+    }
+    if (extras.length) {
+      html += '<div><small class="text-muted">' + extras.join(' · ') + '</small></div>';
+    }
+    return html;
+  }
+
   function answerBadge(row) {
     if (row.answer === 'yes') {
       return '<span class="dvc-badge dvc-badge-new">Yes</span>';
@@ -164,9 +179,13 @@
       const link = id
         ? '<a class="dvc-donor-link" href="pledge-paying-activity.php?id=' + id + '">' + name + '</a>'
         : name;
-      const phone = r.phone
+      const storedPhone = r.phone
         ? escapeHtml(r.phone)
         : '<span class="dvc-no-phone">No phone</span>';
+      const phone = r.phone_corrected && (r.call_phone || r.contact_phone)
+        ? escapeHtml(r.call_phone || r.contact_phone)
+          + ' <span class="dvc-badge dvc-badge-old">Corrected</span>'
+        : storedPhone;
       const booked = r.booked && r.booking_label
         ? escapeHtml(r.booking_label)
         : '<span class="text-muted">—</span>';
@@ -174,7 +193,7 @@
         + '<td class="dvc-col-num" data-label="#">' + (startNum + i) + '</td>'
         + '<td data-label="Donor"><div>' + link + '</div><small class="text-muted">' + phone + '</small></td>'
         + '<td data-label="Opened">' + openedCell(r) + '</td>'
-        + '<td data-label="Answer">' + answerBadge(r) + '</td>'
+        + '<td data-label="Answer">' + answerCell(r) + '</td>'
         + '<td data-label="Booked time">' + booked + '</td>'
         + '<td data-label="Status">' + callStatusCell(r) + '</td>'
         + '</tr>';

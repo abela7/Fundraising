@@ -369,14 +369,7 @@ final class CampaignPayingReport
         $paid = (float) ($row['total_paid'] ?? $row['paid'] ?? 0);
         $balance = (float) ($row['balance'] ?? 0);
         $answers = self::answersFromRow($row);
-        $phoneChoice = (string) ($answers['phone_correct'] ?? '');
-        $phoneLabel = 'Not confirmed';
-        if ($phoneChoice === 'yes') {
-            $phoneLabel = 'Stored number';
-        } elseif ($phoneChoice === 'no') {
-            $phoneLabel = 'New number';
-        }
-        $reportedPaid = CampaignPayingProgress::normalizeMoney($answers['reported_paid'] ?? null);
+        $form = self::formAnswerFields($answers, (string) ($row['phone'] ?? ''));
 
         return [
             'donor_id' => (int) ($row['id'] ?? $row['donor_id'] ?? 0),
@@ -417,13 +410,13 @@ final class CampaignPayingReport
                 $classified['contact_time'],
                 $classified['contact_method']
             ),
-            'contact_phone' => (string) ($answers['contact_phone'] ?? ''),
-            'phone_correct' => $phoneChoice,
-            'phone_correct_label' => $phoneLabel,
-            'reported_paid' => $reportedPaid ?? '',
-            'reported_paid_label' => $reportedPaid !== null
-                ? CampaignPayingLink::formatMoney((float) $reportedPaid)
-                : '',
+            'contact_phone' => $form['contact_phone'],
+            'call_phone' => $form['call_phone'],
+            'phone_corrected' => $form['phone_corrected'],
+            'phone_correct' => $form['phone_correct'],
+            'phone_correct_label' => $form['phone_correct_label'],
+            'reported_paid' => $form['reported_paid'],
+            'reported_paid_label' => $form['reported_paid_label'],
             'answers' => $answers,
             'timeline' => $timeline,
         ];
@@ -555,6 +548,8 @@ final class CampaignPayingReport
                 continue;
             }
             $classified = self::classify($row);
+            $answers = self::answersFromRow($row);
+            $form = self::formAnswerFields($answers, (string) ($row['phone'] ?? ''));
             $rows[] = [
                 'id' => (int) ($row['id'] ?? 0),
                 'donor_id' => (int) ($row['id'] ?? 0),
@@ -584,6 +579,13 @@ final class CampaignPayingReport
                     $classified['contact_time'],
                     $classified['contact_method']
                 ),
+                'contact_phone' => $form['contact_phone'],
+                'call_phone' => $form['call_phone'],
+                'phone_corrected' => $form['phone_corrected'],
+                'phone_correct' => $form['phone_correct'],
+                'phone_correct_label' => $form['phone_correct_label'],
+                'reported_paid' => $form['reported_paid'],
+                'reported_paid_label' => $form['reported_paid_label'],
             ];
         }
         $stmt->close();
@@ -608,6 +610,10 @@ final class CampaignPayingReport
                     (string) ($row['name'] ?? '')
                     . ' '
                     . (string) ($row['phone'] ?? '')
+                    . ' '
+                    . (string) ($row['call_phone'] ?? '')
+                    . ' '
+                    . (string) ($row['contact_phone'] ?? '')
                     . ' '
                     . (string) ($row['reference'] ?? '')
                     . ' '
@@ -660,6 +666,51 @@ final class CampaignPayingReport
         } catch (Throwable $e) {
             return false;
         }
+    }
+
+    /**
+     * Phone and paid-so-far answers from the paying form.
+     *
+     * @param array<string, mixed> $answers
+     * @return array{
+     *     contact_phone:string,
+     *     call_phone:string,
+     *     phone_corrected:bool,
+     *     phone_correct:string,
+     *     phone_correct_label:string,
+     *     reported_paid:string,
+     *     reported_paid_label:string
+     * }
+     */
+    private static function formAnswerFields(array $answers, string $storedPhone): array
+    {
+        $contactPhone = trim((string) ($answers['contact_phone'] ?? ''));
+        $phoneChoice = (string) ($answers['phone_correct'] ?? '');
+        $storedPhone = trim($storedPhone);
+        $phoneCorrected = $phoneChoice === 'no' && $contactPhone !== '';
+        $callPhone = $contactPhone;
+        if ($callPhone === '' && $phoneChoice === 'yes') {
+            $callPhone = $storedPhone;
+        }
+        $phoneLabel = 'Not confirmed';
+        if ($phoneChoice === 'yes') {
+            $phoneLabel = 'Stored number';
+        } elseif ($phoneChoice === 'no') {
+            $phoneLabel = 'New number';
+        }
+        $reportedPaid = CampaignPayingProgress::normalizeMoney($answers['reported_paid'] ?? null);
+
+        return [
+            'contact_phone' => $contactPhone,
+            'call_phone' => $callPhone,
+            'phone_corrected' => $phoneCorrected,
+            'phone_correct' => $phoneChoice,
+            'phone_correct_label' => $phoneLabel,
+            'reported_paid' => $reportedPaid ?? '',
+            'reported_paid_label' => $reportedPaid !== null
+                ? CampaignPayingLink::formatMoney((float) $reportedPaid)
+                : '',
+        ];
     }
 
     /**
