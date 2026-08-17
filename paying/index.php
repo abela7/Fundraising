@@ -35,6 +35,9 @@ $contactTimeLabelHtml = '';
 $contactMethodLabelHtml = '';
 $contactWhatsappHtml = '';
 $contactPhoneHtml = '';
+$correctionMessageHtml = '';
+$correctionAskHtml = '';
+$correctionAmountLabelHtml = '';
 $doneHtml = '';
 $phoneAskHtml = '';
 $phoneEnterHtml = '';
@@ -58,6 +61,9 @@ if ($donor === null) {
     $contactMessageTemplate = CampaignGroupSettings::defaultContactMessage();
     $contactAskTemplate = CampaignGroupSettings::defaultContactAsk();
     $contactLabels = CampaignGroupSettings::defaultContactLabels();
+    $correctionMessageTemplate = CampaignGroupSettings::defaultCorrectionMessage();
+    $correctionAskTemplate = CampaignGroupSettings::defaultCorrectionAsk();
+    $correctionAmountLabelTemplate = CampaignGroupSettings::defaultCorrectionAmountLabel();
     $doneTemplate = CampaignGroupSettings::defaultDoneMessage();
     $phoneAskTemplate = CampaignGroupSettings::defaultPhoneAsk();
     $phoneEnterTemplate = CampaignGroupSettings::defaultPhoneEnter();
@@ -84,6 +90,15 @@ if ($donor === null) {
         if (isset($settings['contact_labels']) && is_array($settings['contact_labels'])) {
             $contactLabels = CampaignGroupSettings::contactLabels(null, $settings['contact_labels']);
         }
+        $correctionMessageTemplate = CampaignGroupSettings::correctionMessageText(
+            (string) ($settings['correction_message'] ?? '')
+        );
+        $correctionAskTemplate = CampaignGroupSettings::correctionAskText(
+            (string) ($settings['correction_ask'] ?? '')
+        );
+        $correctionAmountLabelTemplate = CampaignGroupSettings::correctionAmountLabelText(
+            (string) ($settings['correction_amount_label'] ?? '')
+        );
     } catch (Throwable $e) {
         error_log('Paying page text load failed: ' . $e->getMessage());
     }
@@ -107,6 +122,9 @@ if ($donor === null) {
     $contactMethodLabelHtml = $renderText($contactLabels['method']);
     $contactWhatsappHtml = $renderText($contactLabels['whatsapp']);
     $contactPhoneHtml = $renderText($contactLabels['phone']);
+    $correctionMessageHtml = $renderText($correctionMessageTemplate);
+    $correctionAskHtml = $renderText($correctionAskTemplate);
+    $correctionAmountLabelHtml = $renderText($correctionAmountLabelTemplate);
     $doneHtml = $renderText($doneTemplate);
     $phoneAskHtml = $renderText($phoneAskTemplate);
     $phoneEnterHtml = $renderText($phoneEnterTemplate);
@@ -223,6 +241,21 @@ if ($donor !== null && $token !== '') {
                                 <button type="button" class="pay-choice" data-pay-choice="contact_method" data-pay-value="phone"><?php echo $contactPhoneHtml; ?></button>
                             </div>
                         </div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="pay-screen" data-pay-step="correction" id="payCorrection" hidden aria-label="እስካሁን የከፈሉት">
+                <div class="pay-stack">
+                    <div class="pay-card pay-welcome">
+                        <div class="pay-welcome-text"><?php echo $correctionMessageHtml; ?></div>
+                    </div>
+                    <div class="pay-card">
+                        <div class="pay-title"><?php echo $correctionAskHtml; ?></div>
+                        <label class="pay-field pay-field-last">
+                            <span class="pay-label"><?php echo $correctionAmountLabelHtml; ?></span>
+                            <input type="text" data-pay-field="reported_paid" inputmode="decimal" autocomplete="off">
+                        </label>
                     </div>
                 </div>
             </section>

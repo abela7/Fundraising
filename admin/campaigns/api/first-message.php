@@ -42,6 +42,13 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'GET') {
             'contact_labels' => $settings['contact_labels'],
             'default_contact_labels' => $settings['default_contact_labels'],
             'contact_variables' => CampaignGroupSettings::contactVariables(),
+            'correction_message' => $settings['correction_message'],
+            'default_correction_message' => $settings['default_correction_message'],
+            'correction_ask' => $settings['correction_ask'],
+            'default_correction_ask' => $settings['default_correction_ask'],
+            'correction_amount_label' => $settings['correction_amount_label'],
+            'default_correction_amount_label' => $settings['default_correction_amount_label'],
+            'correction_variables' => CampaignGroupSettings::correctionVariables(),
         ]);
     } catch (Throwable $e) {
         error_log('Campaign first message load failed: ' . $e->getMessage());
@@ -225,6 +232,51 @@ try {
             'contact_message' => CampaignGroupSettings::contactMessageText($message),
             'contact_ask' => CampaignGroupSettings::contactAskText($ask),
             'contact_labels' => CampaignGroupSettings::contactLabels(null, $labels),
+        ]);
+        exit;
+    }
+
+    if ($action === 'save_correction') {
+        $message = (string) ($_POST['correction_message'] ?? '');
+        $ask = (string) ($_POST['correction_ask'] ?? '');
+        $amountLabel = (string) ($_POST['correction_amount_label'] ?? '');
+        if (trim($message) === '') {
+            http_response_code(400);
+            echo json_encode(['success' => false, 'error' => 'Write the after-no message before saving.']);
+            exit;
+        }
+        if (trim($ask) === '') {
+            http_response_code(400);
+            echo json_encode(['success' => false, 'error' => 'Write the paid-so-far prompt before saving.']);
+            exit;
+        }
+        if (trim($amountLabel) === '') {
+            http_response_code(400);
+            echo json_encode(['success' => false, 'error' => 'Write the amount field label before saving.']);
+            exit;
+        }
+        $messageLength = function_exists('mb_strlen') ? mb_strlen($message) : strlen($message);
+        $askLength = function_exists('mb_strlen') ? mb_strlen($ask) : strlen($ask);
+        $labelLength = function_exists('mb_strlen') ? mb_strlen(trim($amountLabel)) : strlen(trim($amountLabel));
+        if ($messageLength > CampaignGroupSettings::MAX_MESSAGE_LENGTH || $askLength > CampaignGroupSettings::MAX_MESSAGE_LENGTH) {
+            http_response_code(400);
+            echo json_encode(['success' => false, 'error' => 'Message is too long.']);
+            exit;
+        }
+        if ($labelLength > CampaignGroupSettings::MAX_TITLE_LENGTH) {
+            http_response_code(400);
+            echo json_encode(['success' => false, 'error' => 'A label is too long.']);
+            exit;
+        }
+        $ok = CampaignGroupSettings::saveCorrectionCopy($db, $group, $message, $ask, $amountLabel, $userId);
+        if (!$ok) {
+            throw new RuntimeException('Could not save after-no page.');
+        }
+        echo json_encode([
+            'success' => true,
+            'correction_message' => CampaignGroupSettings::correctionMessageText($message),
+            'correction_ask' => CampaignGroupSettings::correctionAskText($ask),
+            'correction_amount_label' => CampaignGroupSettings::correctionAmountLabelText($amountLabel),
         ]);
         exit;
     }

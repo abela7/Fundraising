@@ -23,6 +23,7 @@ assertSameValue('status', CampaignPayingProgress::sanitizeStep('status'), 'allow
 assertSameValue('contact', CampaignPayingProgress::sanitizeStep('contact'), 'allows the contact step');
 assertSameValue('done', CampaignPayingProgress::sanitizeStep('done'), 'allows the thank-you step');
 assertSameValue('phone', CampaignPayingProgress::sanitizeStep('phone'), 'allows the phone-check step');
+assertSameValue('correction', CampaignPayingProgress::sanitizeStep('correction'), 'allows the after-no paid step');
 assertSameValue('welcome', CampaignPayingProgress::sanitizeStep('../admin'), 'unknown steps fall back to welcome');
 assertSameValue(
     'contact',
@@ -30,9 +31,19 @@ assertSameValue(
     'contact is allowed after a yes on status'
 );
 assertSameValue(
-    'status',
+    'correction',
     CampaignPayingProgress::resolveStep('contact', ['status_correct' => 'no']),
-    'contact is blocked when status is not yes'
+    'no on status opens the paid-so-far step instead of contact'
+);
+assertSameValue(
+    'correction',
+    CampaignPayingProgress::resolveStep('correction', ['status_correct' => 'no']),
+    'after-no stays on the paid-so-far step'
+);
+assertSameValue(
+    'contact',
+    CampaignPayingProgress::resolveStep('correction', ['status_correct' => 'yes']),
+    'a later yes leaves the after-no step'
 );
 assertSameValue(
     'status',
@@ -168,6 +179,27 @@ $booking = CampaignPayingProgress::sanitizeAnswers([
 assertSameValue('2026-08-20', $booking['contact_date'] ?? null, 'keeps a booking date');
 assertSameValue('14:30', $booking['contact_time'] ?? null, 'normalizes booking time to HH:MM');
 assertSameValue(
+    '120.50',
+    CampaignPayingProgress::sanitizeAnswers(['reported_paid' => '£120.50'])['reported_paid'] ?? null,
+    'stores a paid-so-far amount as pounds'
+);
+assertSameValue(
+    '0.00',
+    CampaignPayingProgress::normalizeMoney('0'),
+    'allows zero as paid so far'
+);
+assertSameValue(null, CampaignPayingProgress::normalizeMoney('-12'), 'rejects a negative paid amount');
+assertSameValue(
+    true,
+    CampaignPayingProgress::isReportedPaidComplete(['reported_paid' => '80']),
+    'a pounds amount completes the paid-so-far step'
+);
+assertSameValue(
+    false,
+    CampaignPayingProgress::isReportedPaidComplete(['reported_paid' => '']),
+    'an empty paid-so-far amount is not complete'
+);
+assertSameValue(
     '14:30',
     CampaignPayingProgress::sanitizeAnswers(['contact_time' => '14:30:00.000'])['contact_time'] ?? null,
     'normalizes a time with milliseconds'
@@ -219,6 +251,14 @@ assertSameValue(
         'contact_phone' => '07360436171',
     ]),
     'an empty page-open cannot rewind a finished thank-you step'
+);
+assertSameValue(
+    'correction',
+    CampaignPayingProgress::preferStep('welcome', 'correction', [
+        'status_correct' => 'no',
+        'reported_paid' => '80.00',
+    ]),
+    'an empty page-open cannot rewind the after-no paid step'
 );
 assertSameValue(
     ['status_correct' => 'yes'],

@@ -1,8 +1,5 @@
 (function () {
   const config = window.PAY_SYNC || {};
-  const steps = Array.isArray(config.steps) && config.steps.length
-    ? config.steps
-    : ['welcome', 'status', 'contact', 'phone', 'done'];
   const screens = {};
   document.querySelectorAll('[data-pay-step]').forEach(function (el) {
     screens[el.getAttribute('data-pay-step')] = el;
@@ -31,9 +28,9 @@
     return out;
   }
 
-  let startStep = config.step === 'info' ? 'status' : (config.step || steps[0]);
-  if (steps.indexOf(startStep) < 0) {
-    startStep = steps[0];
+  let startStep = config.step === 'info' ? 'status' : (config.step || 'welcome');
+  if (!screens[startStep]) {
+    startStep = 'welcome';
   }
   const state = {
     token: config.token || '',
@@ -122,30 +119,77 @@
     }
   }
 
-  function allowedStep(step) {
-    if (steps.indexOf(step) < 0) {
-      return steps[0];
-    }
+  function statusAnswer() {
     syncChoicesIntoAnswers();
-    if (step === 'contact' && state.answers.status_correct !== 'yes') {
+    return String(state.answers.status_correct || '');
+  }
+
+  function nextStepName() {
+    if (state.step === 'welcome') {
       return 'status';
     }
-    if (step === 'phone') {
-      if (state.answers.status_correct !== 'yes') {
-        return 'status';
-      }
-      if (!bookingComplete()) {
+    if (state.step === 'status') {
+      if (statusAnswer() === 'yes') {
         return 'contact';
       }
+      if (statusAnswer() === 'no') {
+        return 'correction';
+      }
+      return '';
     }
-    if (step === 'done') {
-      if (state.answers.status_correct !== 'yes') {
+    if (state.step === 'contact') {
+      return 'phone';
+    }
+    if (state.step === 'phone') {
+      return 'done';
+    }
+    return '';
+  }
+
+  function prevStepName() {
+    if (state.step === 'status') {
+      return 'welcome';
+    }
+    if (state.step === 'contact' || state.step === 'correction') {
+      return 'status';
+    }
+    if (state.step === 'phone') {
+      return 'contact';
+    }
+    if (state.step === 'done') {
+      return 'phone';
+    }
+    return '';
+  }
+
+  function allowedStep(step) {
+    if (!screens[step]) {
+      return 'welcome';
+    }
+    syncChoicesIntoAnswers();
+    if (step === 'correction') {
+      if (statusAnswer() === 'no') {
+        return 'correction';
+      }
+      return statusAnswer() === 'yes' ? 'contact' : 'status';
+    }
+    if (step === 'contact') {
+      if (statusAnswer() === 'yes') {
+        return 'contact';
+      }
+      return statusAnswer() === 'no' ? 'correction' : 'status';
+    }
+    if (step === 'phone' || step === 'done') {
+      if (statusAnswer() === 'no') {
+        return 'correction';
+      }
+      if (statusAnswer() !== 'yes') {
         return 'status';
       }
       if (!bookingComplete()) {
         return 'contact';
       }
-      if (!phoneReady()) {
+      if (step === 'done' && !phoneReady()) {
         return 'phone';
       }
     }
@@ -153,12 +197,11 @@
   }
 
   function canGoNext() {
-    const next = steps[currentIndex() + 1];
-    if (!next) {
+    if (!nextStepName()) {
       return false;
     }
     syncChoicesIntoAnswers();
-    if (state.step === 'status' && state.answers.status_correct !== 'yes') {
+    if (state.step === 'status' && statusAnswer() !== 'yes' && statusAnswer() !== 'no') {
       return false;
     }
     if (state.step === 'contact' && !bookingComplete()) {
@@ -168,11 +211,6 @@
       return false;
     }
     return true;
-  }
-
-  function currentIndex() {
-    const idx = steps.indexOf(state.step);
-    return idx < 0 ? 0 : idx;
   }
 
   function applyFields() {
@@ -226,9 +264,8 @@
   }
 
   function updateNav() {
-    const idx = currentIndex();
     document.querySelectorAll('[data-pay-back]').forEach(function (btn) {
-      btn.hidden = idx <= 0;
+      btn.hidden = prevStepName() === '';
     });
     document.querySelectorAll('[data-pay-next]').forEach(function (btn) {
       btn.hidden = !canGoNext();
@@ -237,11 +274,11 @@
 
   function showStep(step, fromHistory, shouldSave) {
     step = allowedStep(step);
-    if (steps.indexOf(step) < 0) {
-      step = steps[0];
+    if (!screens[step]) {
+      step = 'welcome';
     }
     state.step = step;
-    steps.forEach(function (name) {
+    Object.keys(screens).forEach(function (name) {
       const screen = screens[name];
       if (!screen) {
         return;
@@ -338,7 +375,7 @@
 
   document.querySelectorAll('[data-pay-next]').forEach(function (btn) {
     btn.addEventListener('click', function () {
-      const next = steps[currentIndex() + 1];
+      const next = nextStepName();
       if (next) {
         showStep(next, false);
       }
@@ -346,7 +383,7 @@
   });
   document.querySelectorAll('[data-pay-back]').forEach(function (btn) {
     btn.addEventListener('click', function () {
-      const prev = steps[currentIndex() - 1];
+      const prev = prevStepName();
       if (prev) {
         showStep(prev, false);
       }
@@ -389,7 +426,7 @@
 
   window.addEventListener('popstate', function (event) {
     const step = (event.state && event.state.step)
-      || (location.hash ? location.hash.replace('#', '') : steps[0]);
+      || (location.hash ? location.hash.replace('#', '') : 'welcome');
     showStep(step, true);
   });
   document.addEventListener('visibilitychange', function () {
@@ -404,9 +441,9 @@
   applyFields();
   const hashStepRaw = location.hash ? location.hash.replace('#', '') : '';
   const hashStep = hashStepRaw === 'info' ? 'status' : hashStepRaw;
-  const start = allowedStep(steps.indexOf(hashStep) >= 0 ? hashStep : state.step);
-  history.replaceState({ step: steps[0] }, '', '#' + steps[0]);
-  if (start !== steps[0]) {
+  const start = allowedStep(screens[hashStep] ? hashStep : state.step);
+  history.replaceState({ step: 'welcome' }, '', '#welcome');
+  if (start !== 'welcome') {
     history.pushState({ step: start }, '', '#' + start);
   }
   showStep(start, true, false);

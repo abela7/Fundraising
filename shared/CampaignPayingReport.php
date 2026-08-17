@@ -332,6 +332,9 @@ final class CampaignPayingReport
         if ($step === CampaignPayingProgress::STEP_DONE) {
             return 'Thank you';
         }
+        if ($step === CampaignPayingProgress::STEP_CORRECTION) {
+            return 'Paid so far';
+        }
 
         return 'Welcome page';
     }
@@ -373,6 +376,7 @@ final class CampaignPayingReport
         } elseif ($phoneChoice === 'no') {
             $phoneLabel = 'New number';
         }
+        $reportedPaid = CampaignPayingProgress::normalizeMoney($answers['reported_paid'] ?? null);
 
         return [
             'donor_id' => (int) ($row['id'] ?? $row['donor_id'] ?? 0),
@@ -416,6 +420,10 @@ final class CampaignPayingReport
             'contact_phone' => (string) ($answers['contact_phone'] ?? ''),
             'phone_correct' => $phoneChoice,
             'phone_correct_label' => $phoneLabel,
+            'reported_paid' => $reportedPaid ?? '',
+            'reported_paid_label' => $reportedPaid !== null
+                ? CampaignPayingLink::formatMoney((float) $reportedPaid)
+                : '',
             'answers' => $answers,
             'timeline' => $timeline,
         ];

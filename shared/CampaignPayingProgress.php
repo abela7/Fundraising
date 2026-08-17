@@ -12,6 +12,7 @@ final class CampaignPayingProgress
     public const STEP_CONTACT = 'contact';
     public const STEP_PHONE = 'phone';
     public const STEP_DONE = 'done';
+    public const STEP_CORRECTION = 'correction';
     public const MAX_JSON_BYTES = 16384;
     public const MAX_KEYS = 40;
     public const MAX_STRING = 500;
@@ -23,6 +24,7 @@ final class CampaignPayingProgress
         self::STEP_CONTACT,
         self::STEP_PHONE,
         self::STEP_DONE,
+        self::STEP_CORRECTION,
     ];
 
     /** @var list<string> */
@@ -72,37 +74,79 @@ final class CampaignPayingProgress
     }
 
     /**
-     * Contact after Yes. Phone check after a booking. Thank-you after a confirmed number.
+     * Yes path: contact → phone → thanks. No path: paid-so-far correction.
      *
      * @param array<string, mixed> $answers
      */
     public static function resolveStep(string $step, array $answers = []): string
     {
         $step = self::sanitizeStep($step);
-        if ($step === self::STEP_CONTACT && ($answers['status_correct'] ?? '') !== 'yes') {
-            return self::STEP_STATUS;
+        $answer = (string) ($answers['status_correct'] ?? '');
+
+        if ($step === self::STEP_CORRECTION) {
+            if ($answer === 'no') {
+                return self::STEP_CORRECTION;
+            }
+
+            return $answer === 'yes' ? self::STEP_CONTACT : self::STEP_STATUS;
         }
-        if ($step === self::STEP_PHONE) {
-            if (($answers['status_correct'] ?? '') !== 'yes') {
+        if ($step === self::STEP_CONTACT) {
+            if ($answer === 'yes') {
+                return self::STEP_CONTACT;
+            }
+
+            return $answer === 'no' ? self::STEP_CORRECTION : self::STEP_STATUS;
+        }
+        if ($step === self::STEP_PHONE || $step === self::STEP_DONE) {
+            if ($answer === 'no') {
+                return self::STEP_CORRECTION;
+            }
+            if ($answer !== 'yes') {
                 return self::STEP_STATUS;
             }
             if (!self::isBookingComplete($answers)) {
                 return self::STEP_CONTACT;
             }
-        }
-        if ($step === self::STEP_DONE) {
-            if (($answers['status_correct'] ?? '') !== 'yes') {
-                return self::STEP_STATUS;
-            }
-            if (!self::isBookingComplete($answers)) {
-                return self::STEP_CONTACT;
-            }
-            if (!self::isPhoneConfirmed($answers)) {
+            if ($step === self::STEP_DONE && !self::isPhoneConfirmed($answers)) {
                 return self::STEP_PHONE;
             }
         }
 
         return $step;
+    }
+
+    /**
+     * @param array<string, mixed> $answers
+     */
+    public static function isReportedPaidComplete(array $answers): bool
+    {
+        return self::normalizeMoney($answers['reported_paid'] ?? null) !== null;
+    }
+
+    /**
+     * Accept pounds as 80, 80.5, 80.50, or £80.50. Zero is allowed.
+     */
+    public static function normalizeMoney(mixed $value): ?string
+    {
+        if (is_int($value) || is_float($value)) {
+            if (!is_finite((float) $value) || $value < 0 || $value > 1000000) {
+                return null;
+            }
+
+            return number_format((float) $value, 2, '.', '');
+        }
+
+        $raw = strtolower(trim((string) $value));
+        $raw = str_replace(['£', ',', ' '], '', $raw);
+        if ($raw === '' || preg_match('/^\d+(\.\d{1,2})?$/', $raw) !== 1) {
+            return null;
+        }
+        $amount = (float) $raw;
+        if ($amount > 1000000) {
+            return null;
+        }
+
+        return number_format($amount, 2, '.', '');
     }
 
     /**
@@ -520,6 +564,9 @@ final class CampaignPayingProgress
             $phone = self::normalizeUkPhone((string) $value);
 
             return $phone ?? '__reject__';
+        }
+        if ($key === 'reported_paid') {
+            return self::normalizeMoney($value) ?? '__reject__';
         }
 
         return $value;

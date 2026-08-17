@@ -124,6 +124,7 @@ assertSameValue('Status check', CampaignPayingReport::stepLabel('info'), 'maps t
 assertSameValue('Contact page', CampaignPayingReport::stepLabel('contact'), 'labels the contact step');
 assertSameValue('Phone check', CampaignPayingReport::stepLabel('phone'), 'labels the phone-check step');
 assertSameValue('Thank you', CampaignPayingReport::stepLabel('done'), 'labels the thank-you step');
+assertSameValue('Paid so far', CampaignPayingReport::stepLabel('correction'), 'labels the after-no paid step');
 
 $activity = CampaignPayingReport::present([
     'id' => 4,
@@ -171,6 +172,20 @@ assertSameValue(
 );
 assertSameValue('07360436171', $activity['contact_phone'], 'presents the number to call');
 assertSameValue('New number', $activity['phone_correct_label'], 'labels a replacement number');
+
+$noActivity = CampaignPayingReport::present([
+    'id' => 5,
+    'name' => 'Abeba',
+    'token' => 'b2c3d4e5f678901a',
+    'step' => 'correction',
+    'answers' => [
+        'status_correct' => 'no',
+        'reported_paid' => '80.00',
+    ],
+]);
+assertSameValue('No', $noActivity['answer_label'], 'labels a no answer');
+assertSameValue('£80.00', $noActivity['reported_paid_label'], 'presents the paid-so-far amount');
+assertSameValue('Paid so far', $noActivity['step_label'], 'presents the after-no page');
 assertSameValue('pending', $activity['call_status'], 'activity defaults a booking to pending');
 assertSameValue('Pending', $activity['call_status_label'], 'labels pending on activity');
 

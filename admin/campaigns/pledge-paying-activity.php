@@ -192,6 +192,10 @@ $dash = static function (string $value) use ($h): string {
                                         <div class="dvc-detail-value"><?php echo $h((string) $activity['answer_label']); ?></div>
                                     </div>
                                     <div class="dvc-detail-row">
+                                        <div class="dvc-detail-label">Paid so far</div>
+                                        <div class="dvc-detail-value"><?php echo $dash((string) ($activity['reported_paid_label'] ?? '')); ?></div>
+                                    </div>
+                                    <div class="dvc-detail-row">
                                         <div class="dvc-detail-label">Call date</div>
                                         <div class="dvc-detail-value"><?php echo $dash((string) ($activity['contact_date'] ?? '')); ?></div>
                                     </div>

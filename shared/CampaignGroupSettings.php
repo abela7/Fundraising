@@ -98,6 +98,30 @@ final class CampaignGroupSettings
     }
 
     /**
+     * Default message after the donor says the amounts are wrong.
+     */
+    public static function defaultCorrectionMessage(): string
+    {
+        return "እናመሰግናለን የተከበሩ {name}።\n\nመረጃው የተለየ ከሆነ እባክዎ እስካሁን የከፈሉትን ይንገሩን።";
+    }
+
+    /**
+     * Default prompt for how much they have paid so far.
+     */
+    public static function defaultCorrectionAsk(): string
+    {
+        return 'እስካሁን ምን ያህል ከፍለዋል?';
+    }
+
+    /**
+     * Default label on the paid-so-far amount field.
+     */
+    public static function defaultCorrectionAmountLabel(): string
+    {
+        return 'የተከፈለ መጠን (£)';
+    }
+
+    /**
      * Default prompt to pick date, time, and contact method.
      */
     public static function defaultContactAsk(): string
@@ -157,6 +181,27 @@ final class CampaignGroupSettings
         return $saved !== '' ? $saved : self::defaultContactAsk();
     }
 
+    public static function correctionMessageText(string $saved): string
+    {
+        $saved = trim($saved);
+
+        return $saved !== '' ? $saved : self::defaultCorrectionMessage();
+    }
+
+    public static function correctionAskText(string $saved): string
+    {
+        $saved = trim($saved);
+
+        return $saved !== '' ? $saved : self::defaultCorrectionAsk();
+    }
+
+    public static function correctionAmountLabelText(string $saved): string
+    {
+        $saved = trim($saved);
+
+        return $saved !== '' ? $saved : self::defaultCorrectionAmountLabel();
+    }
+
     /**
      * @param array{date?:string,time?:string,method?:string,whatsapp?:string,phone?:string} $overrides
      * @return array{date:string,time:string,method:string,whatsapp:string,phone:string}
@@ -191,6 +236,16 @@ final class CampaignGroupSettings
      * @return list<array{key:string,label:string,token:string}>
      */
     public static function contactVariables(): array
+    {
+        return self::variables();
+    }
+
+    /**
+     * After-no page uses the same variables as the status page.
+     *
+     * @return list<array{key:string,label:string,token:string}>
+     */
+    public static function correctionVariables(): array
     {
         return self::variables();
     }
@@ -391,6 +446,7 @@ final class CampaignGroupSettings
         self::ensureStatusTitleColumn($db);
         self::ensureStatusLabelsColumn($db);
         self::ensureContactColumns($db);
+        self::ensureCorrectionColumns($db);
     }
 
     private static function ensureWelcomeColumn(mysqli $db): void
@@ -448,6 +504,25 @@ final class CampaignGroupSettings
         );
     }
 
+    private static function ensureCorrectionColumns(mysqli $db): void
+    {
+        self::addColumnIfMissing(
+            $db,
+            'ALTER TABLE campaign_group_settings ADD COLUMN correction_message TEXT NULL AFTER contact_labels',
+            'Campaign after-no message column failed: '
+        );
+        self::addColumnIfMissing(
+            $db,
+            'ALTER TABLE campaign_group_settings ADD COLUMN correction_ask TEXT NULL AFTER correction_message',
+            'Campaign after-no ask column failed: '
+        );
+        self::addColumnIfMissing(
+            $db,
+            'ALTER TABLE campaign_group_settings ADD COLUMN correction_amount_label TEXT NULL AFTER correction_ask',
+            'Campaign after-no amount label column failed: '
+        );
+    }
+
     private static function addColumnIfMissing(mysqli $db, string $sql, string $logPrefix): void
     {
         try {
@@ -482,6 +557,12 @@ final class CampaignGroupSettings
      *     default_contact_ask:string,
      *     contact_labels:array{date:string,time:string,method:string,whatsapp:string,phone:string},
      *     default_contact_labels:array{date:string,time:string,method:string,whatsapp:string,phone:string},
+     *     correction_message:string,
+     *     default_correction_message:string,
+     *     correction_ask:string,
+     *     default_correction_ask:string,
+     *     correction_amount_label:string,
+     *     default_correction_amount_label:string,
      *     recipient_mode:string,
      *     donor_ids:list<int>
      * }
@@ -506,6 +587,12 @@ final class CampaignGroupSettings
             'default_contact_ask' => self::defaultContactAsk(),
             'contact_labels' => self::defaultContactLabels(),
             'default_contact_labels' => self::defaultContactLabels(),
+            'correction_message' => self::defaultCorrectionMessage(),
+            'default_correction_message' => self::defaultCorrectionMessage(),
+            'correction_ask' => self::defaultCorrectionAsk(),
+            'default_correction_ask' => self::defaultCorrectionAsk(),
+            'correction_amount_label' => self::defaultCorrectionAmountLabel(),
+            'default_correction_amount_label' => self::defaultCorrectionAmountLabel(),
             'recipient_mode' => self::MODE_ALL,
             'donor_ids' => [],
         ];
@@ -522,11 +609,21 @@ final class CampaignGroupSettings
         try {
             $stmt = $db->prepare(
                 'SELECT first_message, welcome_message, status_message, status_title, status_labels,
-                        contact_message, contact_ask, contact_labels, recipient_mode
+                        contact_message, contact_ask, contact_labels,
+                        correction_message, correction_ask, correction_amount_label, recipient_mode
                  FROM campaign_group_settings
                  WHERE group_key = ?
                  LIMIT 1'
             );
+            if ($stmt === false) {
+                $stmt = $db->prepare(
+                    'SELECT first_message, welcome_message, status_message, status_title, status_labels,
+                            contact_message, contact_ask, contact_labels, recipient_mode
+                     FROM campaign_group_settings
+                     WHERE group_key = ?
+                     LIMIT 1'
+                );
+            }
             if ($stmt === false) {
                 $stmt = $db->prepare(
                     'SELECT first_message, welcome_message, status_message, status_title, status_labels, recipient_mode
@@ -584,6 +681,15 @@ final class CampaignGroupSettings
                 );
                 $defaults['contact_labels'] = self::contactLabels(
                     isset($row['contact_labels']) ? (string) $row['contact_labels'] : null
+                );
+                $defaults['correction_message'] = self::correctionMessageText(
+                    (string) ($row['correction_message'] ?? '')
+                );
+                $defaults['correction_ask'] = self::correctionAskText(
+                    (string) ($row['correction_ask'] ?? '')
+                );
+                $defaults['correction_amount_label'] = self::correctionAmountLabelText(
+                    (string) ($row['correction_amount_label'] ?? '')
                 );
                 $mode = (string) ($row['recipient_mode'] ?? self::MODE_ALL);
                 $defaults['recipient_mode'] = $mode === self::MODE_SELECTED ? self::MODE_SELECTED : self::MODE_ALL;
@@ -804,6 +910,65 @@ final class CampaignGroupSettings
             $message,
             $ask,
             $labelsJson,
+            $mode,
+            $updatedBy
+        );
+
+        return $stmt->execute();
+    }
+
+    public static function saveCorrectionCopy(
+        mysqli $db,
+        string $group,
+        string $message,
+        string $ask,
+        string $amountLabel,
+        int $updatedBy
+    ): bool {
+        if (!self::isAllowedGroup($group)) {
+            return false;
+        }
+        $message = trim($message);
+        $ask = trim($ask);
+        $amountLabel = trim($amountLabel);
+        $messageLength = function_exists('mb_strlen') ? mb_strlen($message) : strlen($message);
+        $askLength = function_exists('mb_strlen') ? mb_strlen($ask) : strlen($ask);
+        $labelLength = function_exists('mb_strlen') ? mb_strlen($amountLabel) : strlen($amountLabel);
+        if ($message === '' || $messageLength > self::MAX_MESSAGE_LENGTH) {
+            return false;
+        }
+        if ($ask === '' || $askLength > self::MAX_MESSAGE_LENGTH) {
+            return false;
+        }
+        if ($amountLabel === '' || $labelLength > self::MAX_TITLE_LENGTH) {
+            return false;
+        }
+        self::ensureTables($db);
+        $existing = self::get($db, $group);
+        $first = $existing['first_message'];
+        $welcome = $existing['welcome_message'];
+        $mode = $existing['recipient_mode'];
+        $stmt = $db->prepare(
+            'INSERT INTO campaign_group_settings
+                (group_key, first_message, welcome_message, correction_message, correction_ask, correction_amount_label, recipient_mode, updated_by)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+             ON DUPLICATE KEY UPDATE
+                correction_message = VALUES(correction_message),
+                correction_ask = VALUES(correction_ask),
+                correction_amount_label = VALUES(correction_amount_label),
+                updated_by = VALUES(updated_by)'
+        );
+        if ($stmt === false) {
+            return false;
+        }
+        $stmt->bind_param(
+            'sssssssi',
+            $group,
+            $first,
+            $welcome,
+            $message,
+            $ask,
+            $amountLabel,
             $mode,
             $updatedBy
         );

@@ -194,4 +194,22 @@ assertSameValue(
     'preview replaces {phone}'
 );
 
+$correction = CampaignGroupSettings::defaultCorrectionMessage();
+assertSameValue(true, str_contains($correction, '{name}'), 'after-no message includes the name');
+assertSameValue(
+    'እስካሁን ምን ያህል ከፍለዋል?',
+    CampaignGroupSettings::defaultCorrectionAsk(),
+    'after-no ask requests the amount paid so far'
+);
+assertSameValue(
+    'የተከፈለ መጠን (£)',
+    CampaignGroupSettings::defaultCorrectionAmountLabel(),
+    'after-no amount field has a default label'
+);
+assertSameValue(
+    CampaignGroupSettings::defaultCorrectionMessage(),
+    CampaignGroupSettings::correctionMessageText(''),
+    'empty after-no message falls back to the default'
+);
+
 fwrite(STDOUT, "PASS campaign paying link tests\n");

@@ -155,7 +155,8 @@ body {
 
 .pay-field input[type="date"],
 .pay-field input[type="time"],
-.pay-field input[type="tel"] {
+.pay-field input[type="tel"],
+.pay-field input[type="text"] {
   width: 100%;
   min-height: 2.85rem;
   border: 1px solid var(--pay-line);
@@ -170,7 +171,8 @@ body {
 
 .pay-field input[type="date"]:focus,
 .pay-field input[type="time"]:focus,
-.pay-field input[type="tel"]:focus {
+.pay-field input[type="tel"]:focus,
+.pay-field input[type="text"]:focus {
   outline: 3px solid var(--pay-gold);
   outline-offset: 2px;
   border-color: var(--pay-blue);

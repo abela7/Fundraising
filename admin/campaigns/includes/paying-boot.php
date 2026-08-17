@@ -30,6 +30,12 @@ $campaignSettings = [
     'default_contact_ask' => CampaignGroupSettings::defaultContactAsk(),
     'contact_labels' => CampaignGroupSettings::defaultContactLabels(),
     'default_contact_labels' => CampaignGroupSettings::defaultContactLabels(),
+    'correction_message' => CampaignGroupSettings::defaultCorrectionMessage(),
+    'default_correction_message' => CampaignGroupSettings::defaultCorrectionMessage(),
+    'correction_ask' => CampaignGroupSettings::defaultCorrectionAsk(),
+    'default_correction_ask' => CampaignGroupSettings::defaultCorrectionAsk(),
+    'correction_amount_label' => CampaignGroupSettings::defaultCorrectionAmountLabel(),
+    'default_correction_amount_label' => CampaignGroupSettings::defaultCorrectionAmountLabel(),
     'recipient_mode' => CampaignGroupSettings::MODE_ALL,
     'donor_ids' => [],
 ];

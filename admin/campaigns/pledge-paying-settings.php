@@ -53,6 +53,18 @@ $defaultContactAsk = (string) ($campaignSettings['default_contact_ask'] ?? Campa
 $contactIsCustom = ($savedContactMessage !== $defaultContactMessage)
     || ($savedContactAsk !== $defaultContactAsk);
 $contactPreview = $clip(trim($savedContactAsk !== '' ? $savedContactAsk : $savedContactMessage));
+
+$savedCorrectionMessage = CampaignGroupSettings::correctionMessageText(
+    (string) ($campaignSettings['correction_message'] ?? '')
+);
+$savedCorrectionAsk = CampaignGroupSettings::correctionAskText(
+    (string) ($campaignSettings['correction_ask'] ?? '')
+);
+$defaultCorrectionMessage = (string) ($campaignSettings['default_correction_message'] ?? CampaignGroupSettings::defaultCorrectionMessage());
+$defaultCorrectionAsk = (string) ($campaignSettings['default_correction_ask'] ?? CampaignGroupSettings::defaultCorrectionAsk());
+$correctionIsCustom = ($savedCorrectionMessage !== $defaultCorrectionMessage)
+    || ($savedCorrectionAsk !== $defaultCorrectionAsk);
+$correctionPreview = $clip(trim($savedCorrectionAsk !== '' ? $savedCorrectionAsk : $savedCorrectionMessage));
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -130,6 +142,17 @@ $contactPreview = $clip(trim($savedContactAsk !== '' ? $savedContactAsk : $saved
                                 <div class="dvc-setup-title">Contact page</div>
                                 <div class="dvc-group-card-meta dvc-am-text"><?php echo htmlspecialchars($contactPreview, ENT_QUOTES, 'UTF-8'); ?></div>
                                 <div class="dvc-group-card-meta"><?php echo $contactIsCustom ? 'Saved — tap to edit' : 'Default contact page — tap to write or change'; ?></div>
+                            </div>
+                            <i class="fas fa-chevron-right dvc-group-card-arrow"></i>
+                        </a>
+                    </div>
+                    <div class="col-12 col-lg-8">
+                        <a class="dvc-group-card d-flex align-items-center text-decoration-none" href="pledge-paying-correction.php">
+                            <div class="dvc-stat-icon paying"><i class="fas fa-pen-to-square"></i></div>
+                            <div class="dvc-group-card-body">
+                                <div class="dvc-setup-title">After No page</div>
+                                <div class="dvc-group-card-meta dvc-am-text"><?php echo htmlspecialchars($correctionPreview, ENT_QUOTES, 'UTF-8'); ?></div>
+                                <div class="dvc-group-card-meta"><?php echo $correctionIsCustom ? 'Saved — tap to edit' : 'Default after-no page — tap to write or change'; ?></div>
                             </div>
                             <i class="fas fa-chevron-right dvc-group-card-arrow"></i>
                         </a>
