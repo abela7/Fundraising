@@ -87,8 +87,10 @@ final class CampaignPayingReport
         if ($answer === null && $reachedContact) {
             $answer = 'yes';
         }
-        $booked = CampaignPayingProgress::isBookingComplete($answers)
-            || ($reachedPhone && $answer === 'yes');
+        $booked = (
+            CampaignPayingProgress::isBookingComplete($answers)
+            && ($answer === 'yes' || CampaignPayingProgress::needsCallback($answers))
+        ) || ($reachedPhone && $answer === 'yes');
         $answered = $answer !== null;
         $opened = self::hasTime($row['opened_at'] ?? null)
             || self::hasTime($row['progress_updated_at'] ?? null)
