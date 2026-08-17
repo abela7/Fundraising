@@ -208,6 +208,64 @@ final class CampaignPayingProgress
     }
 
     /**
+     * @param array<string, mixed> $existing
+     * @param array<string, mixed> $incoming
+     * @return array<string, mixed>
+     */
+    public static function mergeAnswers(array $existing, array $incoming): array
+    {
+        $merged = self::sanitizeAnswers($existing);
+        foreach (self::sanitizeAnswers($incoming) as $key => $value) {
+            if ($value === '' || $value === null) {
+                continue;
+            }
+            $merged[$key] = $value;
+        }
+
+        return $merged;
+    }
+
+    /**
+     * Keep the furthest valid step so a blank page-open cannot rewind a booking.
+     *
+     * @param array<string, mixed> $answers
+     */
+    public static function preferStep(string $requested, string $stored, array $answers): string
+    {
+        $requested = self::resolveStep($requested, $answers);
+        $stored = self::resolveStep($stored, $answers);
+        $requestedIndex = array_search($requested, self::STEPS, true);
+        $storedIndex = array_search($stored, self::STEPS, true);
+        if ($requestedIndex === false) {
+            $requestedIndex = 0;
+        }
+        if ($storedIndex === false) {
+            $storedIndex = 0;
+        }
+
+        return self::STEPS[max($requestedIndex, $storedIndex)];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public static function decodeAnswersJson(mixed $json): array
+    {
+        if (is_array($json)) {
+            return self::sanitizeAnswers($json);
+        }
+        if (!is_string($json) || trim($json) === '') {
+            return [];
+        }
+        $decoded = json_decode($json, true);
+        if (is_string($decoded)) {
+            $decoded = json_decode($decoded, true);
+        }
+
+        return self::sanitizeAnswers($decoded);
+    }
+
+    /**
      * @return array{step:string,answers:array<string,mixed>,revision:int}
      */
     public static function emptyState(): array
@@ -247,7 +305,7 @@ final class CampaignPayingProgress
                 return self::emptyState();
             }
 
-            $answers = self::decodeAnswers($row['answers_json'] ?? null);
+            $answers = self::decodeAnswersJson($row['answers_json'] ?? null);
 
             return [
                 'step' => self::resolveStep(
@@ -298,9 +356,10 @@ final class CampaignPayingProgress
         if ($token === null) {
             return null;
         }
-        $answers = self::sanitizeAnswers($answers);
-        $step = self::resolveStep($step, $answers);
-        $json = json_encode($answers, JSON_UNESCAPED_UNICODE);
+        $stored = self::readStored($db, $token);
+        $merged = self::mergeAnswers($stored['answers'], $answers);
+        $step = self::preferStep($step, $stored['step'], $merged);
+        $json = json_encode($merged, JSON_UNESCAPED_UNICODE | JSON_FORCE_OBJECT);
         if (!is_string($json) || strlen($json) > self::MAX_JSON_BYTES) {
             return null;
         }
@@ -325,7 +384,7 @@ final class CampaignPayingProgress
                 return null;
             }
             if ($step === self::STEP_DONE) {
-                self::syncDonorPhone($db, $token, $answers);
+                self::syncDonorPhone($db, $token, $merged);
             }
 
             return self::load($db, $token);
@@ -384,16 +443,42 @@ final class CampaignPayingProgress
     }
 
     /**
-     * @return array<string, mixed>
+     * @return array{step:string,answers:array<string,mixed>}
      */
-    private static function decodeAnswers(mixed $json): array
+    private static function readStored(mysqli $db, string $token): array
     {
-        if (!is_string($json) || trim($json) === '') {
-            return [];
-        }
-        $decoded = json_decode($json, true);
+        $empty = [
+            'step' => self::STEP_WELCOME,
+            'answers' => [],
+        ];
+        try {
+            self::ensureColumns($db);
+            $stmt = $db->prepare(
+                'SELECT step, answers_json
+                 FROM campaign_paying_links
+                 WHERE token = ?
+                 LIMIT 1'
+            );
+            if ($stmt === false) {
+                return $empty;
+            }
+            $stmt->bind_param('s', $token);
+            $stmt->execute();
+            $row = $stmt->get_result()->fetch_assoc();
+            $stmt->close();
+            if (!is_array($row)) {
+                return $empty;
+            }
 
-        return self::sanitizeAnswers($decoded);
+            return [
+                'step' => self::sanitizeStep((string) ($row['step'] ?? self::STEP_WELCOME)),
+                'answers' => self::decodeAnswersJson($row['answers_json'] ?? null),
+            ];
+        } catch (Throwable $e) {
+            error_log('Paying progress read failed: ' . $e->getMessage());
+
+            return $empty;
+        }
     }
 
     private static function sanitizeKnownAnswer(string $key, mixed $value): mixed

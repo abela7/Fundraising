@@ -664,18 +664,11 @@ final class CampaignPayingReport
             return CampaignPayingProgress::sanitizeAnswers($row['answers']);
         }
         $raw = $row['answers_json'] ?? null;
-        if (is_array($raw)) {
-            return CampaignPayingProgress::sanitizeAnswers($raw);
-        }
-        if (!is_string($raw) || trim($raw) === '') {
-            return [];
-        }
-        $decoded = json_decode($raw, true);
-        if (is_string($decoded)) {
-            $decoded = json_decode($decoded, true);
+        if ($raw !== null && $raw !== '') {
+            return CampaignPayingProgress::decodeAnswersJson($raw);
         }
 
-        return CampaignPayingProgress::sanitizeAnswers($decoded);
+        return [];
     }
 
     /**

@@ -189,6 +189,48 @@ assertSameValue(
     'rejects a non-ISO booking date'
 );
 
+$kept = CampaignPayingProgress::mergeAnswers(
+    [
+        'status_correct' => 'yes',
+        'contact_date' => '2026-08-20',
+        'contact_time' => '14:30',
+        'contact_method' => 'whatsapp',
+    ],
+    []
+);
+assertSameValue('yes', $kept['status_correct'] ?? null, 'empty save keeps the stored yes');
+assertSameValue('2026-08-20', $kept['contact_date'] ?? null, 'empty save keeps the stored date');
+assertSameValue(
+    'phone',
+    CampaignPayingProgress::mergeAnswers(
+        ['contact_method' => 'whatsapp'],
+        ['contact_method' => 'phone']
+    )['contact_method'] ?? null,
+    'a later save can replace a contact method'
+);
+assertSameValue(
+    'done',
+    CampaignPayingProgress::preferStep('welcome', 'done', [
+        'status_correct' => 'yes',
+        'contact_date' => '2026-08-20',
+        'contact_time' => '14:30',
+        'contact_method' => 'phone',
+        'phone_correct' => 'yes',
+        'contact_phone' => '07360436171',
+    ]),
+    'an empty page-open cannot rewind a finished thank-you step'
+);
+assertSameValue(
+    ['status_correct' => 'yes'],
+    CampaignPayingProgress::decodeAnswersJson('{"status_correct":"yes"}'),
+    'decodes stored answer JSON'
+);
+assertSameValue(
+    'yes',
+    CampaignPayingProgress::decodeAnswersJson(['status_correct' => 'yes'])['status_correct'] ?? null,
+    'accepts already-decoded answer arrays'
+);
+
 $sign = CampaignPayingProgress::sign('a1b2c3d4e5f67890');
 assertSameValue(64, strlen($sign), 'sync signatures are 64 hex characters');
 assertSameValue(true, CampaignPayingProgress::verifySign('a1b2c3d4e5f67890', $sign), 'accepts a valid sync signature');

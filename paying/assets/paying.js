@@ -219,7 +219,7 @@
     });
   }
 
-  function showStep(step, fromHistory) {
+  function showStep(step, fromHistory, shouldSave) {
     step = allowedStep(step);
     if (steps.indexOf(step) < 0) {
       step = steps[0];
@@ -247,7 +247,9 @@
       }
     }
     window.scrollTo(0, 0);
-    queueSave();
+    if (shouldSave !== false) {
+      queueSave();
+    }
   }
 
   function payload() {
@@ -388,5 +390,5 @@
   if (start !== steps[0]) {
     history.pushState({ step: start }, '', '#' + start);
   }
-  showStep(start, true);
+  showStep(start, true, false);
 })();
