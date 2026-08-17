@@ -138,6 +138,7 @@ if ($donor !== null && $token !== '') {
         'revision' => $progress['revision'],
         'steps' => CampaignPayingProgress::STEPS,
         'phone' => trim((string) ($donor['phone'] ?? '')),
+        'homeUrl' => CampaignPayingLink::SITE_HOME,
     ];
 }
 ?>

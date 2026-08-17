@@ -47,6 +47,22 @@
   let saveTimer = 0;
   let saving = false;
   let saveAgain = false;
+  let homeTimer = 0;
+
+  function homeUrl() {
+    const url = String(config.homeUrl || 'https://donate.abuneteklehaymanot.org/').trim();
+    return url !== '' ? url : 'https://donate.abuneteklehaymanot.org/';
+  }
+
+  function goHomeAfterThanks() {
+    if (homeTimer) {
+      return;
+    }
+    flushSave(false);
+    homeTimer = window.setTimeout(function () {
+      window.location.href = homeUrl();
+    }, 2000);
+  }
 
   function syncChoicesIntoAnswers() {
     document.querySelectorAll('[data-pay-choice].is-selected').forEach(function (btn) {
@@ -249,6 +265,9 @@
     window.scrollTo(0, 0);
     if (shouldSave !== false) {
       queueSave();
+    }
+    if (step === 'done') {
+      goHomeAfterThanks();
     }
   }
 

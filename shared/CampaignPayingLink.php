@@ -10,6 +10,7 @@ require_once __DIR__ . '/CampaignInboundIdentifier.php';
  */
 final class CampaignPayingLink
 {
+    public const SITE_HOME = 'https://donate.abuneteklehaymanot.org/';
     public const PUBLIC_HOST = 'https://donate.abuneteklehaymanot.org/paying';
     private const TOKEN_BYTES = 8;
     private const RESEND_MINUTES = 10;

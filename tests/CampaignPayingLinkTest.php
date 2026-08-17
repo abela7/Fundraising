@@ -23,6 +23,11 @@ assertSameValue(
     CampaignPayingLink::whatsappUrl($token),
     'WhatsApp link uses the public donate host'
 );
+assertSameValue(
+    'https://donate.abuneteklehaymanot.org/',
+    CampaignPayingLink::SITE_HOME,
+    'after booking, donors return to the public donate home'
+);
 
 assertSameValue(
     'https://donate.abuneteklehaymanot.org/paying/' . $token,
