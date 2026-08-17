@@ -51,6 +51,13 @@
     return url !== '' ? url : 'https://donate.abuneteklehaymanot.org/';
   }
 
+  function cancelHomeRedirect() {
+    if (homeTimer) {
+      window.clearTimeout(homeTimer);
+      homeTimer = 0;
+    }
+  }
+
   function goHomeAfterThanks() {
     if (homeTimer) {
       return;
@@ -228,10 +235,13 @@
       return '';
     }
     if (state.step === 'bank_date') {
+      if (paidDateComplete()) {
+        return 'done';
+      }
       if (String(state.answers.paid_remember || '') === 'no') {
         return 'contact';
       }
-      return 'done';
+      return '';
     }
     if (state.step === 'phone') {
       return 'done';
@@ -285,23 +295,32 @@
     }
     syncChoicesIntoAnswers();
     if (statusAnswer() === 'no') {
-      if (step === 'welcome' || step === 'status' || step === 'correction') {
+      if (step === 'welcome' || step === 'status') {
         return step;
       }
       if (!reportedPaidComplete()) {
         return 'correction';
       }
-      if (step === 'pay_method') {
-        return 'pay_method';
+      if (step === 'correction' || step === 'pay_method') {
+        return step;
       }
       if (paidMethod() === '') {
         return 'pay_method';
       }
       if (paidMethod() === 'cash') {
+        if (step === 'cash_detail') {
+          return 'cash_detail';
+        }
         if (step === 'done' && cashDetailComplete()) {
           return 'done';
         }
         return 'cash_detail';
+      }
+      if (step === 'bank_proof') {
+        return 'bank_proof';
+      }
+      if (String(state.answers.send_proof || '') === 'no' && step === 'bank_date') {
+        return 'bank_date';
       }
       if (needsCallback()) {
         if (step === 'contact') {
@@ -373,7 +392,7 @@
       return String(state.answers.send_proof || '') === 'yes' && proofComplete();
     }
     if (state.step === 'bank_date') {
-      return paidDateComplete();
+      return paidDateComplete() || String(state.answers.paid_remember || '') === 'no';
     }
     if (state.step === 'contact' && !bookingComplete()) {
       return false;
@@ -511,6 +530,8 @@
     }
     if (step === 'done') {
       goHomeAfterThanks();
+    } else {
+      cancelHomeRedirect();
     }
   }
 
@@ -594,6 +615,7 @@
   });
   document.querySelectorAll('[data-pay-back]').forEach(function (btn) {
     btn.addEventListener('click', function () {
+      cancelHomeRedirect();
       const prev = prevStepName();
       if (prev) {
         showStep(prev, false);
@@ -602,11 +624,19 @@
   });
   document.querySelectorAll('[data-pay-field]').forEach(function (el) {
     el.addEventListener('input', function () {
+      if (el.getAttribute('data-pay-field') === 'paid_date' && String(el.value || '') !== '') {
+        delete state.answers.paid_remember;
+        applyChoices();
+      }
       queueSave();
       updateReportedPaidDisplay();
       updateNav();
     });
     el.addEventListener('change', function () {
+      if (el.getAttribute('data-pay-field') === 'paid_date' && String(el.value || '') !== '') {
+        delete state.answers.paid_remember;
+        applyChoices();
+      }
       queueSave();
       updateReportedPaidDisplay();
       updateNav();

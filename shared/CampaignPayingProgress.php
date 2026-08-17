@@ -145,21 +145,24 @@ final class CampaignPayingProgress
      */
     private static function resolveNoPathStep(string $step, array $answers): string
     {
+        if ($step === self::STEP_WELCOME || $step === self::STEP_STATUS) {
+            return $step;
+        }
         if (!self::isReportedPaidComplete($answers)) {
             return self::STEP_CORRECTION;
         }
-        if ($step === self::STEP_CORRECTION || $step === self::STEP_WELCOME || $step === self::STEP_STATUS) {
+        if ($step === self::STEP_CORRECTION || $step === self::STEP_PAY_METHOD) {
             return $step;
         }
         if (!self::isPaidMethodComplete($answers)) {
-            return $step === self::STEP_PAY_METHOD ? self::STEP_PAY_METHOD : self::STEP_CORRECTION;
-        }
-        if ($step === self::STEP_PAY_METHOD) {
             return self::STEP_PAY_METHOD;
         }
 
         $method = self::normalizePaidMethod($answers['paid_method'] ?? '');
         if ($method === 'cash') {
+            if ($step === self::STEP_CASH_DETAIL) {
+                return self::STEP_CASH_DETAIL;
+            }
             if ($step === self::STEP_DONE && self::isCashDetailComplete($answers)) {
                 return self::STEP_DONE;
             }
@@ -167,7 +170,14 @@ final class CampaignPayingProgress
             return self::STEP_CASH_DETAIL;
         }
 
+        if ($step === self::STEP_BANK_PROOF) {
+            return self::STEP_BANK_PROOF;
+        }
+
         $sendProof = strtolower(trim((string) ($answers['send_proof'] ?? '')));
+        if ($sendProof === 'no' && $step === self::STEP_BANK_DATE) {
+            return self::STEP_BANK_DATE;
+        }
         if (self::needsCallback($answers)) {
             if ($step === self::STEP_CONTACT) {
                 return self::STEP_CONTACT;
@@ -201,6 +211,60 @@ final class CampaignPayingProgress
         }
 
         return self::STEP_BANK_PROOF;
+    }
+
+    /**
+     * Screen the donor should see when they tap Back.
+     *
+     * @param array<string, mixed> $answers
+     * @return string Empty when there is no previous screen.
+     */
+    public static function previousStep(string $step, array $answers = []): string
+    {
+        $step = self::sanitizeStep($step);
+        $status = (string) ($answers['status_correct'] ?? '');
+        $method = self::normalizePaidMethod($answers['paid_method'] ?? '');
+        $sendProof = strtolower(trim((string) ($answers['send_proof'] ?? '')));
+
+        if ($step === self::STEP_STATUS) {
+            return self::STEP_WELCOME;
+        }
+        if ($step === self::STEP_CORRECTION) {
+            return self::STEP_STATUS;
+        }
+        if ($step === self::STEP_PAY_METHOD) {
+            return self::STEP_CORRECTION;
+        }
+        if ($step === self::STEP_CASH_DETAIL || $step === self::STEP_BANK_PROOF) {
+            return self::STEP_PAY_METHOD;
+        }
+        if ($step === self::STEP_BANK_DATE) {
+            return self::STEP_BANK_PROOF;
+        }
+        if ($step === self::STEP_CONTACT) {
+            return $status === 'no' ? self::STEP_BANK_DATE : self::STEP_STATUS;
+        }
+        if ($step === self::STEP_PHONE) {
+            return self::STEP_CONTACT;
+        }
+        if ($step === self::STEP_DONE) {
+            if ($status === 'yes' || self::needsCallback($answers)) {
+                return self::STEP_PHONE;
+            }
+            if ($method === 'cash') {
+                return self::STEP_CASH_DETAIL;
+            }
+            if ($sendProof === 'yes') {
+                return self::STEP_BANK_PROOF;
+            }
+            if ($method === 'bank') {
+                return self::STEP_BANK_DATE;
+            }
+
+            return self::STEP_PHONE;
+        }
+
+        return '';
     }
 
     /**
@@ -458,8 +522,12 @@ final class CampaignPayingProgress
      */
     public static function preferStep(string $requested, string $stored, array $answers): string
     {
+        $requestedName = self::sanitizeStep($requested);
         $requested = self::resolveStep($requested, $answers);
         $stored = self::resolveStep($stored, $answers);
+        if ($requestedName !== self::STEP_WELCOME) {
+            return $requested;
+        }
         $requestedIndex = array_search($requested, self::STEPS, true);
         $storedIndex = array_search($stored, self::STEPS, true);
         if ($requestedIndex === false) {

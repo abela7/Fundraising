@@ -450,6 +450,162 @@ assertSameValue(
     ]),
     'callback thank-you is allowed after the same booking and phone check'
 );
+
+$noAmount = ['status_correct' => 'no'];
+assertSameValue(
+    'status',
+    CampaignPayingProgress::resolveStep('status', $noAmount),
+    'back from paid-so-far can return to the status check before an amount is typed'
+);
+assertSameValue(
+    'welcome',
+    CampaignPayingProgress::resolveStep('welcome', $noAmount),
+    'back from status can return to welcome before an amount is typed'
+);
+assertSameValue(
+    'status',
+    CampaignPayingProgress::previousStep('correction', $noAmount),
+    'paid-so-far back goes to the status check'
+);
+
+$cashDone = [
+    'status_correct' => 'no',
+    'reported_paid' => '80.00',
+    'paid_method' => 'cash',
+    'cash_remember' => 'yes',
+    'cash_when' => '2026-03-01',
+];
+assertSameValue(
+    'cash_detail',
+    CampaignPayingProgress::resolveStep('cash_detail', $cashDone),
+    'back from cash thank-you can return to cash details'
+);
+assertSameValue(
+    'pay_method',
+    CampaignPayingProgress::resolveStep('pay_method', $cashDone),
+    'back from cash details can return to how they paid'
+);
+assertSameValue(
+    'pay_method',
+    CampaignPayingProgress::previousStep('cash_detail', $cashDone),
+    'cash details back goes to how they paid'
+);
+assertSameValue(
+    'cash_detail',
+    CampaignPayingProgress::resolveStep(
+        CampaignPayingProgress::previousStep('done', $cashDone),
+        $cashDone
+    ),
+    'cash thank-you back lands on a step that is allowed to stay'
+);
+
+$noScreenshot = [
+    'status_correct' => 'no',
+    'reported_paid' => '80.00',
+    'paid_method' => 'bank',
+    'send_proof' => 'no',
+];
+assertSameValue(
+    'bank_proof',
+    CampaignPayingProgress::resolveStep('bank_proof', $noScreenshot),
+    'back from the paid-date step can return to the screenshot question'
+);
+assertSameValue(
+    'bank_proof',
+    CampaignPayingProgress::previousStep('bank_date', $noScreenshot),
+    'paid-date back goes to the screenshot question'
+);
+assertSameValue(
+    'bank_proof',
+    CampaignPayingProgress::resolveStep(
+        CampaignPayingProgress::previousStep('bank_date', $noScreenshot),
+        $noScreenshot
+    ),
+    'paid-date back is allowed to stay on the screenshot question'
+);
+
+$callback = [
+    'status_correct' => 'no',
+    'reported_paid' => '80.00',
+    'paid_method' => 'bank',
+    'send_proof' => 'no',
+    'paid_remember' => 'no',
+];
+assertSameValue(
+    'bank_date',
+    CampaignPayingProgress::resolveStep('bank_date', $callback),
+    'back from a callback booking can return to the paid-date step'
+);
+assertSameValue(
+    'bank_proof',
+    CampaignPayingProgress::resolveStep('bank_proof', $callback),
+    'back from a callback booking can return to the screenshot question'
+);
+assertSameValue(
+    'pay_method',
+    CampaignPayingProgress::resolveStep('pay_method', $callback),
+    'back from a callback booking can return to how they paid'
+);
+assertSameValue(
+    'correction',
+    CampaignPayingProgress::resolveStep('correction', $callback),
+    'back from a callback booking can return to the paid-so-far amount'
+);
+assertSameValue(
+    'bank_date',
+    CampaignPayingProgress::previousStep('contact', $callback),
+    'callback booking back goes to the paid-date step'
+);
+assertSameValue(
+    'bank_date',
+    CampaignPayingProgress::resolveStep(
+        CampaignPayingProgress::previousStep('contact', $callback),
+        $callback
+    ),
+    'callback booking back is allowed to stay on the paid-date step'
+);
+assertSameValue(
+    'bank_date',
+    CampaignPayingProgress::preferStep('bank_date', 'contact', $callback),
+    'an explicit back to the paid-date step is stored'
+);
+assertSameValue(
+    'pay_method',
+    CampaignPayingProgress::preferStep('pay_method', 'cash_detail', $cashDone),
+    'an explicit back to how they paid is stored'
+);
+
+$yesDone = [
+    'status_correct' => 'yes',
+    'contact_date' => '2026-08-20',
+    'contact_time' => '14:30',
+    'contact_method' => 'phone',
+    'phone_correct' => 'yes',
+    'contact_phone' => '07360436171',
+];
+assertSameValue(
+    'phone',
+    CampaignPayingProgress::resolveStep('phone', $yesDone),
+    'back from yes thank-you can return to the phone check'
+);
+assertSameValue(
+    'contact',
+    CampaignPayingProgress::resolveStep('contact', $yesDone),
+    'back from the phone check can return to the booking'
+);
+assertSameValue(
+    'status',
+    CampaignPayingProgress::resolveStep('status', $yesDone),
+    'back from the booking can return to the status check'
+);
+assertSameValue(
+    'phone',
+    CampaignPayingProgress::resolveStep(
+        CampaignPayingProgress::previousStep('done', $yesDone),
+        $yesDone
+    ),
+    'yes thank-you back lands on a step that is allowed to stay'
+);
 assertSameValue(
     'jpg',
     CampaignPayingProgress::proofExtensionForMime('image/jpeg'),
