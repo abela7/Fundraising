@@ -89,6 +89,8 @@ $jsVersion = (int) max(
                             <div class="dvc-stat-label">Booked a time</div>
                         </div>
                     </button>
+                </div>
+                <div class="dvc-stat-row dvc-report-kpis dvc-call-status-kpis" id="callStatusFilters" aria-label="Booked call status">
                     <button type="button" class="dvc-stat-chip" data-filter="pending" aria-pressed="false">
                         <div class="dvc-stat-icon not-started"><i class="fas fa-clock"></i></div>
                         <div>

@@ -256,6 +256,13 @@ button.dvc-stat-chip {
 .dvc-report-kpis {
   grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
 }
+.dvc-stat-row.dvc-call-status-kpis {
+  display: none;
+  margin-top: -8px;
+}
+.dvc-stat-row.dvc-call-status-kpis.is-open {
+  display: grid;
+}
 .dvc-detail-row {
   display: flex;
   justify-content: space-between;

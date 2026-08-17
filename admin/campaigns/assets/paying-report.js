@@ -71,9 +71,27 @@
     setText('kpiNotAnswering', Number(summary.call_not_answering || 0).toLocaleString());
   }
 
+  function isCallFilter(value) {
+    return value === 'booked'
+      || value === 'pending'
+      || value === 'contacted'
+      || value === 'not_answering';
+  }
+
   function renderFilters() {
+    const callRow = document.getElementById('callStatusFilters');
+    if (callRow) {
+      callRow.classList.toggle('is-open', isCallFilter(filter));
+    }
     document.querySelectorAll('[data-filter]').forEach(function (btn) {
-      const active = btn.getAttribute('data-filter') === filter;
+      const key = btn.getAttribute('data-filter');
+      let active = key === filter;
+      if (key === 'booked' && isCallFilter(filter)) {
+        active = true;
+      }
+      if (key === 'pending' || key === 'contacted' || key === 'not_answering') {
+        active = key === filter;
+      }
       btn.classList.toggle('active', active);
       btn.setAttribute('aria-pressed', active ? 'true' : 'false');
     });
