@@ -232,11 +232,26 @@ body {
   outline-offset: 2px;
 }
 
+.pay-continue:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.pay-continue-inline {
+  width: calc(100% - 2.2rem);
+  margin: 0 1.1rem 1.15rem;
+}
+
 .pay-actions {
+  position: sticky;
+  bottom: 0;
+  z-index: 5;
   display: flex;
   flex-direction: column;
   gap: 0.65rem;
   margin-top: 1.15rem;
+  padding-bottom: max(0.35rem, env(safe-area-inset-bottom));
+  background: var(--pay-bg);
 }
 
 .pay-continue,

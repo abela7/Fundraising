@@ -270,10 +270,11 @@ if ($donor !== null && $token !== '') {
                     </div>
                     <div class="pay-card">
                         <div class="pay-title"><?php echo $correctionAskHtml; ?></div>
-                        <label class="pay-field pay-field-last">
+                        <label class="pay-field">
                             <span class="pay-label"><?php echo $correctionAmountLabelHtml; ?></span>
                             <input type="text" data-pay-field="reported_paid" inputmode="decimal" autocomplete="off">
                         </label>
+                        <button type="button" class="pay-continue pay-continue-inline" data-pay-next data-pay-next-stay>ቀጥል</button>
                     </div>
                 </div>
             </section>

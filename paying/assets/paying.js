@@ -308,11 +308,18 @@
   }
 
   function updateNav() {
+    const hasInlineNext = !!document.querySelector('.pay-screen.is-active [data-pay-next-stay]');
     document.querySelectorAll('[data-pay-back]').forEach(function (btn) {
       btn.hidden = prevStepName() === '';
     });
     document.querySelectorAll('[data-pay-next]').forEach(function (btn) {
-      btn.hidden = !canGoNext();
+      const ready = canGoNext();
+      if (btn.hasAttribute('data-pay-next-stay')) {
+        btn.hidden = false;
+        btn.disabled = !ready;
+        return;
+      }
+      btn.hidden = hasInlineNext || !ready;
     });
   }
 
