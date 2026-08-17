@@ -3,12 +3,38 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/includes/paying-boot.php';
+require_once __DIR__ . '/../../shared/CampaignPayingReport.php';
 
 $page_title = 'Still paying — Report';
 $jsVersion = (int) max(
     filemtime(__DIR__ . '/assets/paying-report.js') ?: time(),
     filemtime(__DIR__ . '/assets/paying-call-status.js') ?: time()
 );
+$reportFilter = CampaignPayingReport::sanitizeFilter((string) ($_GET['filter'] ?? CampaignPayingReport::FILTER_ALL));
+$reportPage = max(1, (int) ($_GET['page'] ?? 1));
+$reportPerPage = min(100, max(10, (int) ($_GET['per_page'] ?? 25)));
+$reportDonor = trim((string) ($_GET['donor'] ?? ''));
+$callFiltersOpen = CampaignPayingReport::isCallFilter($reportFilter);
+$chipActive = static function (string $key) use ($reportFilter, $callFiltersOpen): bool {
+    if ($key === CampaignPayingReport::FILTER_BOOKED && $callFiltersOpen) {
+        return true;
+    }
+    if (in_array($key, [
+        CampaignPayingReport::FILTER_PENDING,
+        CampaignPayingReport::FILTER_CONTACTED,
+        CampaignPayingReport::FILTER_NOT_ANSWERING,
+    ], true)) {
+        return $reportFilter === $key;
+    }
+
+    return $reportFilter === $key;
+};
+$chipClass = static function (string $key) use ($chipActive): string {
+    return $chipActive($key) ? 'dvc-stat-chip active' : 'dvc-stat-chip';
+};
+$chipPressed = static function (string $key) use ($chipActive): string {
+    return $chipActive($key) ? 'true' : 'false';
+};
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -46,35 +72,35 @@ $jsVersion = (int) max(
                 </div>
 
                 <div class="dvc-stat-row dvc-report-kpis animate-fade-in" role="tablist" aria-label="Report filters">
-                    <button type="button" class="dvc-stat-chip active" data-filter="all" aria-pressed="true">
+                    <button type="button" class="<?php echo $chipClass('all'); ?>" data-filter="all" aria-pressed="<?php echo $chipPressed('all'); ?>">
                         <div class="dvc-stat-icon paying"><i class="fas fa-users"></i></div>
                         <div>
                             <div class="dvc-stat-value" id="kpiDonors">—</div>
                             <div class="dvc-stat-label">Still paying</div>
                         </div>
                     </button>
-                    <button type="button" class="dvc-stat-chip" data-filter="sent" aria-pressed="false">
+                    <button type="button" class="<?php echo $chipClass('sent'); ?>" data-filter="sent" aria-pressed="<?php echo $chipPressed('sent'); ?>">
                         <div class="dvc-stat-icon completed"><i class="fas fa-paper-plane"></i></div>
                         <div>
                             <div class="dvc-stat-value" id="kpiSent">—</div>
                             <div class="dvc-stat-label">Link sent</div>
                         </div>
                     </button>
-                    <button type="button" class="dvc-stat-chip" data-filter="opened" aria-pressed="false">
+                    <button type="button" class="<?php echo $chipClass('opened'); ?>" data-filter="opened" aria-pressed="<?php echo $chipPressed('opened'); ?>">
                         <div class="dvc-stat-icon paying"><i class="fas fa-envelope-open"></i></div>
                         <div>
                             <div class="dvc-stat-value" id="kpiOpened">—</div>
                             <div class="dvc-stat-label">Opened</div>
                         </div>
                     </button>
-                    <button type="button" class="dvc-stat-chip" data-filter="not_opened" aria-pressed="false">
+                    <button type="button" class="<?php echo $chipClass('not_opened'); ?>" data-filter="not_opened" aria-pressed="<?php echo $chipPressed('not_opened'); ?>">
                         <div class="dvc-stat-icon not-started"><i class="fas fa-hourglass-half"></i></div>
                         <div>
                             <div class="dvc-stat-value" id="kpiNotOpened">—</div>
                             <div class="dvc-stat-label">Sent, not opened</div>
                         </div>
                     </button>
-                    <button type="button" class="dvc-stat-chip" data-filter="answered" aria-pressed="false">
+                    <button type="button" class="<?php echo $chipClass('answered'); ?>" data-filter="answered" aria-pressed="<?php echo $chipPressed('answered'); ?>">
                         <div class="dvc-stat-icon paying"><i class="fas fa-clipboard-check"></i></div>
                         <div>
                             <div class="dvc-stat-value" id="kpiAnswered">—</div>
@@ -82,7 +108,7 @@ $jsVersion = (int) max(
                             <div class="dvc-stat-meta" id="kpiAnsweredMeta">—</div>
                         </div>
                     </button>
-                    <button type="button" class="dvc-stat-chip" data-filter="booked" aria-pressed="false">
+                    <button type="button" class="<?php echo $chipClass('booked'); ?>" data-filter="booked" aria-pressed="<?php echo $chipPressed('booked'); ?>">
                         <div class="dvc-stat-icon completed"><i class="fas fa-calendar-check"></i></div>
                         <div>
                             <div class="dvc-stat-value" id="kpiBooked">—</div>
@@ -90,22 +116,22 @@ $jsVersion = (int) max(
                         </div>
                     </button>
                 </div>
-                <div class="dvc-stat-row dvc-report-kpis dvc-call-status-kpis" id="callStatusFilters" aria-label="Booked call status">
-                    <button type="button" class="dvc-stat-chip" data-filter="pending" aria-pressed="false">
+                <div class="dvc-stat-row dvc-report-kpis dvc-call-status-kpis<?php echo $callFiltersOpen ? ' is-open' : ''; ?>" id="callStatusFilters" aria-label="Booked call status">
+                    <button type="button" class="<?php echo $chipClass('pending'); ?>" data-filter="pending" aria-pressed="<?php echo $chipPressed('pending'); ?>">
                         <div class="dvc-stat-icon not-started"><i class="fas fa-clock"></i></div>
                         <div>
                             <div class="dvc-stat-value" id="kpiPending">—</div>
                             <div class="dvc-stat-label">Pending</div>
                         </div>
                     </button>
-                    <button type="button" class="dvc-stat-chip" data-filter="contacted" aria-pressed="false">
+                    <button type="button" class="<?php echo $chipClass('contacted'); ?>" data-filter="contacted" aria-pressed="<?php echo $chipPressed('contacted'); ?>">
                         <div class="dvc-stat-icon completed"><i class="fas fa-phone"></i></div>
                         <div>
                             <div class="dvc-stat-value" id="kpiContacted">—</div>
                             <div class="dvc-stat-label">Contacted</div>
                         </div>
                     </button>
-                    <button type="button" class="dvc-stat-chip" data-filter="not_answering" aria-pressed="false">
+                    <button type="button" class="<?php echo $chipClass('not_answering'); ?>" data-filter="not_answering" aria-pressed="<?php echo $chipPressed('not_answering'); ?>">
                         <div class="dvc-stat-icon review"><i class="fas fa-phone-slash"></i></div>
                         <div>
                             <div class="dvc-stat-value" id="kpiNotAnswering">—</div>
@@ -119,7 +145,7 @@ $jsVersion = (int) max(
                     <div class="row g-2 align-items-end">
                         <div class="col-12 col-md-5">
                             <label class="form-label" for="filterDonor">Donor (name, phone, reference)</label>
-                            <input type="text" class="form-control form-control-sm" id="filterDonor" placeholder="Search...">
+                            <input type="text" class="form-control form-control-sm" id="filterDonor" placeholder="Search..." value="<?php echo htmlspecialchars($reportDonor, ENT_QUOTES, 'UTF-8'); ?>">
                         </div>
                         <div class="col-12 col-md-3 d-flex gap-2">
                             <button class="btn btn-primary btn-sm flex-fill" type="button" id="applyFilters">
@@ -138,10 +164,10 @@ $jsVersion = (int) max(
                         <div class="d-flex align-items-center gap-2">
                             <label class="form-label mb-0" for="perPage">Per page</label>
                             <select class="form-select form-select-sm" id="perPage" style="width: auto;">
-                                <option value="10">10</option>
-                                <option value="25" selected>25</option>
-                                <option value="50">50</option>
-                                <option value="100">100</option>
+                                <option value="10"<?php echo $reportPerPage === 10 ? ' selected' : ''; ?>>10</option>
+                                <option value="25"<?php echo $reportPerPage === 25 ? ' selected' : ''; ?>>25</option>
+                                <option value="50"<?php echo $reportPerPage === 50 ? ' selected' : ''; ?>>50</option>
+                                <option value="100"<?php echo $reportPerPage === 100 ? ' selected' : ''; ?>>100</option>
                             </select>
                         </div>
                     </div>
@@ -179,7 +205,13 @@ $jsVersion = (int) max(
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="../assets/admin.js"></script>
 <script>
-window.PAY_REPORT = <?php echo json_encode(['csrf' => $csrfToken], JSON_UNESCAPED_SLASHES); ?>;
+window.PAY_REPORT = <?php echo json_encode([
+    'csrf' => $csrfToken,
+    'filter' => $reportFilter,
+    'page' => $reportPage,
+    'per_page' => $reportPerPage,
+    'donor' => $reportDonor,
+], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE); ?>;
 </script>
 <script src="assets/paying-call-status.js?v=<?php echo $jsVersion; ?>"></script>
 <script src="assets/paying-report.js?v=<?php echo $jsVersion; ?>"></script>

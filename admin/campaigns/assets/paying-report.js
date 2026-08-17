@@ -1,8 +1,22 @@
 (function () {
   const COLSPAN = 6;
-  let filter = 'all';
-  let page = 1;
-  window.PAY_REPORT = window.PAY_REPORT || {};
+  const FILTERS = [
+    'all',
+    'sent',
+    'not_opened',
+    'opened',
+    'answered',
+    'booked',
+    'pending',
+    'contacted',
+    'not_answering',
+  ];
+  const config = window.PAY_REPORT || {};
+  let filter = FILTERS.indexOf(String(config.filter || 'all')) >= 0
+    ? String(config.filter)
+    : 'all';
+  let page = Math.max(1, Number(config.page || 1) || 1);
+  window.PAY_REPORT = config;
   window.PAY_REPORT.onStatusSaved = function () {
     load(page);
   };
@@ -29,6 +43,19 @@
     const donor = document.getElementById('filterDonor').value.trim();
     if (donor) params.set('donor', donor);
     return 'api/paying-report.php?' + params.toString();
+  }
+
+  function syncPageUrl() {
+    const params = new URLSearchParams();
+    if (filter !== 'all') params.set('filter', filter);
+    if (page > 1) params.set('page', String(page));
+    const perPage = document.getElementById('perPage').value;
+    if (perPage && perPage !== '25') params.set('per_page', perPage);
+    const donor = document.getElementById('filterDonor').value.trim();
+    if (donor) params.set('donor', donor);
+    const qs = params.toString();
+    const next = qs ? window.location.pathname + '?' + qs : window.location.pathname;
+    window.history.replaceState({}, '', next);
   }
 
   function answerBadge(row) {
@@ -200,6 +227,7 @@
       renderKpis(data.summary || {});
       renderTable(data);
       renderPagination(data);
+      syncPageUrl();
     } catch (err) {
       body.innerHTML = '<tr><td colspan="' + COLSPAN + '" class="text-center py-4" style="color:var(--danger)">Failed to load the report.</td></tr>';
     }

@@ -18,10 +18,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'GET') {
     exit;
 }
 
-$filter = strtolower(trim((string) ($_GET['filter'] ?? CampaignPayingReport::FILTER_ALL)));
-if (!in_array($filter, CampaignPayingReport::FILTERS, true)) {
-    $filter = CampaignPayingReport::FILTER_ALL;
-}
+$filter = CampaignPayingReport::sanitizeFilter((string) ($_GET['filter'] ?? CampaignPayingReport::FILTER_ALL));
 $search = trim((string) ($_GET['donor'] ?? ''));
 $page = max(1, (int) ($_GET['page'] ?? 1));
 $perPage = min(100, max(10, (int) ($_GET['per_page'] ?? 25)));

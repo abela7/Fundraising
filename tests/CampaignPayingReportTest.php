@@ -87,6 +87,10 @@ assertSameValue(false, CampaignPayingReport::matchesFilter($openedByStamp, 'not_
 assertSameValue(true, CampaignPayingReport::matchesFilter($yes, 'answered'), 'answered filter keeps yes');
 assertSameValue(true, CampaignPayingReport::matchesFilter($booked, 'booked'), 'booked filter keeps a full booking');
 assertSameValue(true, CampaignPayingReport::matchesFilter($none, 'all'), 'all filter keeps empty rows');
+assertSameValue('booked', CampaignPayingReport::sanitizeFilter('BOOKED'), 'keeps a booked filter');
+assertSameValue('all', CampaignPayingReport::sanitizeFilter('unknown'), 'unknown filters fall back to all');
+assertSameValue(true, CampaignPayingReport::isCallFilter('pending'), 'pending is a booked follow-up filter');
+assertSameValue(false, CampaignPayingReport::isCallFilter('answered'), 'answered is not a booked follow-up filter');
 
 $summary = CampaignPayingReport::summarize([$none, $sentOnly, $openedByStamp, $yes, $no, $booked]);
 assertSameValue(6, $summary['donors'], 'counts every still-paying row');

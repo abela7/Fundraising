@@ -18,6 +18,9 @@
     if (donorId <= 0 || status === '') {
       return;
     }
+    if (status === previous) {
+      return;
+    }
     select.disabled = true;
     try {
       const body = new URLSearchParams();

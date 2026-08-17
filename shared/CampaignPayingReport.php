@@ -179,6 +179,23 @@ final class CampaignPayingReport
         return true;
     }
 
+    public static function sanitizeFilter(string $filter): string
+    {
+        $filter = strtolower(trim($filter));
+
+        return in_array($filter, self::FILTERS, true) ? $filter : self::FILTER_ALL;
+    }
+
+    public static function isCallFilter(string $filter): bool
+    {
+        return in_array($filter, [
+            self::FILTER_BOOKED,
+            self::FILTER_PENDING,
+            self::FILTER_CONTACTED,
+            self::FILTER_NOT_ANSWERING,
+        ], true);
+    }
+
     /**
      * @param list<array<string, mixed>> $rows
      * @return array{
