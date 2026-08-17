@@ -7,12 +7,16 @@
   let defaultLabels = config.default_status_labels || {
     pledge: 'ጠቅላላ የገቡት ቃልኪዳን መጠን',
     paid: 'እስካሁን የከፈሉት',
-    remain: 'ቀሪ'
+    remain: 'ቀሪ',
+    yes: 'አዎ',
+    no: 'አይደለም'
   };
   const titleEl = document.getElementById('dvcStatusTitle');
   const pledgeEl = document.getElementById('dvcStatusPledge');
   const paidEl = document.getElementById('dvcStatusPaid');
   const remainEl = document.getElementById('dvcStatusRemain');
+  const yesEl = document.getElementById('dvcStatusYes');
+  const noEl = document.getElementById('dvcStatusNo');
   const bodyEl = document.getElementById('dvcStatusBody');
   const previewEl = document.getElementById('dvcStatusPreview');
   const countEl = document.getElementById('dvcMsgCount');
@@ -20,7 +24,7 @@
   const flashEl = document.getElementById('dvcMsgFlash');
   if (!bodyEl) return;
 
-  const fieldEls = [titleEl, pledgeEl, paidEl, remainEl, bodyEl].filter(Boolean);
+  const fieldEls = [titleEl, pledgeEl, paidEl, remainEl, yesEl, noEl, bodyEl].filter(Boolean);
   let activeEl = titleEl || bodyEl;
 
   const previewDonor = {
@@ -91,7 +95,9 @@
       + '<span class="dvc-status-label">' + remain + '</span>'
       + '<span class="dvc-status-value dvc-status-remain">' + escapeHtml(money(previewDonor.balance)) + '</span>'
       + '</div>'
-      + (footer ? '<div class="dvc-status-footer">' + footer + '</div>' : '');
+      + (footer ? '<div class="dvc-status-footer">' + footer + '</div>' : '')
+      + '<div class="dvc-status-footer">' + (fieldHtml(yesEl) || escapeHtml(defaultLabels.yes || 'አዎ'))
+      + ' · ' + (fieldHtml(noEl) || escapeHtml(defaultLabels.no || 'አይደለም')) + '</div>';
   }
 
   function insertToken(token) {
@@ -131,6 +137,8 @@
       if (pledgeEl) pledgeEl.value = defaultLabels.pledge;
       if (paidEl) paidEl.value = defaultLabels.paid;
       if (remainEl) remainEl.value = defaultLabels.remain;
+      if (yesEl) yesEl.value = defaultLabels.yes || 'አዎ';
+      if (noEl) noEl.value = defaultLabels.no || 'አይደለም';
       bodyEl.value = defaultStatus;
       updatePreview();
     });
@@ -145,6 +153,8 @@
         status_pledge_label: pledgeEl ? pledgeEl.value : '',
         status_paid_label: paidEl ? paidEl.value : '',
         status_remain_label: remainEl ? remainEl.value : '',
+        status_yes_label: yesEl ? yesEl.value : '',
+        status_no_label: noEl ? noEl.value : '',
         status_message: bodyEl.value
       });
       const res = await fetch(saveUrl, {

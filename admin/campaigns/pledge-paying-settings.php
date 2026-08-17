@@ -65,6 +65,24 @@ $defaultCorrectionAsk = (string) ($campaignSettings['default_correction_ask'] ??
 $correctionIsCustom = ($savedCorrectionMessage !== $defaultCorrectionMessage)
     || ($savedCorrectionAsk !== $defaultCorrectionAsk);
 $correctionPreview = $clip(trim($savedCorrectionAsk !== '' ? $savedCorrectionAsk : $savedCorrectionMessage));
+
+$payingPages = is_array($campaignSettings['paying_pages'] ?? null)
+    ? $campaignSettings['paying_pages']
+    : CampaignGroupSettings::defaultPayingPages();
+$defaultPayingPages = is_array($campaignSettings['default_paying_pages'] ?? null)
+    ? $campaignSettings['default_paying_pages']
+    : CampaignGroupSettings::defaultPayingPages();
+$copySections = [];
+foreach (CampaignGroupSettings::payingCopySections() as $key => $section) {
+    $previewKey = (string) $section['preview_key'];
+    $savedLine = trim((string) ($payingPages[$previewKey] ?? ''));
+    $defaultLine = trim((string) ($defaultPayingPages[$previewKey] ?? ''));
+    $copySections[$key] = [
+        'title' => (string) $section['title'],
+        'preview' => $clip($savedLine !== '' ? $savedLine : $defaultLine),
+        'custom' => $savedLine !== '' && $savedLine !== $defaultLine,
+    ];
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -157,6 +175,28 @@ $correctionPreview = $clip(trim($savedCorrectionAsk !== '' ? $savedCorrectionAsk
                             <i class="fas fa-chevron-right dvc-group-card-arrow"></i>
                         </a>
                     </div>
+                    <?php
+                    $copyIcons = [
+                        'cash' => 'fa-coins',
+                        'proof' => 'fa-image',
+                        'date' => 'fa-calendar-day',
+                        'phone' => 'fa-mobile-screen',
+                        'thanks' => 'fa-heart',
+                    ];
+                    foreach ($copySections as $copyKey => $copyCard):
+                    ?>
+                    <div class="col-12 col-lg-8">
+                        <a class="dvc-group-card d-flex align-items-center text-decoration-none" href="pledge-paying-copy.php?page=<?php echo htmlspecialchars($copyKey, ENT_QUOTES, 'UTF-8'); ?>">
+                            <div class="dvc-stat-icon paying"><i class="fas <?php echo htmlspecialchars($copyIcons[$copyKey] ?? 'fa-file-lines', ENT_QUOTES, 'UTF-8'); ?>"></i></div>
+                            <div class="dvc-group-card-body">
+                                <div class="dvc-setup-title"><?php echo htmlspecialchars($copyCard['title'], ENT_QUOTES, 'UTF-8'); ?></div>
+                                <div class="dvc-group-card-meta dvc-am-text"><?php echo htmlspecialchars($copyCard['preview'], ENT_QUOTES, 'UTF-8'); ?></div>
+                                <div class="dvc-group-card-meta"><?php echo $copyCard['custom'] ? 'Saved — tap to edit' : 'Default page — tap to write or change'; ?></div>
+                            </div>
+                            <i class="fas fa-chevron-right dvc-group-card-arrow"></i>
+                        </a>
+                    </div>
+                    <?php endforeach; ?>
                 </div>
             </div>
         </main>

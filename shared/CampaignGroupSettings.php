@@ -50,7 +50,7 @@ final class CampaignGroupSettings
     /**
      * Default Amharic labels for pledged / paid / remaining.
      *
-     * @return array{pledge:string,paid:string,remain:string}
+     * @return array{pledge:string,paid:string,remain:string,yes:string,no:string}
      */
     public static function defaultStatusLabels(): array
     {
@@ -58,20 +58,23 @@ final class CampaignGroupSettings
             'pledge' => 'ጠቅላላ የገቡት ቃልኪዳን መጠን',
             'paid' => 'እስካሁን የከፈሉት',
             'remain' => 'ቀሪ',
+            'yes' => 'አዎ',
+            'no' => 'አይደለም',
         ];
     }
 
     /**
-     * @param array{pledge?:string,paid?:string,remain?:string} $overrides
-     * @return array{pledge:string,paid:string,remain:string}
+     * @param array{pledge?:string,paid?:string,remain?:string,yes?:string,no?:string} $overrides
+     * @return array{pledge:string,paid:string,remain:string,yes:string,no:string}
      */
     public static function statusLabels(?string $savedJson = null, array $overrides = []): array
     {
         $labels = self::defaultStatusLabels();
+        $keys = ['pledge', 'paid', 'remain', 'yes', 'no'];
         if (is_string($savedJson) && trim($savedJson) !== '') {
             $decoded = json_decode($savedJson, true);
             if (is_array($decoded)) {
-                foreach (['pledge', 'paid', 'remain'] as $key) {
+                foreach ($keys as $key) {
                     $value = trim((string) ($decoded[$key] ?? ''));
                     if ($value !== '') {
                         $labels[$key] = $value;
@@ -79,7 +82,7 @@ final class CampaignGroupSettings
                 }
             }
         }
-        foreach (['pledge', 'paid', 'remain'] as $key) {
+        foreach ($keys as $key) {
             $value = trim((string) ($overrides[$key] ?? ''));
             if ($value !== '') {
                 $labels[$key] = $value;
@@ -320,6 +323,151 @@ final class CampaignGroupSettings
         }
 
         return $saved;
+    }
+
+    /**
+     * Default copy for every still-paying page that is not already a dedicated column.
+     *
+     * @return array<string, string>
+     */
+    public static function defaultPayingPages(): array
+    {
+        return [
+            'cash_remember_ask' => self::defaultCashRememberAsk(),
+            'cash_when_label' => self::defaultCashWhenLabel(),
+            'cash_whom_label' => self::defaultCashWhomLabel(),
+            'cash_remember_no_label' => self::defaultRememberNoLabel(),
+            'proof_ask' => self::defaultProofAsk(),
+            'proof_yes_label' => 'አዎ',
+            'proof_no_label' => 'አይደለም',
+            'proof_attach_label' => self::defaultProofAttachLabel(),
+            'paid_date_ask' => self::defaultPaidDateAsk(),
+            'paid_remember_no_label' => self::defaultRememberNoLabel(),
+            'callback_message' => self::defaultCallbackMessage(),
+            'thanks_message' => self::defaultNoPathThanks(),
+            'done_message' => self::defaultDoneMessage(),
+            'phone_ask' => self::defaultPhoneAsk(),
+            'phone_enter' => self::defaultPhoneEnter(),
+            'phone_hint_label' => '07 ወይም +44',
+            'phone_yes_label' => 'አዎ',
+            'phone_no_label' => 'አይደለም',
+            'continue_label' => 'ቀጥል',
+            'back_label' => 'ተመለስ',
+        ];
+    }
+
+    /**
+     * @param array<string, string> $overrides
+     * @return array<string, string>
+     */
+    public static function payingPages(?string $savedJson = null, array $overrides = []): array
+    {
+        $pages = self::defaultPayingPages();
+        $saved = [];
+        if (is_string($savedJson) && trim($savedJson) !== '') {
+            $decoded = json_decode($savedJson, true);
+            if (is_array($decoded)) {
+                $saved = $decoded;
+            }
+        }
+        foreach (array_keys($pages) as $key) {
+            $value = trim((string) ($saved[$key] ?? ''));
+            if ($value !== '') {
+                $pages[$key] = $value;
+            }
+            $value = trim((string) ($overrides[$key] ?? ''));
+            if ($value !== '') {
+                $pages[$key] = $value;
+            }
+        }
+
+        return $pages;
+    }
+
+    public static function payingPageMax(string $key): int
+    {
+        $long = [
+            'cash_remember_ask',
+            'proof_ask',
+            'paid_date_ask',
+            'callback_message',
+            'thanks_message',
+            'done_message',
+            'phone_ask',
+            'phone_enter',
+        ];
+
+        return in_array($key, $long, true) ? self::MAX_MESSAGE_LENGTH : self::MAX_TITLE_LENGTH;
+    }
+
+    /**
+     * Staff editor sections for the remaining paying pages.
+     *
+     * @return array<string, array{
+     *     title:string,
+     *     blurb:string,
+     *     preview_key:string,
+     *     fields:list<array{key:string,label:string,type:string}>
+     * }>
+     */
+    public static function payingCopySections(): array
+    {
+        return [
+            'cash' => [
+                'title' => 'Cash details page',
+                'blurb' => 'After they choose cash, they can say when and to whom they paid.',
+                'preview_key' => 'cash_remember_ask',
+                'fields' => [
+                    ['key' => 'cash_remember_ask', 'label' => 'When and to whom prompt', 'type' => 'textarea'],
+                    ['key' => 'cash_when_label', 'label' => 'When label', 'type' => 'input'],
+                    ['key' => 'cash_whom_label', 'label' => 'Paid-to label', 'type' => 'input'],
+                    ['key' => 'cash_remember_no_label', 'label' => 'I do not remember button', 'type' => 'input'],
+                ],
+            ],
+            'proof' => [
+                'title' => 'Bank screenshot page',
+                'blurb' => 'After they choose bank transfer, they can send a screenshot.',
+                'preview_key' => 'proof_ask',
+                'fields' => [
+                    ['key' => 'proof_ask', 'label' => 'Screenshot question', 'type' => 'textarea'],
+                    ['key' => 'proof_yes_label', 'label' => 'Yes label', 'type' => 'input'],
+                    ['key' => 'proof_no_label', 'label' => 'No label', 'type' => 'input'],
+                    ['key' => 'proof_attach_label', 'label' => 'Attach-photo label', 'type' => 'input'],
+                ],
+            ],
+            'date' => [
+                'title' => 'Bank paid-date page',
+                'blurb' => 'If they cannot send a screenshot, they can tell us the day they paid.',
+                'preview_key' => 'paid_date_ask',
+                'fields' => [
+                    ['key' => 'paid_date_ask', 'label' => 'Paid-date prompt', 'type' => 'textarea'],
+                    ['key' => 'paid_remember_no_label', 'label' => 'I do not remember button', 'type' => 'input'],
+                ],
+            ],
+            'phone' => [
+                'title' => 'Phone check page',
+                'blurb' => 'After they book a call, they confirm or replace the number we should use.',
+                'preview_key' => 'phone_ask',
+                'fields' => [
+                    ['key' => 'phone_ask', 'label' => 'Stored-number question', 'type' => 'textarea'],
+                    ['key' => 'phone_enter', 'label' => 'New-number prompt', 'type' => 'textarea'],
+                    ['key' => 'phone_hint_label', 'label' => 'Number field hint', 'type' => 'input'],
+                    ['key' => 'phone_yes_label', 'label' => 'Yes label', 'type' => 'input'],
+                    ['key' => 'phone_no_label', 'label' => 'No label', 'type' => 'input'],
+                ],
+            ],
+            'thanks' => [
+                'title' => 'Thank-you page',
+                'blurb' => 'One message after a booked call, and one after cash details, a screenshot, or a paid date.',
+                'preview_key' => 'done_message',
+                'fields' => [
+                    ['key' => 'done_message', 'label' => 'After they book a call', 'type' => 'textarea'],
+                    ['key' => 'thanks_message', 'label' => 'After they send details', 'type' => 'textarea'],
+                    ['key' => 'continue_label', 'label' => 'Continue button', 'type' => 'input'],
+                    ['key' => 'back_label', 'label' => 'Back button', 'type' => 'input'],
+                ],
+            ],
+        ];
     }
 
     /**
@@ -656,6 +804,11 @@ final class CampaignGroupSettings
             'ALTER TABLE campaign_group_settings ADD COLUMN correction_card_label TEXT NULL AFTER correction_cash_label',
             'Campaign after-no card label column failed: '
         );
+        self::addColumnIfMissing(
+            $db,
+            'ALTER TABLE campaign_group_settings ADD COLUMN paying_pages_json TEXT NULL AFTER correction_card_label',
+            'Campaign paying-pages column failed: '
+        );
     }
 
     private static function addColumnIfMissing(mysqli $db, string $sql, string $logPrefix): void
@@ -704,6 +857,8 @@ final class CampaignGroupSettings
      *     default_correction_cash_label:string,
      *     correction_card_label:string,
      *     default_correction_card_label:string,
+     *     paying_pages:array<string,string>,
+     *     default_paying_pages:array<string,string>,
      *     recipient_mode:string,
      *     donor_ids:list<int>
      * }
@@ -740,6 +895,8 @@ final class CampaignGroupSettings
             'default_correction_cash_label' => self::defaultCorrectionCashLabel(),
             'correction_card_label' => self::defaultCorrectionCardLabel(),
             'default_correction_card_label' => self::defaultCorrectionCardLabel(),
+            'paying_pages' => self::defaultPayingPages(),
+            'default_paying_pages' => self::defaultPayingPages(),
             'recipient_mode' => self::MODE_ALL,
             'donor_ids' => [],
         ];
@@ -758,11 +915,23 @@ final class CampaignGroupSettings
                 'SELECT first_message, welcome_message, status_message, status_title, status_labels,
                         contact_message, contact_ask, contact_labels,
                         correction_message, correction_ask, correction_amount_label,
-                        correction_method_ask, correction_cash_label, correction_card_label, recipient_mode
+                        correction_method_ask, correction_cash_label, correction_card_label,
+                        paying_pages_json, recipient_mode
                  FROM campaign_group_settings
                  WHERE group_key = ?
                  LIMIT 1'
             );
+            if ($stmt === false) {
+                $stmt = $db->prepare(
+                    'SELECT first_message, welcome_message, status_message, status_title, status_labels,
+                            contact_message, contact_ask, contact_labels,
+                            correction_message, correction_ask, correction_amount_label,
+                            correction_method_ask, correction_cash_label, correction_card_label, recipient_mode
+                     FROM campaign_group_settings
+                     WHERE group_key = ?
+                     LIMIT 1'
+                );
+            }
             if ($stmt === false) {
                 $stmt = $db->prepare(
                     'SELECT first_message, welcome_message, status_message, status_title, status_labels,
@@ -857,6 +1026,9 @@ final class CampaignGroupSettings
                 );
                 $defaults['correction_card_label'] = self::correctionCardLabelText(
                     (string) ($row['correction_card_label'] ?? '')
+                );
+                $defaults['paying_pages'] = self::payingPages(
+                    isset($row['paying_pages_json']) ? (string) $row['paying_pages_json'] : null
                 );
                 $mode = (string) ($row['recipient_mode'] ?? self::MODE_ALL);
                 $defaults['recipient_mode'] = $mode === self::MODE_SELECTED ? self::MODE_SELECTED : self::MODE_ALL;
@@ -1174,6 +1346,53 @@ final class CampaignGroupSettings
             $mode,
             $updatedBy
         );
+
+        return $stmt->execute();
+    }
+
+    /**
+     * Merge and save one or more paying-page strings. Empty keys keep the stored value.
+     *
+     * @param array<string, string> $overrides
+     */
+    public static function savePayingPages(mysqli $db, string $group, array $overrides, int $updatedBy): bool
+    {
+        if (!self::isAllowedGroup($group)) {
+            return false;
+        }
+        $allowed = self::defaultPayingPages();
+        foreach ($overrides as $key => $value) {
+            if (!is_string($key) || !array_key_exists($key, $allowed)) {
+                return false;
+            }
+            $value = trim((string) $value);
+            $length = function_exists('mb_strlen') ? mb_strlen($value) : strlen($value);
+            if ($value === '' || $length > self::payingPageMax($key)) {
+                return false;
+            }
+        }
+        self::ensureTables($db);
+        $existing = self::get($db, $group);
+        $merged = self::payingPages(null, array_merge($existing['paying_pages'], $overrides));
+        $json = json_encode($merged, JSON_UNESCAPED_UNICODE);
+        if (!is_string($json)) {
+            return false;
+        }
+        $first = $existing['first_message'];
+        $welcome = $existing['welcome_message'];
+        $mode = $existing['recipient_mode'];
+        $stmt = $db->prepare(
+            'INSERT INTO campaign_group_settings
+                (group_key, first_message, welcome_message, paying_pages_json, recipient_mode, updated_by)
+             VALUES (?, ?, ?, ?, ?, ?)
+             ON DUPLICATE KEY UPDATE
+                paying_pages_json = VALUES(paying_pages_json),
+                updated_by = VALUES(updated_by)'
+        );
+        if ($stmt === false) {
+            return false;
+        }
+        $stmt->bind_param('sssssi', $group, $first, $welcome, $json, $mode, $updatedBy);
 
         return $stmt->execute();
     }

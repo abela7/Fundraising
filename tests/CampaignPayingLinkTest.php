@@ -235,4 +235,36 @@ assertSameValue(
     'bank follow-up asks for a screenshot'
 );
 
+$pages = CampaignGroupSettings::payingPages(null);
+assertSameValue(
+    CampaignGroupSettings::defaultCashRememberAsk(),
+    $pages['cash_remember_ask'] ?? null,
+    'empty paying-page copy uses the cash default'
+);
+assertSameValue(
+    CampaignGroupSettings::defaultCallbackMessage(),
+    $pages['callback_message'] ?? null,
+    'empty paying-page copy uses the callback default'
+);
+$savedPages = CampaignGroupSettings::payingPages(json_encode([
+    'cash_remember_ask' => 'መቼ ከፈሉ?',
+    'unknown_key' => 'nope',
+    'proof_ask' => '',
+], JSON_UNESCAPED_UNICODE));
+assertSameValue('መቼ ከፈሉ?', $savedPages['cash_remember_ask'] ?? null, 'a saved cash prompt is kept');
+assertSameValue(
+    CampaignGroupSettings::defaultProofAsk(),
+    $savedPages['proof_ask'] ?? null,
+    'an empty saved proof ask uses the default'
+);
+assertSameValue(false, array_key_exists('unknown_key', $savedPages), 'unknown paying-page keys are dropped');
+$sections = CampaignGroupSettings::payingCopySections();
+assertSameValue(true, isset($sections['cash']), 'staff can edit the cash details page');
+assertSameValue(true, isset($sections['proof']), 'staff can edit the bank screenshot page');
+assertSameValue(true, isset($sections['date']), 'staff can edit the bank paid-date page');
+assertSameValue(true, isset($sections['phone']), 'staff can edit the phone check page');
+assertSameValue(true, isset($sections['thanks']), 'staff can edit the thank-you page');
+assertSameValue('አዎ', CampaignGroupSettings::defaultStatusLabels()['yes'] ?? null, 'status yes is editable');
+assertSameValue('አይደለም', CampaignGroupSettings::defaultStatusLabels()['no'] ?? null, 'status no is editable');
+
 fwrite(STDOUT, "PASS campaign paying link tests\n");

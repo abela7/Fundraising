@@ -89,6 +89,10 @@ $pageConfig = [
                         <input class="form-control dvc-am-text" id="dvcStatusPaid" type="text" maxlength="200" lang="am" dir="auto" value="<?php echo htmlspecialchars($savedLabels['paid'], ENT_QUOTES, 'UTF-8'); ?>">
                         <label class="form-label mt-3" for="dvcStatusRemain">Remaining label</label>
                         <input class="form-control dvc-am-text" id="dvcStatusRemain" type="text" maxlength="200" lang="am" dir="auto" value="<?php echo htmlspecialchars($savedLabels['remain'], ENT_QUOTES, 'UTF-8'); ?>">
+                        <label class="form-label mt-3" for="dvcStatusYes">Yes label</label>
+                        <input class="form-control dvc-am-text" id="dvcStatusYes" type="text" maxlength="200" lang="am" dir="auto" value="<?php echo htmlspecialchars($savedLabels['yes'] ?? 'አዎ', ENT_QUOTES, 'UTF-8'); ?>">
+                        <label class="form-label mt-3" for="dvcStatusNo">No label</label>
+                        <input class="form-control dvc-am-text" id="dvcStatusNo" type="text" maxlength="200" lang="am" dir="auto" value="<?php echo htmlspecialchars($savedLabels['no'] ?? 'አይደለም', ENT_QUOTES, 'UTF-8'); ?>">
                         <label class="form-label mt-3" for="dvcStatusBody">Footer text</label>
                         <textarea class="form-control dvc-am-text" id="dvcStatusBody" rows="4" maxlength="4000" lang="am" dir="auto"><?php echo htmlspecialchars($savedStatus, ENT_QUOTES, 'UTF-8'); ?></textarea>
                         <div class="dvc-msg-meta">

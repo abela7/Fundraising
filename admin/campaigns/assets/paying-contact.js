@@ -11,9 +11,11 @@
       method: 'እንዴት እንደውልልዎ?',
       whatsapp: 'የWhatsApp ጥሪ',
       phone: 'የስልክ ጥሪ'
-    }
+    },
+    callback: config.default_callback_message || ''
   };
   const messageEl = document.getElementById('dvcContactMessage');
+  const callbackEl = document.getElementById('dvcCallbackMessage');
   const askEl = document.getElementById('dvcContactAsk');
   const dateEl = document.getElementById('dvcContactDate');
   const timeEl = document.getElementById('dvcContactTime');
@@ -25,7 +27,7 @@
   const flashEl = document.getElementById('dvcMsgFlash');
   if (!messageEl || !askEl) return;
 
-  const fieldEls = [messageEl, askEl, dateEl, timeEl, methodEl, whatsappEl, phoneEl].filter(Boolean);
+  const fieldEls = [messageEl, callbackEl, askEl, dateEl, timeEl, methodEl, whatsappEl, phoneEl].filter(Boolean);
   let activeEl = messageEl;
 
   const previewDonor = {
@@ -81,6 +83,9 @@
       + '<div class="dvc-status-footer">' + fieldHtml(messageEl) + '</div>'
       + '</div>'
       + '<div class="dvc-status-card dvc-am-text mt-2">'
+      + '<div class="dvc-status-footer">' + fieldHtml(callbackEl) + '</div>'
+      + '</div>'
+      + '<div class="dvc-status-card dvc-am-text mt-2">'
       + '<div class="dvc-status-title">' + fieldHtml(askEl) + '</div>'
       + '<div class="dvc-status-row"><span class="dvc-status-label">' + (fieldHtml(dateEl) || escapeHtml(defaults.labels.date)) + '</span><span class="dvc-status-value">20/08/2026</span></div>'
       + '<div class="dvc-status-row"><span class="dvc-status-label">' + (fieldHtml(timeEl) || escapeHtml(defaults.labels.time)) + '</span><span class="dvc-status-value">14:30</span></div>'
@@ -94,7 +99,7 @@
     const start = el.selectionStart || 0;
     const end = el.selectionEnd || 0;
     const value = el.value;
-    const max = el === messageEl || el === askEl ? 4000 : 200;
+    const max = el === messageEl || el === askEl || el === callbackEl ? 4000 : 200;
     const next = value.slice(0, start) + token + value.slice(end);
     if (next.length > max) return;
     el.value = next;
@@ -123,6 +128,7 @@
   if (resetBtn) {
     resetBtn.addEventListener('click', function () {
       messageEl.value = defaults.message;
+      if (callbackEl) callbackEl.value = defaults.callback;
       askEl.value = defaults.ask;
       if (dateEl) dateEl.value = defaults.labels.date;
       if (timeEl) timeEl.value = defaults.labels.time;
@@ -139,6 +145,7 @@
         csrf_token: csrf,
         action: 'save_contact',
         contact_message: messageEl.value,
+        callback_message: callbackEl ? callbackEl.value : '',
         contact_ask: askEl.value,
         contact_date_label: dateEl ? dateEl.value : '',
         contact_time_label: timeEl ? timeEl.value : '',
@@ -156,7 +163,7 @@
       if (!res.ok || !data.success) {
         throw new Error(data.error || 'Could not save.');
       }
-      showFlash('Contact page saved. Donors who say yes will see it next.', false);
+      showFlash('Contact page saved. Donors will see every line you edited.', false);
     } catch (err) {
       showFlash(err.message || 'Could not save the contact page.', true);
     }

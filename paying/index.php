@@ -82,6 +82,7 @@ if ($donor === null) {
     $doneTemplate = CampaignGroupSettings::defaultDoneMessage();
     $phoneAskTemplate = CampaignGroupSettings::defaultPhoneAsk();
     $phoneEnterTemplate = CampaignGroupSettings::defaultPhoneEnter();
+    $payingPages = CampaignGroupSettings::defaultPayingPages();
     try {
         $settings = CampaignGroupSettings::get(db(), CampaignGroupSettings::GROUP_PAYING);
         if (trim((string) ($settings['welcome_message'] ?? '')) !== '') {
@@ -123,6 +124,12 @@ if ($donor === null) {
         $correctionCardTemplate = CampaignGroupSettings::correctionCardLabelText(
             (string) ($settings['correction_card_label'] ?? '')
         );
+        if (isset($settings['paying_pages']) && is_array($settings['paying_pages'])) {
+            $payingPages = CampaignGroupSettings::payingPages(null, $settings['paying_pages']);
+        }
+        $doneTemplate = (string) ($payingPages['done_message'] ?? $doneTemplate);
+        $phoneAskTemplate = (string) ($payingPages['phone_ask'] ?? $phoneAskTemplate);
+        $phoneEnterTemplate = (string) ($payingPages['phone_enter'] ?? $phoneEnterTemplate);
     } catch (Throwable $e) {
         error_log('Paying page text load failed: ' . $e->getMessage());
     }
@@ -152,18 +159,28 @@ if ($donor === null) {
     $correctionMethodAskHtml = $renderText($correctionMethodAskTemplate);
     $correctionCashHtml = $renderText($correctionCashTemplate);
     $correctionCardHtml = $renderText($correctionCardTemplate);
-    $cashRememberAskHtml = $renderText(CampaignGroupSettings::defaultCashRememberAsk());
-    $cashWhenLabelHtml = $renderText(CampaignGroupSettings::defaultCashWhenLabel());
-    $cashWhomLabelHtml = $renderText(CampaignGroupSettings::defaultCashWhomLabel());
-    $rememberNoHtml = $renderText(CampaignGroupSettings::defaultRememberNoLabel());
-    $proofAskHtml = $renderText(CampaignGroupSettings::defaultProofAsk());
-    $proofAttachHtml = $renderText(CampaignGroupSettings::defaultProofAttachLabel());
-    $paidDateAskHtml = $renderText(CampaignGroupSettings::defaultPaidDateAsk());
-    $callbackHtml = $renderText(CampaignGroupSettings::defaultCallbackMessage());
-    $thanksHtml = $renderText(CampaignGroupSettings::defaultNoPathThanks());
+    $cashRememberAskHtml = $renderText((string) $payingPages['cash_remember_ask']);
+    $cashWhenLabelHtml = $renderText((string) $payingPages['cash_when_label']);
+    $cashWhomLabelHtml = $renderText((string) $payingPages['cash_whom_label']);
+    $cashRememberNoHtml = $renderText((string) $payingPages['cash_remember_no_label']);
+    $proofAskHtml = $renderText((string) $payingPages['proof_ask']);
+    $proofYesHtml = $renderText((string) $payingPages['proof_yes_label']);
+    $proofNoHtml = $renderText((string) $payingPages['proof_no_label']);
+    $proofAttachHtml = $renderText((string) $payingPages['proof_attach_label']);
+    $paidDateAskHtml = $renderText((string) $payingPages['paid_date_ask']);
+    $paidRememberNoHtml = $renderText((string) $payingPages['paid_remember_no_label']);
+    $callbackHtml = $renderText((string) $payingPages['callback_message']);
+    $thanksHtml = $renderText((string) $payingPages['thanks_message']);
     $doneHtml = $renderText($doneTemplate);
     $phoneAskHtml = $renderText($phoneAskTemplate);
     $phoneEnterHtml = $renderText($phoneEnterTemplate);
+    $phoneHintHtml = $renderText((string) $payingPages['phone_hint_label']);
+    $phoneYesHtml = $renderText((string) $payingPages['phone_yes_label']);
+    $phoneNoHtml = $renderText((string) $payingPages['phone_no_label']);
+    $continueHtml = $renderText((string) $payingPages['continue_label']);
+    $backHtml = $renderText((string) $payingPages['back_label']);
+    $statusYesHtml = $renderText((string) ($statusLabels['yes'] ?? 'አዎ'));
+    $statusNoHtml = $renderText((string) ($statusLabels['no'] ?? 'አይደለም'));
     $displayPhone = trim((string) ($donor['phone'] ?? ''));
 }
 
@@ -250,8 +267,8 @@ if ($donor !== null && $token !== '') {
                         <?php endif; ?>
                     </div>
                     <div class="pay-choices" role="group" aria-label="ይህ መረጃ ትክክል ነው?">
-                        <button type="button" class="pay-choice" data-pay-choice="status_correct" data-pay-value="yes">አዎ</button>
-                        <button type="button" class="pay-choice pay-choice-no" data-pay-choice="status_correct" data-pay-value="no">አይደለም</button>
+                        <button type="button" class="pay-choice" data-pay-choice="status_correct" data-pay-value="yes"><?php echo $statusYesHtml; ?></button>
+                        <button type="button" class="pay-choice pay-choice-no" data-pay-choice="status_correct" data-pay-value="no"><?php echo $statusNoHtml; ?></button>
                     </div>
                 </div>
             </section>
@@ -296,7 +313,7 @@ if ($donor !== null && $token !== '') {
                             <span class="pay-label"><?php echo $correctionAmountLabelHtml; ?></span>
                             <input type="text" data-pay-field="reported_paid" inputmode="decimal" autocomplete="off">
                         </label>
-                        <button type="button" class="pay-continue pay-continue-inline" data-pay-next data-pay-next-stay>ቀጥል</button>
+                        <button type="button" class="pay-continue pay-continue-inline" data-pay-next data-pay-next-stay><?php echo $continueHtml; ?></button>
                     </div>
                 </div>
             </section>
@@ -333,10 +350,10 @@ if ($donor !== null && $token !== '') {
                         </label>
                         <div class="pay-field pay-field-last">
                             <div class="pay-choices pay-choices-one" role="group">
-                                <button type="button" class="pay-choice pay-choice-no" data-pay-choice="cash_remember" data-pay-value="no"><?php echo $rememberNoHtml; ?></button>
+                                <button type="button" class="pay-choice pay-choice-no" data-pay-choice="cash_remember" data-pay-value="no"><?php echo $cashRememberNoHtml; ?></button>
                             </div>
                         </div>
-                        <button type="button" class="pay-continue pay-continue-inline" data-pay-next data-pay-next-stay>ቀጥል</button>
+                        <button type="button" class="pay-continue pay-continue-inline" data-pay-next data-pay-next-stay><?php echo $continueHtml; ?></button>
                     </div>
                 </div>
             </section>
@@ -347,8 +364,8 @@ if ($donor !== null && $token !== '') {
                         <div class="pay-title"><?php echo $proofAskHtml; ?></div>
                         <div class="pay-field pay-field-last">
                             <div class="pay-choices" role="group" aria-label="<?php echo htmlspecialchars(strip_tags($proofAskHtml), ENT_QUOTES, 'UTF-8'); ?>">
-                                <button type="button" class="pay-choice" data-pay-choice="send_proof" data-pay-value="yes">አዎ</button>
-                                <button type="button" class="pay-choice pay-choice-no" data-pay-choice="send_proof" data-pay-value="no">አይደለም</button>
+                                <button type="button" class="pay-choice" data-pay-choice="send_proof" data-pay-value="yes"><?php echo $proofYesHtml; ?></button>
+                                <button type="button" class="pay-choice pay-choice-no" data-pay-choice="send_proof" data-pay-value="no"><?php echo $proofNoHtml; ?></button>
                             </div>
                         </div>
                     </div>
@@ -359,7 +376,7 @@ if ($donor !== null && $token !== '') {
                             <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" data-pay-proof>
                             <span class="pay-proof-name" data-pay-proof-name></span>
                         </label>
-                        <button type="button" class="pay-continue pay-continue-inline" data-pay-next data-pay-next-stay>ቀጥል</button>
+                        <button type="button" class="pay-continue pay-continue-inline" data-pay-next data-pay-next-stay><?php echo $continueHtml; ?></button>
                     </div>
                 </div>
             </section>
@@ -374,10 +391,10 @@ if ($donor !== null && $token !== '') {
                         </label>
                         <div class="pay-field pay-field-last">
                             <div class="pay-choices pay-choices-one" role="group">
-                                <button type="button" class="pay-choice pay-choice-no" data-pay-choice="paid_remember" data-pay-value="no"><?php echo $rememberNoHtml; ?></button>
+                                <button type="button" class="pay-choice pay-choice-no" data-pay-choice="paid_remember" data-pay-value="no"><?php echo $paidRememberNoHtml; ?></button>
                             </div>
                         </div>
-                        <button type="button" class="pay-continue pay-continue-inline" data-pay-next data-pay-next-stay>ቀጥል</button>
+                        <button type="button" class="pay-continue pay-continue-inline" data-pay-next data-pay-next-stay><?php echo $continueHtml; ?></button>
                     </div>
                 </div>
             </section>
@@ -391,16 +408,16 @@ if ($donor !== null && $token !== '') {
                         <?php endif; ?>
                         <div class="pay-field pay-field-last">
                             <div class="pay-choices" role="group" aria-label="<?php echo htmlspecialchars(strip_tags($phoneAskHtml), ENT_QUOTES, 'UTF-8'); ?>">
-                                <button type="button" class="pay-choice" data-pay-choice="phone_correct" data-pay-value="yes">አዎ</button>
-                                <button type="button" class="pay-choice pay-choice-no" data-pay-choice="phone_correct" data-pay-value="no">አይደለም</button>
+                                <button type="button" class="pay-choice" data-pay-choice="phone_correct" data-pay-value="yes"><?php echo $phoneYesHtml; ?></button>
+                                <button type="button" class="pay-choice pay-choice-no" data-pay-choice="phone_correct" data-pay-value="no"><?php echo $phoneNoHtml; ?></button>
                             </div>
                         </div>
                     </div>
                     <div class="pay-card" data-pay-phone-entry hidden>
                         <div class="pay-title"><?php echo $phoneEnterHtml; ?></div>
                         <label class="pay-field pay-field-last">
-                            <span class="pay-label">07 ወይም +44</span>
-                            <input type="tel" data-pay-field="contact_phone" inputmode="tel" autocomplete="tel" placeholder="07XXXXXXXXX ወይም +44...">
+                            <span class="pay-label"><?php echo $phoneHintHtml; ?></span>
+                            <input type="tel" data-pay-field="contact_phone" inputmode="tel" autocomplete="tel" placeholder="<?php echo htmlspecialchars(strip_tags($phoneHintHtml), ENT_QUOTES, 'UTF-8'); ?>">
                         </label>
                     </div>
                 </div>
@@ -416,8 +433,8 @@ if ($donor !== null && $token !== '') {
             </section>
 
             <div class="pay-actions">
-                <button type="button" class="pay-continue" data-pay-next>ቀጥል</button>
-                <button type="button" class="pay-back" data-pay-back hidden>ተመለስ</button>
+                <button type="button" class="pay-continue" data-pay-next><?php echo $continueHtml; ?></button>
+                <button type="button" class="pay-back" data-pay-back hidden><?php echo $backHtml; ?></button>
             </div>
         <?php endif; ?>
     </main>

@@ -54,6 +54,8 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'GET') {
             'default_correction_cash_label' => $settings['default_correction_cash_label'],
             'correction_card_label' => $settings['correction_card_label'],
             'default_correction_card_label' => $settings['default_correction_card_label'],
+            'paying_pages' => $settings['paying_pages'],
+            'default_paying_pages' => $settings['default_paying_pages'],
             'correction_variables' => CampaignGroupSettings::correctionVariables(),
         ]);
     } catch (Throwable $e) {
@@ -153,7 +155,7 @@ try {
             echo json_encode(['success' => false, 'error' => 'Title is too long.']);
             exit;
         }
-        foreach (['status_pledge_label', 'status_paid_label', 'status_remain_label'] as $field) {
+        foreach (['status_pledge_label', 'status_paid_label', 'status_remain_label', 'status_yes_label', 'status_no_label'] as $field) {
             $label = trim((string) ($_POST[$field] ?? ''));
             $labelLength = function_exists('mb_strlen') ? mb_strlen($label) : strlen($label);
             if ($labelLength > CampaignGroupSettings::MAX_TITLE_LENGTH) {
@@ -172,6 +174,8 @@ try {
                 'pledge' => (string) ($_POST['status_pledge_label'] ?? ''),
                 'paid' => (string) ($_POST['status_paid_label'] ?? ''),
                 'remain' => (string) ($_POST['status_remain_label'] ?? ''),
+                'yes' => (string) ($_POST['status_yes_label'] ?? ''),
+                'no' => (string) ($_POST['status_no_label'] ?? ''),
             ]
         );
         if (!$ok) {
@@ -182,6 +186,8 @@ try {
             'pledge' => (string) ($_POST['status_pledge_label'] ?? ''),
             'paid' => (string) ($_POST['status_paid_label'] ?? ''),
             'remain' => (string) ($_POST['status_remain_label'] ?? ''),
+            'yes' => (string) ($_POST['status_yes_label'] ?? ''),
+            'no' => (string) ($_POST['status_no_label'] ?? ''),
         ]);
         echo json_encode([
             'success' => true,
@@ -229,7 +235,23 @@ try {
             'whatsapp' => (string) ($_POST['contact_whatsapp_label'] ?? ''),
             'phone' => (string) ($_POST['contact_phone_label'] ?? ''),
         ];
+        $callback = (string) ($_POST['callback_message'] ?? '');
+        if (trim($callback) === '') {
+            http_response_code(400);
+            echo json_encode(['success' => false, 'error' => 'Write the after they do not remember message before saving.']);
+            exit;
+        }
+        $callbackLength = function_exists('mb_strlen') ? mb_strlen($callback) : strlen($callback);
+        if ($callbackLength > CampaignGroupSettings::MAX_MESSAGE_LENGTH) {
+            http_response_code(400);
+            echo json_encode(['success' => false, 'error' => 'Message is too long.']);
+            exit;
+        }
         $ok = CampaignGroupSettings::saveContactCopy($db, $group, $message, $ask, $userId, $labels);
+        if (!$ok) {
+            throw new RuntimeException('Could not save contact page.');
+        }
+        $ok = CampaignGroupSettings::savePayingPages($db, $group, ['callback_message' => $callback], $userId);
         if (!$ok) {
             throw new RuntimeException('Could not save contact page.');
         }
@@ -237,6 +259,7 @@ try {
             'success' => true,
             'contact_message' => CampaignGroupSettings::contactMessageText($message),
             'contact_ask' => CampaignGroupSettings::contactAskText($ask),
+            'callback_message' => CampaignGroupSettings::payingPages(null, ['callback_message' => $callback])['callback_message'],
             'contact_labels' => CampaignGroupSettings::contactLabels(null, $labels),
         ]);
         exit;
@@ -312,6 +335,32 @@ try {
             'correction_method_ask' => CampaignGroupSettings::correctionMethodAskText($methodAsk),
             'correction_cash_label' => CampaignGroupSettings::correctionCashLabelText($cashLabel),
             'correction_card_label' => CampaignGroupSettings::correctionCardLabelText($cardLabel),
+        ]);
+        exit;
+    }
+
+    if ($action === 'save_paying_pages') {
+        $overrides = [];
+        foreach (array_keys(CampaignGroupSettings::defaultPayingPages()) as $key) {
+            if (!array_key_exists($key, $_POST)) {
+                continue;
+            }
+            $overrides[$key] = (string) $_POST[$key];
+        }
+        if ($overrides === []) {
+            http_response_code(400);
+            echo json_encode(['success' => false, 'error' => 'Write the page text before saving.']);
+            exit;
+        }
+        $ok = CampaignGroupSettings::savePayingPages($db, $group, $overrides, $userId);
+        if (!$ok) {
+            http_response_code(400);
+            echo json_encode(['success' => false, 'error' => 'Write every line on this page before saving.']);
+            exit;
+        }
+        echo json_encode([
+            'success' => true,
+            'paying_pages' => CampaignGroupSettings::get($db, $group)['paying_pages'],
         ]);
         exit;
     }

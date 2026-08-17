@@ -18,11 +18,20 @@ $savedLabels = CampaignGroupSettings::contactLabels(
 $defaultMessage = (string) ($campaignSettings['default_contact_message'] ?? CampaignGroupSettings::defaultContactMessage());
 $defaultAsk = (string) ($campaignSettings['default_contact_ask'] ?? CampaignGroupSettings::defaultContactAsk());
 $defaultLabels = $campaignSettings['default_contact_labels'] ?? CampaignGroupSettings::defaultContactLabels();
+$payingPages = is_array($campaignSettings['paying_pages'] ?? null)
+    ? $campaignSettings['paying_pages']
+    : CampaignGroupSettings::defaultPayingPages();
+$defaultPayingPages = is_array($campaignSettings['default_paying_pages'] ?? null)
+    ? $campaignSettings['default_paying_pages']
+    : CampaignGroupSettings::defaultPayingPages();
+$savedCallback = (string) ($payingPages['callback_message'] ?? CampaignGroupSettings::defaultCallbackMessage());
+$defaultCallback = (string) ($defaultPayingPages['callback_message'] ?? CampaignGroupSettings::defaultCallbackMessage());
 $pageConfig = [
     'csrf' => $csrfToken,
     'default_contact_message' => $defaultMessage,
     'default_contact_ask' => $defaultAsk,
     'default_contact_labels' => $defaultLabels,
+    'default_callback_message' => $defaultCallback,
 ];
 ?>
 <!DOCTYPE html>
@@ -51,7 +60,7 @@ $pageConfig = [
                             <i class="fas fa-phone me-2 dvc-title-icon paying"></i>
                             Contact page
                         </h1>
-                        <p>After the donor says the amounts are correct, they see this message and pick a date, time, and how to be called.</p>
+                        <p>After the donor says the amounts are correct, or after they do not remember a bank date, they pick a date, time, and how to be called.</p>
                     </div>
                     <div class="d-flex gap-2">
                         <a class="btn btn-outline-secondary" href="pledge-paying-settings.php">
@@ -80,6 +89,8 @@ $pageConfig = [
                         </div>
                         <label class="form-label" for="dvcContactMessage">After-yes message</label>
                         <textarea class="form-control dvc-am-text" id="dvcContactMessage" rows="5" maxlength="4000" lang="am" dir="auto"><?php echo htmlspecialchars($savedMessage, ENT_QUOTES, 'UTF-8'); ?></textarea>
+                        <label class="form-label mt-3" for="dvcCallbackMessage">After they do not remember</label>
+                        <textarea class="form-control dvc-am-text" id="dvcCallbackMessage" rows="5" maxlength="4000" lang="am" dir="auto"><?php echo htmlspecialchars($savedCallback, ENT_QUOTES, 'UTF-8'); ?></textarea>
                         <label class="form-label mt-3" for="dvcContactAsk">Date and time prompt</label>
                         <textarea class="form-control dvc-am-text" id="dvcContactAsk" rows="3" maxlength="4000" lang="am" dir="auto"><?php echo htmlspecialchars($savedAsk, ENT_QUOTES, 'UTF-8'); ?></textarea>
                         <label class="form-label mt-3" for="dvcContactDate">Date label</label>

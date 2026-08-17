@@ -42,6 +42,8 @@ $campaignSettings = [
     'default_correction_cash_label' => CampaignGroupSettings::defaultCorrectionCashLabel(),
     'correction_card_label' => CampaignGroupSettings::defaultCorrectionCardLabel(),
     'default_correction_card_label' => CampaignGroupSettings::defaultCorrectionCardLabel(),
+    'paying_pages' => CampaignGroupSettings::defaultPayingPages(),
+    'default_paying_pages' => CampaignGroupSettings::defaultPayingPages(),
     'recipient_mode' => CampaignGroupSettings::MODE_ALL,
     'donor_ids' => [],
 ];
