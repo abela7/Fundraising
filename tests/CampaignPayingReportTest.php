@@ -245,4 +245,43 @@ assertSameValue([], $emptyActivity['timeline'], 'empty activity has no timeline'
 assertSameValue('Not answered', $emptyActivity['answer_label'], 'empty activity has no answer');
 assertSameValue('', $emptyActivity['call_status'], 'empty activity has no call status');
 
+$fromJsonArray = CampaignPayingReport::classify([
+    'answers_json' => [
+        'status_correct' => 'yes',
+        'contact_date' => '2026-08-20',
+        'contact_time' => '14:30',
+        'contact_method' => 'whatsapp',
+    ],
+]);
+assertSameValue(true, $fromJsonArray['answered'], 'array answers_json still counts as answered');
+assertSameValue(true, $fromJsonArray['booked'], 'array answers_json still counts as booked');
+
+$fromDoubleJson = CampaignPayingReport::classify([
+    'answers_json' => json_encode(json_encode(['status_correct' => 'yes'], JSON_UNESCAPED_UNICODE), JSON_UNESCAPED_UNICODE),
+]);
+assertSameValue(true, $fromDoubleJson['answered'], 'double-encoded answers_json still counts as answered');
+
+$msTime = CampaignPayingReport::classify([
+    'answers' => [
+        'status_correct' => 'yes',
+        'contact_date' => '2026-08-20',
+        'contact_time' => '14:30:00.000',
+        'contact_method' => 'phone',
+    ],
+]);
+assertSameValue(true, $msTime['booked'], 'a time with milliseconds still counts as booked');
+assertSameValue('14:30', $msTime['contact_time'], 'stores millisecond times as HH:MM');
+
+$doneOnly = CampaignPayingReport::classify(['step' => 'done']);
+assertSameValue(true, $doneOnly['answered'], 'thank-you step counts as answered when answers are missing');
+assertSameValue('yes', $doneOnly['answer'], 'thank-you step implies a yes on status');
+assertSameValue(true, $doneOnly['booked'], 'thank-you step counts as booked when answers are missing');
+
+$phoneOnly = CampaignPayingReport::classify(['step' => 'phone']);
+assertSameValue(true, $phoneOnly['booked'], 'phone-check step counts as booked');
+
+$contactOnly = CampaignPayingReport::classify(['step' => 'contact']);
+assertSameValue(true, $contactOnly['answered'], 'contact step counts as answered');
+assertSameValue(false, $contactOnly['booked'], 'contact step alone is not booked');
+
 fwrite(STDOUT, "PASS campaign paying report tests\n");

@@ -167,6 +167,16 @@ $booking = CampaignPayingProgress::sanitizeAnswers([
 ]);
 assertSameValue('2026-08-20', $booking['contact_date'] ?? null, 'keeps a booking date');
 assertSameValue('14:30', $booking['contact_time'] ?? null, 'normalizes booking time to HH:MM');
+assertSameValue(
+    '14:30',
+    CampaignPayingProgress::sanitizeAnswers(['contact_time' => '14:30:00.000'])['contact_time'] ?? null,
+    'normalizes a time with milliseconds'
+);
+assertSameValue(
+    '09:05',
+    CampaignPayingProgress::sanitizeAnswers(['contact_time' => '9:05'])['contact_time'] ?? null,
+    'normalizes a one-digit hour'
+);
 assertSameValue('whatsapp', $booking['contact_method'] ?? null, 'keeps WhatsApp as a contact method');
 assertSameValue(
     false,

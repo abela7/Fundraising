@@ -410,7 +410,7 @@ final class CampaignPayingProgress
         }
         if ($key === 'contact_time') {
             $value = trim((string) $value);
-            if (preg_match('/^(\d{2}):(\d{2})(?::\d{2})?$/', $value, $match) !== 1) {
+            if (preg_match('/^(\d{1,2}):(\d{2})(?::(\d{2}))?(?:\.\d+)?$/', $value, $match) !== 1) {
                 return '__reject__';
             }
             $hour = (int) $match[1];

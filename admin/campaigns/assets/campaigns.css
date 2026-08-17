@@ -258,10 +258,10 @@ button.dvc-stat-chip {
 }
 .dvc-stat-row.dvc-call-status-kpis {
   display: none;
-  margin-top: -8px;
 }
 .dvc-stat-row.dvc-call-status-kpis.is-open {
   display: grid;
+  grid-template-columns: repeat(3, minmax(160px, 1fr));
 }
 .dvc-detail-row {
   display: flex;

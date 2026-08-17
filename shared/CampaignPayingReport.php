@@ -74,7 +74,20 @@ final class CampaignPayingReport
         if ($method !== 'whatsapp' && $method !== 'phone') {
             $method = null;
         }
-        $booked = $date !== null && $time !== null && $method !== null;
+        $step = CampaignPayingProgress::sanitizeStep((string) ($row['step'] ?? ''));
+        $reachedContact = in_array($step, [
+            CampaignPayingProgress::STEP_CONTACT,
+            CampaignPayingProgress::STEP_PHONE,
+            CampaignPayingProgress::STEP_DONE,
+        ], true);
+        $reachedPhone = in_array($step, [
+            CampaignPayingProgress::STEP_PHONE,
+            CampaignPayingProgress::STEP_DONE,
+        ], true);
+        if ($answer === null && $reachedContact) {
+            $answer = 'yes';
+        }
+        $booked = ($date !== null && $time !== null && $method !== null) || $reachedPhone;
         $answered = $answer !== null;
         $opened = self::hasTime($row['opened_at'] ?? null)
             || self::hasTime($row['progress_updated_at'] ?? null)
@@ -405,9 +418,7 @@ final class CampaignPayingReport
         $join = $hasLinks
             ? 'LEFT JOIN campaign_paying_links l ON l.donor_id = d.id'
             : '';
-        $linkSelect = $hasLinks
-            ? 'l.token, l.last_sent_at, l.opened_at, l.step, l.answers_json, l.revision, l.progress_updated_at, l.call_status'
-            : 'NULL AS token, NULL AS last_sent_at, NULL AS opened_at, NULL AS step, NULL AS answers_json, 0 AS revision, NULL AS progress_updated_at, NULL AS call_status';
+        $linkSelect = self::linkSelectSql($db, $hasLinks, true);
 
         $sql = "
             SELECT
@@ -480,9 +491,7 @@ final class CampaignPayingReport
         $join = $hasLinks
             ? 'LEFT JOIN campaign_paying_links l ON l.donor_id = d.id'
             : '';
-        $linkSelect = $hasLinks
-            ? 'l.last_sent_at, l.opened_at, l.step, l.answers_json, l.revision, l.progress_updated_at, l.call_status'
-            : 'NULL AS last_sent_at, NULL AS opened_at, NULL AS step, NULL AS answers_json, 0 AS revision, NULL AS progress_updated_at, NULL AS call_status';
+        $linkSelect = self::linkSelectSql($db, $hasLinks, false);
 
         $sql = "
             SELECT
@@ -591,6 +600,43 @@ final class CampaignPayingReport
         return $out;
     }
 
+    private static function linkSelectSql(mysqli $db, bool $hasLinks, bool $withToken): string
+    {
+        if (!$hasLinks) {
+            $token = $withToken ? 'NULL AS token, ' : '';
+
+            return $token
+                . 'NULL AS last_sent_at, NULL AS opened_at, NULL AS step, NULL AS answers_json, '
+                . '0 AS revision, NULL AS progress_updated_at, NULL AS call_status';
+        }
+        $token = $withToken ? 'l.token, ' : '';
+        $callStatus = self::hasLinkColumn($db, 'call_status')
+            ? 'l.call_status'
+            : 'NULL AS call_status';
+
+        return $token
+            . 'l.last_sent_at, l.opened_at, l.step, l.answers_json, l.revision, '
+            . 'l.progress_updated_at, '
+            . $callStatus;
+    }
+
+    private static function hasLinkColumn(mysqli $db, string $column): bool
+    {
+        $column = strtolower(preg_replace('/[^a-z0-9_]/', '', $column) ?? '');
+        if ($column === '') {
+            return false;
+        }
+        try {
+            $result = $db->query(
+                "SHOW COLUMNS FROM campaign_paying_links LIKE '" . $db->real_escape_string($column) . "'"
+            );
+
+            return $result !== false && $result->num_rows > 0;
+        } catch (Throwable $e) {
+            return false;
+        }
+    }
+
     /**
      * @param array<string, mixed> $row
      * @return array<string, mixed>
@@ -600,11 +646,17 @@ final class CampaignPayingReport
         if (isset($row['answers']) && is_array($row['answers'])) {
             return CampaignPayingProgress::sanitizeAnswers($row['answers']);
         }
-        $json = $row['answers_json'] ?? null;
-        if (!is_string($json) || trim($json) === '') {
+        $raw = $row['answers_json'] ?? null;
+        if (is_array($raw)) {
+            return CampaignPayingProgress::sanitizeAnswers($raw);
+        }
+        if (!is_string($raw) || trim($raw) === '') {
             return [];
         }
-        $decoded = json_decode($json, true);
+        $decoded = json_decode($raw, true);
+        if (is_string($decoded)) {
+            $decoded = json_decode($decoded, true);
+        }
 
         return CampaignPayingProgress::sanitizeAnswers($decoded);
     }
