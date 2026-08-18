@@ -7,7 +7,7 @@ require_once __DIR__ . '/includes/paying-boot.php';
 $sections = CampaignGroupSettings::payingCopySections();
 $pageKey = strtolower(trim((string) ($_GET['page'] ?? '')));
 if (!isset($sections[$pageKey])) {
-    header('Location: pledge-paying-settings.php');
+    header('Location: ' . $campaignFilePrefix . '-settings.php');
     exit;
 }
 $section = $sections[$pageKey];
@@ -24,9 +24,10 @@ foreach ($section['fields'] as $field) {
     $values[$key] = (string) ($savedPages[$key] ?? $defaultPages[$key] ?? '');
     $defaults[$key] = (string) ($defaultPages[$key] ?? '');
 }
-$page_title = 'Still paying — ' . $section['title'];
+$page_title = $campaignTitlePrefix . ' — ' . $section['title'];
 $pageConfig = [
     'csrf' => $csrfToken,
+    'group' => $dvc_campaign_group,
     'page' => $pageKey,
     'fields' => $section['fields'],
     'defaults' => $defaults,
@@ -55,13 +56,13 @@ $pageConfig = [
                 <div class="dvc-page-header animate-fade-in">
                     <div>
                         <h1>
-                            <i class="fas fa-pen-to-square me-2 dvc-title-icon paying"></i>
+                            <i class="fas fa-pen-to-square me-2 dvc-title-icon <?php echo htmlspecialchars($campaignTone, ENT_QUOTES, 'UTF-8'); ?>"></i>
                             <?php echo htmlspecialchars($section['title'], ENT_QUOTES, 'UTF-8'); ?>
                         </h1>
                         <p><?php echo htmlspecialchars($section['blurb'], ENT_QUOTES, 'UTF-8'); ?></p>
                     </div>
                     <div class="d-flex gap-2">
-                        <a class="btn btn-outline-secondary" href="pledge-paying-settings.php">
+                        <a class="btn btn-outline-secondary" href="<?php echo htmlspecialchars($campaignFilePrefix, ENT_QUOTES, 'UTF-8'); ?>-settings.php">
                             <i class="fas fa-arrow-left me-1"></i>Back to settings
                         </a>
                     </div>

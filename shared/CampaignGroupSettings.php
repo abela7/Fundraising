@@ -10,6 +10,7 @@ require_once __DIR__ . '/DonorCampaignGroups.php';
 final class CampaignGroupSettings
 {
     public const GROUP_PAYING = DonorCampaignGroups::PLEDGE_PAYING;
+    public const GROUP_NOT_STARTED = DonorCampaignGroups::PLEDGE_NOT_STARTED;
     public const MODE_ALL = 'all';
     public const MODE_SELECTED = 'selected';
     public const MAX_MESSAGE_LENGTH = 4000;
@@ -20,6 +21,18 @@ final class CampaignGroupSettings
      */
     public static function defaultFirstMessage(): string
     {
+        return self::defaultFirstMessageFor(self::GROUP_PAYING);
+    }
+
+    /**
+     * Default Amharic hello for one campaign group.
+     */
+    public static function defaultFirstMessageFor(string $group): string
+    {
+        if ($group === self::GROUP_NOT_STARTED) {
+            return "ሰላም ጤና ይስጥልን የተከበሩ {name}። ከሊቨርፑል መካነ ቅዱሳን አቡነ ተክለሃይማኖት ቤተክርስቲያን ነው። ቃል የገቡት ገና አልጀመሩም። OK ብለው ይመልሱ።";
+        }
+
         return "ሰላም ጤና ይስጥልን የተከበሩ {name}። ከሊቨርፑል መካነ ቅዱሳን አቡነ ተክለሃይማኖት ቤተክርስቲያን ነው።";
     }
 
@@ -28,12 +41,20 @@ final class CampaignGroupSettings
      */
     public static function defaultWelcomeMessage(): string
     {
-        return "የተከበሩ {name}፣\n\nእንኳን በደህና መጡ። ከሊቨርፑል መካነ ቅዱሳን አቡነ ተክለሃይማኖት ቤተክርስቲያን ነው።";
+        return self::defaultWelcomeMessageFor(self::GROUP_PAYING);
     }
 
     /**
-     * Default Amharic footer under pledged / paid / remaining.
+     * Default Amharic welcome for one campaign group.
      */
+    public static function defaultWelcomeMessageFor(string $group): string
+    {
+        if ($group === self::GROUP_NOT_STARTED) {
+            return "የተከበሩ {name}፣\n\nእንኳን በደህና መጡ። ከሊቨርፑል መካነ ቅዱሳን አቡነ ተክለሃይማኖት ቤተክርስቲያን ነው። ቃል የገቡት ገና አልጀመሩም።";
+        }
+
+        return "የተከበሩ {name}፣\n\nእንኳን በደህና መጡ። ከሊቨርፑል መካነ ቅዱሳን አቡነ ተክለሃይማኖት ቤተክርስቲያን ነው።";
+    }
     public static function defaultStatusMessage(): string
     {
         return 'ይህ መረጃ ትክክል ነው?';
@@ -97,12 +118,20 @@ final class CampaignGroupSettings
      */
     public static function defaultContactMessage(): string
     {
-        return "እናመሰግናለን የተከበሩ {name}።\n\nመረጃው ትክክል ነው። የቀረው {remaining_amount} እንዴት እንደሚጠናቀቅ ለመነጋገር እንወዳለን።";
+        return self::defaultContactMessageFor(self::GROUP_PAYING);
     }
 
     /**
-     * Default message after the donor says the amounts are wrong.
+     * Default after-yes booking message for one campaign group.
      */
+    public static function defaultContactMessageFor(string $group): string
+    {
+        if ($group === self::GROUP_NOT_STARTED) {
+            return "እናመሰግናለን የተከበሩ {name}።\n\nገና አልጀመሩም። የቀረው {remaining_amount} እንዴት እንደሚጀምሩ ለመነጋገር እንወዳለን።";
+        }
+
+        return "እናመሰግናለን የተከበሩ {name}።\n\nመረጃው ትክክል ነው። የቀረው {remaining_amount} እንዴት እንደሚጠናቀቅ ለመነጋገር እንወዳለን።";
+    }
     public static function defaultCorrectionMessage(): string
     {
         return "እናመሰግናለን የተከበሩ {name}።\n\nመረጃው የተለየ ከሆነ እባክዎ እስካሁን የከፈሉትን ይንገሩን።";
@@ -266,11 +295,11 @@ final class CampaignGroupSettings
         ];
     }
 
-    public static function contactMessageText(string $saved): string
+    public static function contactMessageText(string $saved, string $group = self::GROUP_PAYING): string
     {
         $saved = trim($saved);
 
-        return $saved !== '' ? $saved : self::defaultContactMessage();
+        return $saved !== '' ? $saved : self::defaultContactMessageFor($group);
     }
 
     public static function contactAskText(string $saved): string
@@ -664,7 +693,17 @@ final class CampaignGroupSettings
 
     public static function isAllowedGroup(string $group): bool
     {
-        return $group === self::GROUP_PAYING;
+        return $group === self::GROUP_PAYING || $group === self::GROUP_NOT_STARTED;
+    }
+
+    public static function sanitizeGroup(string $group): string
+    {
+        $group = strtolower(trim($group));
+        if ($group === 'pledge-not-started') {
+            $group = self::GROUP_NOT_STARTED;
+        }
+
+        return self::isAllowedGroup($group) ? $group : self::GROUP_PAYING;
     }
 
     public static function ensureTables(mysqli $db): void
@@ -865,20 +904,21 @@ final class CampaignGroupSettings
      */
     public static function get(mysqli $db, string $group): array
     {
+        $hello = self::defaultFirstMessageFor($group);
         $defaults = [
             'group' => $group,
-            'first_message' => self::defaultFirstMessage(),
-            'default_message' => self::defaultFirstMessage(),
-            'welcome_message' => self::defaultWelcomeMessage(),
-            'default_welcome' => self::defaultWelcomeMessage(),
+            'first_message' => $hello,
+            'default_message' => $hello,
+            'welcome_message' => self::defaultWelcomeMessageFor($group),
+            'default_welcome' => self::defaultWelcomeMessageFor($group),
             'status_message' => self::defaultStatusMessage(),
             'default_status' => self::defaultStatusMessage(),
             'status_title' => self::defaultStatusTitle(),
             'default_status_title' => self::defaultStatusTitle(),
             'status_labels' => self::defaultStatusLabels(),
             'default_status_labels' => self::defaultStatusLabels(),
-            'contact_message' => self::defaultContactMessage(),
-            'default_contact_message' => self::defaultContactMessage(),
+            'contact_message' => self::defaultContactMessageFor($group),
+            'default_contact_message' => self::defaultContactMessageFor($group),
             'contact_ask' => self::defaultContactAsk(),
             'default_contact_ask' => self::defaultContactAsk(),
             'contact_labels' => self::defaultContactLabels(),
@@ -1001,7 +1041,8 @@ final class CampaignGroupSettings
                     isset($row['status_labels']) ? (string) $row['status_labels'] : null
                 );
                 $defaults['contact_message'] = self::contactMessageText(
-                    (string) ($row['contact_message'] ?? '')
+                    (string) ($row['contact_message'] ?? ''),
+                    $group
                 );
                 $defaults['contact_ask'] = self::contactAskText(
                     (string) ($row['contact_ask'] ?? '')
@@ -1461,7 +1502,7 @@ final class CampaignGroupSettings
      * @param list<int> $donorIds
      * @return list<int>
      */
-    public static function payingDonorIds(mysqli $db, array $donorIds): array
+    public static function payingDonorIds(mysqli $db, array $donorIds, string $group = self::GROUP_PAYING): array
     {
         $ids = [];
         foreach ($donorIds as $id) {
@@ -1480,6 +1521,7 @@ final class CampaignGroupSettings
             return [];
         }
 
+        $group = self::sanitizeGroup($group);
         $groupExpr = DonorCampaignGroups::sqlCase('d');
         $placeholders = implode(',', array_fill(0, count($ids), '?'));
         $types = str_repeat('i', count($ids));
@@ -1488,7 +1530,6 @@ final class CampaignGroupSettings
         if ($stmt === false) {
             return [];
         }
-        $group = self::GROUP_PAYING;
         $bind = array_merge($ids, [$group]);
         $stmt->bind_param($types . 's', ...$bind);
         $stmt->execute();

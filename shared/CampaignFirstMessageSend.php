@@ -16,7 +16,7 @@ final class CampaignFirstMessageSend
     /**
      * @return list<array{id:int,has_phone:bool}>
      */
-    public static function listPayingMeta(mysqli $db): array
+    public static function listPayingMeta(mysqli $db, string $group = CampaignGroupSettings::GROUP_PAYING): array
     {
         $tables = $db->query("SHOW TABLES LIKE 'donors'");
         if (!$tables || $tables->num_rows === 0) {
@@ -24,7 +24,7 @@ final class CampaignFirstMessageSend
         }
 
         $groupExpr = DonorCampaignGroups::sqlCase('d');
-        $group = DonorCampaignGroups::PLEDGE_PAYING;
+        $group = CampaignGroupSettings::sanitizeGroup($group);
         $stmt = $db->prepare("SELECT d.id, d.phone FROM donors d WHERE ({$groupExpr}) = ? ORDER BY d.id ASC");
         if ($stmt === false) {
             return [];
@@ -56,9 +56,14 @@ final class CampaignFirstMessageSend
      *     results:list<array{donor_id:int,name:string,status:string,error:?string}>
      * }
      */
-    public static function sendBatch(mysqli $db, array $donorIds, int $userId): array
-    {
-        $settings = CampaignGroupSettings::get($db, CampaignGroupSettings::GROUP_PAYING);
+    public static function sendBatch(
+        mysqli $db,
+        array $donorIds,
+        int $userId,
+        string $group = CampaignGroupSettings::GROUP_PAYING
+    ): array {
+        $group = CampaignGroupSettings::sanitizeGroup($group);
+        $settings = CampaignGroupSettings::get($db, $group);
         $template = trim((string) $settings['first_message']);
         if ($template === '') {
             return ['ok' => false, 'error' => 'Write and save a first message before sending.', 'results' => []];
@@ -69,7 +74,7 @@ final class CampaignFirstMessageSend
             return ['ok' => false, 'error' => 'WhatsApp is not configured. Set up UltraMsg first.', 'results' => []];
         }
 
-        $validIds = CampaignGroupSettings::payingDonorIds($db, $donorIds);
+        $validIds = CampaignGroupSettings::payingDonorIds($db, $donorIds, $group);
         $validIds = array_slice($validIds, 0, self::BATCH_LIMIT);
         if ($validIds === []) {
             return ['ok' => true, 'results' => []];

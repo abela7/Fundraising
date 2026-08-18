@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/includes/paying-boot.php';
 
-$page_title = 'Still paying — After No page';
+$page_title = $campaignTitlePrefix . ' — After No page';
 $savedMessage = CampaignGroupSettings::correctionMessageText(
     (string) ($campaignSettings['correction_message'] ?? '')
 );
@@ -31,6 +31,7 @@ $defaultCashLabel = (string) ($campaignSettings['default_correction_cash_label']
 $defaultCardLabel = (string) ($campaignSettings['default_correction_card_label'] ?? CampaignGroupSettings::defaultCorrectionCardLabel());
 $pageConfig = [
     'csrf' => $csrfToken,
+    'group' => $dvc_campaign_group,
     'default_correction_message' => $defaultMessage,
     'default_correction_ask' => $defaultAsk,
     'default_correction_amount_label' => $defaultAmountLabel,
@@ -62,13 +63,13 @@ $pageConfig = [
                 <div class="dvc-page-header animate-fade-in">
                     <div>
                         <h1>
-                            <i class="fas fa-pen-to-square me-2 dvc-title-icon paying"></i>
+                            <i class="fas fa-pen-to-square me-2 dvc-title-icon <?php echo htmlspecialchars($campaignTone, ENT_QUOTES, 'UTF-8'); ?>"></i>
                             After No page
                         </h1>
                         <p>After the donor says the amounts are not correct, they enter how much they have paid so far, then choose cash or bank transfer.</p>
                     </div>
                     <div class="d-flex gap-2">
-                        <a class="btn btn-outline-secondary" href="pledge-paying-settings.php">
+                        <a class="btn btn-outline-secondary" href="<?php echo htmlspecialchars($campaignFilePrefix, ENT_QUOTES, 'UTF-8'); ?>-settings.php">
                             <i class="fas fa-arrow-left me-1"></i>Back to settings
                         </a>
                     </div>

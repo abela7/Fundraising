@@ -2,10 +2,11 @@
 
 declare(strict_types=1);
 
+$dvc_campaign_group = 'pledge_not_started';
 require_once __DIR__ . '/includes/paying-boot.php';
 require_once __DIR__ . '/../../shared/CampaignPayingReport.php';
 
-$page_title = 'Still paying — Report';
+$page_title = 'Not started — Report';
 $jsVersion = (int) max(
     filemtime(__DIR__ . '/assets/paying-report.js') ?: time(),
     filemtime(__DIR__ . '/assets/paying-call-status.js') ?: time()
@@ -60,12 +61,12 @@ $chipPressed = static function (string $key) use ($chipActive): string {
                     <div>
                         <h1>
                             <i class="fas fa-chart-column me-2 dvc-title-icon paying"></i>
-                            Paying link report
+                            Not started report
                         </h1>
-                        <p>See who opened the still-paying link, who answered, and who booked a call. After a booking, mark Pending, Contacted, or Not answering. Tap a name for their full activity.</p>
+                        <p>See who was sent the not-started hello, who opened a link, and who answered. Tap a name for their activity.</p>
                     </div>
                     <div class="d-flex gap-2 flex-wrap">
-                        <a class="btn btn-outline-secondary" href="pledge-paying.php">
+                        <a class="btn btn-outline-secondary" href="pledge-not-started.php">
                             <i class="fas fa-arrow-left me-1"></i>Back to donors
                         </a>
                     </div>
@@ -76,7 +77,7 @@ $chipPressed = static function (string $key) use ($chipActive): string {
                         <div class="dvc-stat-icon paying"><i class="fas fa-users"></i></div>
                         <div>
                             <div class="dvc-stat-value" id="kpiDonors">—</div>
-                            <div class="dvc-stat-label">Still paying</div>
+                            <div class="dvc-stat-label">Not started</div>
                         </div>
                     </button>
                     <button type="button" class="<?php echo $chipClass('sent'); ?>" data-filter="sent" aria-pressed="<?php echo $chipPressed('sent'); ?>">
@@ -207,7 +208,8 @@ $chipPressed = static function (string $key) use ($chipActive): string {
 <script>
 window.PAY_REPORT = <?php echo json_encode([
     'csrf' => $csrfToken,
-    'group' => DonorCampaignGroups::PLEDGE_PAYING,
+    'group' => DonorCampaignGroups::PLEDGE_NOT_STARTED,
+    'activityUrl' => 'pledge-not-started-activity.php',
     'filter' => $reportFilter,
     'page' => $reportPage,
     'per_page' => $reportPerPage,

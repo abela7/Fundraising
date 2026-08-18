@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/includes/paying-boot.php';
 
-$page_title = 'Still paying — Settings';
+$page_title = $campaignTitlePrefix . ' — Settings';
 $title = 'Campaign settings';
 $savedMessage = trim((string) $campaignSettings['first_message']);
 $defaultMessage = (string) $campaignSettings['default_message'];
@@ -107,13 +107,13 @@ foreach (CampaignGroupSettings::payingCopySections() as $key => $section) {
                 <div class="dvc-page-header animate-fade-in">
                     <div>
                         <h1>
-                            <i class="fas fa-sliders me-2 dvc-title-icon paying"></i>
+                            <i class="fas fa-sliders me-2 dvc-title-icon <?php echo htmlspecialchars($campaignTone, ENT_QUOTES, 'UTF-8'); ?>"></i>
                             <?php echo htmlspecialchars($title, ENT_QUOTES, 'UTF-8'); ?>
                         </h1>
                         <p>Set up this campaign, then send when you are ready.</p>
                     </div>
                     <div class="d-flex gap-2 flex-wrap">
-                        <a class="btn btn-outline-secondary" href="pledge-paying.php">
+                        <a class="btn btn-outline-secondary" href="<?php echo htmlspecialchars($campaignFilePrefix, ENT_QUOTES, 'UTF-8'); ?>.php">
                             <i class="fas fa-arrow-left me-1"></i>Back to donors
                         </a>
                     </div>
@@ -121,7 +121,7 @@ foreach (CampaignGroupSettings::payingCopySections() as $key => $section) {
 
                 <div class="row g-3">
                     <div class="col-12 col-lg-8">
-                        <a class="dvc-group-card d-flex align-items-center text-decoration-none" href="pledge-paying-first-message.php">
+                        <a class="dvc-group-card d-flex align-items-center text-decoration-none" href="<?php echo htmlspecialchars($campaignFilePrefix, ENT_QUOTES, 'UTF-8'); ?>-first-message.php">
                             <div class="dvc-stat-icon completed"><i class="fab fa-whatsapp"></i></div>
                             <div class="dvc-group-card-body">
                                 <div class="dvc-setup-title">First WhatsApp message</div>
@@ -132,8 +132,8 @@ foreach (CampaignGroupSettings::payingCopySections() as $key => $section) {
                         </a>
                     </div>
                     <div class="col-12 col-lg-8">
-                        <a class="dvc-group-card d-flex align-items-center text-decoration-none" href="pledge-paying-welcome.php">
-                            <div class="dvc-stat-icon paying"><i class="fas fa-door-open"></i></div>
+                        <a class="dvc-group-card d-flex align-items-center text-decoration-none" href="<?php echo htmlspecialchars($campaignFilePrefix, ENT_QUOTES, 'UTF-8'); ?>-welcome.php">
+                            <div class="dvc-stat-icon <?php echo htmlspecialchars($campaignTone, ENT_QUOTES, 'UTF-8'); ?>"><i class="fas fa-door-open"></i></div>
                             <div class="dvc-group-card-body">
                                 <div class="dvc-setup-title">Welcome page</div>
                                 <div class="dvc-group-card-meta dvc-am-text"><?php echo htmlspecialchars($welcomePreview, ENT_QUOTES, 'UTF-8'); ?></div>
@@ -143,8 +143,8 @@ foreach (CampaignGroupSettings::payingCopySections() as $key => $section) {
                         </a>
                     </div>
                     <div class="col-12 col-lg-8">
-                        <a class="dvc-group-card d-flex align-items-center text-decoration-none" href="pledge-paying-status.php">
-                            <div class="dvc-stat-icon paying"><i class="fas fa-clipboard-check"></i></div>
+                        <a class="dvc-group-card d-flex align-items-center text-decoration-none" href="<?php echo htmlspecialchars($campaignFilePrefix, ENT_QUOTES, 'UTF-8'); ?>-status.php">
+                            <div class="dvc-stat-icon <?php echo htmlspecialchars($campaignTone, ENT_QUOTES, 'UTF-8'); ?>"><i class="fas fa-clipboard-check"></i></div>
                             <div class="dvc-group-card-body">
                                 <div class="dvc-setup-title">Status check page</div>
                                 <div class="dvc-group-card-meta dvc-am-text"><?php echo htmlspecialchars($statusPreview, ENT_QUOTES, 'UTF-8'); ?></div>
@@ -154,8 +154,8 @@ foreach (CampaignGroupSettings::payingCopySections() as $key => $section) {
                         </a>
                     </div>
                     <div class="col-12 col-lg-8">
-                        <a class="dvc-group-card d-flex align-items-center text-decoration-none" href="pledge-paying-contact.php">
-                            <div class="dvc-stat-icon paying"><i class="fas fa-phone"></i></div>
+                        <a class="dvc-group-card d-flex align-items-center text-decoration-none" href="<?php echo htmlspecialchars($campaignFilePrefix, ENT_QUOTES, 'UTF-8'); ?>-contact.php">
+                            <div class="dvc-stat-icon <?php echo htmlspecialchars($campaignTone, ENT_QUOTES, 'UTF-8'); ?>"><i class="fas fa-phone"></i></div>
                             <div class="dvc-group-card-body">
                                 <div class="dvc-setup-title">Contact page</div>
                                 <div class="dvc-group-card-meta dvc-am-text"><?php echo htmlspecialchars($contactPreview, ENT_QUOTES, 'UTF-8'); ?></div>
@@ -165,8 +165,8 @@ foreach (CampaignGroupSettings::payingCopySections() as $key => $section) {
                         </a>
                     </div>
                     <div class="col-12 col-lg-8">
-                        <a class="dvc-group-card d-flex align-items-center text-decoration-none" href="pledge-paying-correction.php">
-                            <div class="dvc-stat-icon paying"><i class="fas fa-pen-to-square"></i></div>
+                        <a class="dvc-group-card d-flex align-items-center text-decoration-none" href="<?php echo htmlspecialchars($campaignFilePrefix, ENT_QUOTES, 'UTF-8'); ?>-correction.php">
+                            <div class="dvc-stat-icon <?php echo htmlspecialchars($campaignTone, ENT_QUOTES, 'UTF-8'); ?>"><i class="fas fa-pen-to-square"></i></div>
                             <div class="dvc-group-card-body">
                                 <div class="dvc-setup-title">After No page</div>
                                 <div class="dvc-group-card-meta dvc-am-text"><?php echo htmlspecialchars($correctionPreview, ENT_QUOTES, 'UTF-8'); ?></div>
@@ -186,8 +186,8 @@ foreach (CampaignGroupSettings::payingCopySections() as $key => $section) {
                     foreach ($copySections as $copyKey => $copyCard):
                     ?>
                     <div class="col-12 col-lg-8">
-                        <a class="dvc-group-card d-flex align-items-center text-decoration-none" href="pledge-paying-copy.php?page=<?php echo htmlspecialchars($copyKey, ENT_QUOTES, 'UTF-8'); ?>">
-                            <div class="dvc-stat-icon paying"><i class="fas <?php echo htmlspecialchars($copyIcons[$copyKey] ?? 'fa-file-lines', ENT_QUOTES, 'UTF-8'); ?>"></i></div>
+                        <a class="dvc-group-card d-flex align-items-center text-decoration-none" href="<?php echo htmlspecialchars($campaignFilePrefix, ENT_QUOTES, 'UTF-8'); ?>-copy.php?page=<?php echo htmlspecialchars($copyKey, ENT_QUOTES, 'UTF-8'); ?>">
+                            <div class="dvc-stat-icon <?php echo htmlspecialchars($campaignTone, ENT_QUOTES, 'UTF-8'); ?>"><i class="fas <?php echo htmlspecialchars($copyIcons[$copyKey] ?? 'fa-file-lines', ENT_QUOTES, 'UTF-8'); ?>"></i></div>
                             <div class="dvc-group-card-body">
                                 <div class="dvc-setup-title"><?php echo htmlspecialchars($copyCard['title'], ENT_QUOTES, 'UTF-8'); ?></div>
                                 <div class="dvc-group-card-meta dvc-am-text"><?php echo htmlspecialchars($copyCard['preview'], ENT_QUOTES, 'UTF-8'); ?></div>

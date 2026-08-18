@@ -12,20 +12,28 @@ require_once __DIR__ . '/../../../shared/CampaignGroupSettings.php';
 require_login();
 require_admin();
 
-$meta = dvc_campaign_group_meta(DonorCampaignGroups::PLEDGE_PAYING);
+$dvc_campaign_group = isset($dvc_campaign_group) && is_string($dvc_campaign_group)
+    ? CampaignGroupSettings::sanitizeGroup($dvc_campaign_group)
+    : CampaignGroupSettings::GROUP_PAYING;
+$meta = dvc_campaign_group_meta($dvc_campaign_group);
+$hello = CampaignGroupSettings::defaultFirstMessageFor($dvc_campaign_group);
+$isNotStartedCampaign = $dvc_campaign_group === CampaignGroupSettings::GROUP_NOT_STARTED;
+$campaignFilePrefix = $isNotStartedCampaign ? 'pledge-not-started' : 'pledge-paying';
+$campaignTitlePrefix = $isNotStartedCampaign ? 'Not started' : 'Still paying';
+$campaignTone = $isNotStartedCampaign ? 'not-started' : 'paying';
 $campaignSettings = [
-    'first_message' => CampaignGroupSettings::defaultFirstMessage(),
-    'default_message' => CampaignGroupSettings::defaultFirstMessage(),
-    'welcome_message' => CampaignGroupSettings::defaultWelcomeMessage(),
-    'default_welcome' => CampaignGroupSettings::defaultWelcomeMessage(),
+    'first_message' => $hello,
+    'default_message' => $hello,
+    'welcome_message' => CampaignGroupSettings::defaultWelcomeMessageFor($dvc_campaign_group),
+    'default_welcome' => CampaignGroupSettings::defaultWelcomeMessageFor($dvc_campaign_group),
     'status_message' => CampaignGroupSettings::defaultStatusMessage(),
     'default_status' => CampaignGroupSettings::defaultStatusMessage(),
     'status_title' => CampaignGroupSettings::defaultStatusTitle(),
     'default_status_title' => CampaignGroupSettings::defaultStatusTitle(),
     'status_labels' => CampaignGroupSettings::defaultStatusLabels(),
     'default_status_labels' => CampaignGroupSettings::defaultStatusLabels(),
-    'contact_message' => CampaignGroupSettings::defaultContactMessage(),
-    'default_contact_message' => CampaignGroupSettings::defaultContactMessage(),
+    'contact_message' => CampaignGroupSettings::defaultContactMessageFor($dvc_campaign_group),
+    'default_contact_message' => CampaignGroupSettings::defaultContactMessageFor($dvc_campaign_group),
     'contact_ask' => CampaignGroupSettings::defaultContactAsk(),
     'default_contact_ask' => CampaignGroupSettings::defaultContactAsk(),
     'contact_labels' => CampaignGroupSettings::defaultContactLabels(),
@@ -48,7 +56,7 @@ $campaignSettings = [
     'donor_ids' => [],
 ];
 try {
-    $campaignSettings = CampaignGroupSettings::get(db(), CampaignGroupSettings::GROUP_PAYING);
+    $campaignSettings = CampaignGroupSettings::get(db(), $dvc_campaign_group);
 } catch (Throwable $e) {
     error_log('Campaign settings load failed: ' . $e->getMessage());
 }

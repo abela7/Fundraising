@@ -17,6 +17,15 @@ final class CampaignInboundIdentifier
     public const LINK_ALREADY = 'already_sent';
 
     /**
+     * Groups that receive a unique confirmation link after OK.
+     */
+    public static function supportsLink(?string $group): bool
+    {
+        return $group === DonorCampaignGroups::PLEDGE_PAYING
+            || $group === DonorCampaignGroups::PLEDGE_NOT_STARTED;
+    }
+
+    /**
      * True when the whole message is OK / okay, any casing.
      */
     public static function isOkReply(string $body): bool
@@ -82,7 +91,7 @@ final class CampaignInboundIdentifier
 
         $donor = self::loadDonor($db, $input);
         $group = $donor !== null ? DonorCampaignGroups::fromDonor($donor) : null;
-        $linkStatus = $group === DonorCampaignGroups::PLEDGE_PAYING
+        $linkStatus = self::supportsLink($group)
             ? self::LINK_PENDING
             : self::LINK_UNSUPPORTED;
 

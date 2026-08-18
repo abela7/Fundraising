@@ -148,6 +148,7 @@
     try {
       const body = new URLSearchParams({
         csrf_token: csrf,
+        group: config.group || 'pledge_paying',
         action: 'save_status',
         status_title: titleEl ? titleEl.value : '',
         status_pledge_label: pledgeEl ? pledgeEl.value : '',

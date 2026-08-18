@@ -14,7 +14,7 @@ header('X-Robots-Tag: noindex, nofollow');
 $token = trim((string) ($_GET['t'] ?? ''));
 if ($token === '') {
     $path = (string) parse_url((string) ($_SERVER['REQUEST_URI'] ?? ''), PHP_URL_PATH);
-    if (preg_match('#/paying/([A-Za-z0-9]+)/?$#', $path, $match)) {
+    if (preg_match('#/(?:paying|not-started)/([A-Za-z0-9]+)/?$#', $path, $match)) {
         $token = $match[1];
     }
 }
@@ -66,11 +66,12 @@ try {
 if ($donor === null) {
     http_response_code(404);
 } else {
-    $welcomeTemplate = CampaignGroupSettings::defaultWelcomeMessage();
+    $campaignGroup = CampaignPayingLink::groupFromDonorRow($donor);
+    $welcomeTemplate = CampaignGroupSettings::defaultWelcomeMessageFor($campaignGroup);
     $statusTemplate = CampaignGroupSettings::defaultStatusMessage();
     $statusTitleTemplate = CampaignGroupSettings::defaultStatusTitle();
     $statusLabels = CampaignGroupSettings::defaultStatusLabels();
-    $contactMessageTemplate = CampaignGroupSettings::defaultContactMessage();
+    $contactMessageTemplate = CampaignGroupSettings::defaultContactMessageFor($campaignGroup);
     $contactAskTemplate = CampaignGroupSettings::defaultContactAsk();
     $contactLabels = CampaignGroupSettings::defaultContactLabels();
     $correctionMessageTemplate = CampaignGroupSettings::defaultCorrectionMessage();
@@ -84,7 +85,7 @@ if ($donor === null) {
     $phoneEnterTemplate = CampaignGroupSettings::defaultPhoneEnter();
     $payingPages = CampaignGroupSettings::defaultPayingPages();
     try {
-        $settings = CampaignGroupSettings::get(db(), CampaignGroupSettings::GROUP_PAYING);
+        $settings = CampaignGroupSettings::get(db(), $campaignGroup);
         if (trim((string) ($settings['welcome_message'] ?? '')) !== '') {
             $welcomeTemplate = (string) $settings['welcome_message'];
         }
@@ -98,7 +99,8 @@ if ($donor === null) {
             $statusLabels = CampaignGroupSettings::statusLabels(null, $settings['status_labels']);
         }
         $contactMessageTemplate = CampaignGroupSettings::contactMessageText(
-            (string) ($settings['contact_message'] ?? '')
+            (string) ($settings['contact_message'] ?? ''),
+            $campaignGroup
         );
         $contactAskTemplate = CampaignGroupSettings::contactAskText(
             (string) ($settings['contact_ask'] ?? '')

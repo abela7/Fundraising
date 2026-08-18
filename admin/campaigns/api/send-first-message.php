@@ -42,7 +42,10 @@ $userId = (int) ($_SESSION['user']['id'] ?? 0);
 
 try {
     @set_time_limit(60);
-    $sent = CampaignFirstMessageSend::sendBatch(db(), $ids, $userId);
+    $group = CampaignGroupSettings::sanitizeGroup(
+        (string) ($_POST['group'] ?? CampaignGroupSettings::GROUP_PAYING)
+    );
+    $sent = CampaignFirstMessageSend::sendBatch(db(), $ids, $userId, $group);
     if (!$sent['ok']) {
         http_response_code(400);
         echo json_encode([

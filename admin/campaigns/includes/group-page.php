@@ -39,6 +39,9 @@ $description = htmlspecialchars((string)$meta['description'], ENT_QUOTES, 'UTF-8
 $amountLabel = htmlspecialchars((string)$meta['amount_label'], ENT_QUOTES, 'UTF-8');
 $isPledgeFamily = ($meta['family'] ?? '') === 'pledge';
 $isPayingCampaign = ($dvc_group === DonorCampaignGroups::PLEDGE_PAYING);
+$isNotStartedCampaign = ($dvc_group === DonorCampaignGroups::PLEDGE_NOT_STARTED);
+$isCampaignReady = $isPayingCampaign || $isNotStartedCampaign;
+$campaignFilePrefix = $isNotStartedCampaign ? 'pledge-not-started' : 'pledge-paying';
 $pageConfig = [
     'group' => $dvc_group,
     'amount_key' => (string)$meta['amount_key'],
@@ -84,14 +87,14 @@ $cssVersion = (int) (filemtime(__DIR__ . '/../assets/campaigns.css') ?: time());
                         <p><?php echo $description; ?></p>
                     </div>
                     <div class="d-flex gap-2 flex-wrap">
-                        <?php if ($isPayingCampaign): ?>
-                            <a class="btn btn-outline-primary" href="pledge-paying-report.php">
+                        <?php if ($isCampaignReady): ?>
+                            <a class="btn btn-outline-primary" href="<?php echo htmlspecialchars($campaignFilePrefix, ENT_QUOTES, 'UTF-8'); ?>-report.php">
                                 <i class="fas fa-chart-column me-1"></i>Report
                             </a>
-                            <a class="btn btn-outline-primary" href="pledge-paying-settings.php">
+                            <a class="btn btn-outline-primary" href="<?php echo htmlspecialchars($campaignFilePrefix, ENT_QUOTES, 'UTF-8'); ?>-settings.php">
                                 <i class="fas fa-sliders me-1"></i>Settings
                             </a>
-                            <a class="btn btn-primary" href="pledge-paying-send.php">
+                            <a class="btn btn-primary" href="<?php echo htmlspecialchars($campaignFilePrefix, ENT_QUOTES, 'UTF-8'); ?>-send.php">
                                 <i class="fas fa-paper-plane me-1"></i>Send
                             </a>
                         <?php endif; ?>

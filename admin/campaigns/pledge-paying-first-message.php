@@ -4,11 +4,12 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/includes/paying-boot.php';
 
-$page_title = 'Still paying — First message';
+$page_title = $campaignTitlePrefix . ' — First message';
 $savedMessage = (string) $campaignSettings['first_message'];
 $defaultMessage = (string) $campaignSettings['default_message'];
 $pageConfig = [
     'csrf' => $csrfToken,
+    'group' => $dvc_campaign_group,
     'default_message' => $defaultMessage,
 ];
 ?>
@@ -41,7 +42,7 @@ $pageConfig = [
                         <p>Write the hello message. Saving does not send it.</p>
                     </div>
                     <div class="d-flex gap-2">
-                        <a class="btn btn-outline-secondary" href="pledge-paying-settings.php">
+                        <a class="btn btn-outline-secondary" href="<?php echo htmlspecialchars($campaignFilePrefix, ENT_QUOTES, 'UTF-8'); ?>-settings.php">
                             <i class="fas fa-arrow-left me-1"></i>Back to settings
                         </a>
                     </div>

@@ -24,7 +24,10 @@ $page = max(1, (int) ($_GET['page'] ?? 1));
 $perPage = min(100, max(10, (int) ($_GET['per_page'] ?? 25)));
 
 try {
-    $all = CampaignPayingReport::fetch(db());
+    $group = CampaignPayingReport::sanitizeGroup(
+        (string) ($_GET['group'] ?? DonorCampaignGroups::PLEDGE_PAYING)
+    );
+    $all = CampaignPayingReport::fetch(db(), $group);
     $summary = CampaignPayingReport::summarize($all);
     $filtered = CampaignPayingReport::filterRows($all, $filter, $search);
     usort($filtered, static function (array $a, array $b): int {

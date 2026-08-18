@@ -18,9 +18,13 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'GET') {
 }
 
 try {
-    $donors = CampaignFirstMessageSend::listPayingMeta(db());
+    $group = CampaignGroupSettings::sanitizeGroup(
+        (string) ($_GET['group'] ?? CampaignGroupSettings::GROUP_PAYING)
+    );
+    $donors = CampaignFirstMessageSend::listPayingMeta(db(), $group);
     echo json_encode([
         'success' => true,
+        'group' => $group,
         'donors' => $donors,
         'total' => count($donors),
     ]);

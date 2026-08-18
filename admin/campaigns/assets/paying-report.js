@@ -42,6 +42,7 @@
     params.set('per_page', document.getElementById('perPage').value);
     const donor = document.getElementById('filterDonor').value.trim();
     if (donor) params.set('donor', donor);
+    if (config.group) params.set('group', config.group);
     return 'api/paying-report.php?' + params.toString();
   }
 
@@ -53,6 +54,7 @@
     if (perPage && perPage !== '25') params.set('per_page', perPage);
     const donor = document.getElementById('filterDonor').value.trim();
     if (donor) params.set('donor', donor);
+    if (config.group) params.set('group', config.group);
     const qs = params.toString();
     const next = qs ? window.location.pathname + '?' + qs : window.location.pathname;
     window.history.replaceState({}, '', next);
@@ -201,7 +203,7 @@
       const name = escapeHtml(r.name || 'Unknown');
       const id = Number(r.donor_id || r.id || 0);
       const link = id
-        ? '<a class="dvc-donor-link" href="pledge-paying-activity.php?id=' + id + '">' + name + '</a>'
+        ? '<a class="dvc-donor-link" href="' + escapeHtml(config.activityUrl || 'pledge-paying-activity.php') + '?id=' + id + '">' + name + '</a>'
         : name;
       const storedPhone = r.phone
         ? escapeHtml(r.phone)

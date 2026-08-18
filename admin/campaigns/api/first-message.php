@@ -12,7 +12,9 @@ header('Content-Type: application/json');
 require_login();
 require_admin();
 
-$group = CampaignGroupSettings::GROUP_PAYING;
+$group = CampaignGroupSettings::sanitizeGroup(
+    (string) ($_GET['group'] ?? $_POST['group'] ?? CampaignGroupSettings::GROUP_PAYING)
+);
 
 if (($_SERVER['REQUEST_METHOD'] ?? '') === 'GET') {
     try {

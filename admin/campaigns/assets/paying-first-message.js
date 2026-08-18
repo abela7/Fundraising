@@ -10,12 +10,12 @@
   const flashEl = document.getElementById('dvcMsgFlash');
   if (!bodyEl) return;
 
-  const previewDonor = {
+  const previewDonor = Object.assign({
     name: 'Abeba',
     pledged: 400,
     paid: 120,
     balance: 280
-  };
+  }, config.preview || {});
 
   function money(amount) {
     return '£' + Number(amount || 0).toLocaleString('en-GB', {
@@ -79,6 +79,7 @@
       const body = new URLSearchParams({
         csrf_token: csrf,
         action: 'save_message',
+        group: config.group || 'pledge_paying',
         first_message: bodyEl.value
       });
       const res = await fetch(saveUrl, {

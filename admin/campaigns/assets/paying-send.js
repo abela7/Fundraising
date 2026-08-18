@@ -185,7 +185,9 @@
 
   async function loadAllPaying() {
     if (allPaying) return allPaying;
-    const res = await fetch('api/paying-ids.php', {
+    const params = new URLSearchParams();
+    if (config.group) params.set('group', config.group);
+    const res = await fetch('api/paying-ids.php' + (params.toString() ? '?' + params.toString() : ''), {
       credentials: 'same-origin',
       headers: { Accept: 'application/json' }
     });
@@ -250,6 +252,7 @@
   async function postBatch(ids) {
     const body = new URLSearchParams({
       csrf_token: csrf,
+      group: config.group || 'pledge_paying',
       donor_ids: JSON.stringify(ids)
     });
     const res = await fetch('api/send-first-message.php', {

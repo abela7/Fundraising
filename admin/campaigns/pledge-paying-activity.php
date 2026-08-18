@@ -5,7 +5,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/includes/paying-boot.php';
 require_once __DIR__ . '/../../shared/CampaignPayingReport.php';
 
-$page_title = 'Still paying — Activity';
+$page_title = $campaignTitlePrefix . ' — Activity';
 $donorId = (int) ($_GET['id'] ?? 0);
 $activity = null;
 $error = '';
@@ -16,7 +16,9 @@ try {
     $error = 'Could not load this donor’s activity.';
 }
 if ($activity === null && $error === '') {
-    $error = 'This donor is not in the still-paying report.';
+    $error = $isNotStartedCampaign
+        ? 'This donor is not in the not-started report.'
+        : 'This donor is not in the still-paying report.';
 }
 
 $h = static function (string $value): string {
@@ -49,10 +51,10 @@ $dash = static function (string $value) use ($h): string {
                 <div class="dvc-page-header animate-fade-in">
                     <div>
                         <h1>
-                            <i class="fas fa-user-clock me-2 dvc-title-icon paying"></i>
+                            <i class="fas fa-user-clock me-2 dvc-title-icon <?php echo htmlspecialchars($campaignTone, ENT_QUOTES, 'UTF-8'); ?>"></i>
                             <?php echo $activity !== null ? $h((string) $activity['name']) : 'Donor activity'; ?>
                         </h1>
-                        <p>Everything this donor has done on the still-paying link.</p>
+                        <p>Everything this donor has done on their unique link.</p>
                     </div>
                     <div class="d-flex gap-2 flex-wrap">
                         <?php if ($activity !== null && (int) $activity['donor_id'] > 0): ?>
@@ -60,7 +62,7 @@ $dash = static function (string $value) use ($h): string {
                                 <i class="fas fa-id-card me-1"></i>Donor record
                             </a>
                         <?php endif; ?>
-                        <a class="btn btn-outline-secondary" href="pledge-paying-report.php">
+                        <a class="btn btn-outline-secondary" href="<?php echo htmlspecialchars($campaignFilePrefix, ENT_QUOTES, 'UTF-8'); ?>-report.php">
                             <i class="fas fa-arrow-left me-1"></i>Back to report
                         </a>
                     </div>

@@ -135,6 +135,7 @@
     try {
       const body = new URLSearchParams({
         csrf_token: csrf,
+        group: config.group || 'pledge_paying',
         action: 'save_correction',
         correction_message: messageEl.value,
         correction_ask: askEl.value,

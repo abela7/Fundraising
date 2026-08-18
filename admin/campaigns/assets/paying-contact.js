@@ -143,6 +143,7 @@
     try {
       const body = new URLSearchParams({
         csrf_token: csrf,
+        group: config.group || 'pledge_paying',
         action: 'save_contact',
         contact_message: messageEl.value,
         callback_message: callbackEl ? callbackEl.value : '',

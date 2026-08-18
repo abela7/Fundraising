@@ -780,6 +780,7 @@ final class CampaignPayingProgress
             'ALTER TABLE campaign_paying_links ADD COLUMN progress_updated_at TIMESTAMP NULL DEFAULT NULL',
             'ALTER TABLE campaign_paying_links ADD COLUMN opened_at TIMESTAMP NULL DEFAULT NULL',
             'ALTER TABLE campaign_paying_links ADD COLUMN call_status VARCHAR(20) NULL DEFAULT NULL',
+            "ALTER TABLE campaign_paying_links ADD COLUMN campaign_group VARCHAR(40) NOT NULL DEFAULT 'pledge_paying'",
         ];
         foreach ($alters as $sql) {
             try {

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/includes/paying-boot.php';
 
-$page_title = 'Still paying — Contact page';
+$page_title = $campaignTitlePrefix . ' — Contact page';
 $savedMessage = CampaignGroupSettings::contactMessageText(
     (string) ($campaignSettings['contact_message'] ?? '')
 );
@@ -28,6 +28,7 @@ $savedCallback = (string) ($payingPages['callback_message'] ?? CampaignGroupSett
 $defaultCallback = (string) ($defaultPayingPages['callback_message'] ?? CampaignGroupSettings::defaultCallbackMessage());
 $pageConfig = [
     'csrf' => $csrfToken,
+    'group' => $dvc_campaign_group,
     'default_contact_message' => $defaultMessage,
     'default_contact_ask' => $defaultAsk,
     'default_contact_labels' => $defaultLabels,
@@ -57,13 +58,13 @@ $pageConfig = [
                 <div class="dvc-page-header animate-fade-in">
                     <div>
                         <h1>
-                            <i class="fas fa-phone me-2 dvc-title-icon paying"></i>
+                            <i class="fas fa-phone me-2 dvc-title-icon <?php echo htmlspecialchars($campaignTone, ENT_QUOTES, 'UTF-8'); ?>"></i>
                             Contact page
                         </h1>
                         <p>After the donor says the amounts are correct, or after they do not remember a bank date, they pick a date, time, and how to be called.</p>
                     </div>
                     <div class="d-flex gap-2">
-                        <a class="btn btn-outline-secondary" href="pledge-paying-settings.php">
+                        <a class="btn btn-outline-secondary" href="<?php echo htmlspecialchars($campaignFilePrefix, ENT_QUOTES, 'UTF-8'); ?>-settings.php">
                             <i class="fas fa-arrow-left me-1"></i>Back to settings
                         </a>
                     </div>

@@ -366,6 +366,7 @@ final class CampaignPayingReport
             $token = '';
         }
         $hasLink = $token !== '';
+        $group = CampaignPayingLink::groupFromDonorRow($row);
         $answer = $classified['answer'];
         $openedAt = self::stringOrNull($row['opened_at'] ?? null);
         $savedAt = self::stringOrNull($row['progress_updated_at'] ?? null);
@@ -399,7 +400,7 @@ final class CampaignPayingReport
             'balance_label' => CampaignPayingLink::formatMoney($balance),
             'has_link' => $hasLink,
             'token' => $token,
-            'paying_url' => $hasLink ? CampaignPayingLink::whatsappUrl($token) : '',
+            'paying_url' => $hasLink ? CampaignPayingLink::whatsappUrl($token, $group) : '',
             'step' => (string) ($row['step'] ?? ''),
             'step_label' => $hasLink ? self::stepLabel((string) ($row['step'] ?? '')) : 'No paying link',
             'revision' => max(0, (int) ($row['revision'] ?? 0)),
@@ -505,7 +506,11 @@ final class CampaignPayingReport
         }
         $presented = self::present($row);
         $group = DonorCampaignGroups::fromDonor($row);
-        if ($group !== DonorCampaignGroups::PLEDGE_PAYING && empty($presented['has_link'])) {
+        if (
+            $group !== DonorCampaignGroups::PLEDGE_PAYING
+            && $group !== DonorCampaignGroups::PLEDGE_NOT_STARTED
+            && empty($presented['has_link'])
+        ) {
             return null;
         }
 
@@ -527,14 +532,25 @@ final class CampaignPayingReport
         return $when . ' · ' . $label;
     }
 
+    public static function sanitizeGroup(string $group): string
+    {
+        $group = strtolower(trim($group));
+        if ($group === DonorCampaignGroups::PLEDGE_NOT_STARTED) {
+            return DonorCampaignGroups::PLEDGE_NOT_STARTED;
+        }
+
+        return DonorCampaignGroups::PLEDGE_PAYING;
+    }
+
     /**
      * @return list<array<string, mixed>>
      */
-    public static function fetch(mysqli $db): array
+    public static function fetch(mysqli $db, string $group = DonorCampaignGroups::PLEDGE_PAYING): array
     {
         CampaignPayingProgress::ensureColumns($db);
         $tables = $db->query("SHOW TABLES LIKE 'campaign_paying_links'");
         $hasLinks = $tables && $tables->num_rows > 0;
+        $group = self::sanitizeGroup($group);
         $groupExpr = DonorCampaignGroups::sqlCase('d');
         $join = $hasLinks
             ? 'LEFT JOIN campaign_paying_links l ON l.donor_id = d.id'
@@ -568,7 +584,6 @@ final class CampaignPayingReport
         if ($stmt === false) {
             throw new RuntimeException('Paying report query failed.');
         }
-        $group = DonorCampaignGroups::PLEDGE_PAYING;
         $stmt->bind_param('s', $group);
         $stmt->execute();
         $result = $stmt->get_result();
@@ -685,17 +700,21 @@ final class CampaignPayingReport
 
             return $token
                 . 'NULL AS last_sent_at, NULL AS opened_at, NULL AS step, NULL AS answers_json, '
-                . '0 AS revision, NULL AS progress_updated_at, NULL AS call_status';
+                . '0 AS revision, NULL AS progress_updated_at, NULL AS call_status, NULL AS campaign_group';
         }
         $token = $withToken ? 'l.token, ' : '';
         $callStatus = self::hasLinkColumn($db, 'call_status')
             ? 'l.call_status'
             : 'NULL AS call_status';
+        $linkGroup = self::hasLinkColumn($db, 'campaign_group')
+            ? 'l.campaign_group'
+            : 'NULL AS campaign_group';
 
         return $token
             . 'l.last_sent_at, l.opened_at, l.step, l.answers_json, l.revision, '
             . 'l.progress_updated_at, '
-            . $callStatus;
+            . $callStatus . ', '
+            . $linkGroup;
     }
 
     private static function hasLinkColumn(mysqli $db, string $column): bool

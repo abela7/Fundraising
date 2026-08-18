@@ -60,6 +60,7 @@
     try {
       const body = new URLSearchParams({
         csrf_token: csrf,
+        group: config.group || 'pledge_paying',
         action: 'save_welcome',
         welcome_message: bodyEl.value
       });
