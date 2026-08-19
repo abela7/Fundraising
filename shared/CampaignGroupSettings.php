@@ -178,6 +178,38 @@ final class CampaignGroupSettings
     }
 
     /**
+     * Default mixed cash-and-bank choice on the after-no method step.
+     */
+    public static function defaultCorrectionMixedLabel(): string
+    {
+        return 'ድብልቅ';
+    }
+
+    /**
+     * Default prompt after they choose mixed: split cash vs bank transfer.
+     */
+    public static function defaultMixedAsk(): string
+    {
+        return 'ከዚህ ውስጥ ምን ያህሉ በጥሬ ገንዘብ እና ምን ያህሉ በባንክ ትራንስፈር ነው?';
+    }
+
+    /**
+     * Default mixed cash-amount field label.
+     */
+    public static function defaultMixedCashAmountLabel(): string
+    {
+        return 'በጥሬ ገንዘብ (£)';
+    }
+
+    /**
+     * Default mixed bank-transfer amount field label.
+     */
+    public static function defaultMixedBankAmountLabel(): string
+    {
+        return 'በባንክ ትራንስፈር (£)';
+    }
+
+    /**
      * Default cash follow-up: when and to whom they paid.
      */
     public static function defaultCashRememberAsk(): string
@@ -366,6 +398,10 @@ final class CampaignGroupSettings
             'cash_when_label' => self::defaultCashWhenLabel(),
             'cash_whom_label' => self::defaultCashWhomLabel(),
             'cash_remember_no_label' => self::defaultRememberNoLabel(),
+            'mixed_label' => self::defaultCorrectionMixedLabel(),
+            'mixed_ask' => self::defaultMixedAsk(),
+            'mixed_cash_label' => self::defaultMixedCashAmountLabel(),
+            'mixed_bank_label' => self::defaultMixedBankAmountLabel(),
             'proof_ask' => self::defaultProofAsk(),
             'proof_yes_label' => 'አዎ',
             'proof_no_label' => 'አይደለም',
@@ -417,6 +453,7 @@ final class CampaignGroupSettings
     {
         $long = [
             'cash_remember_ask',
+            'mixed_ask',
             'proof_ask',
             'paid_date_ask',
             'callback_message',
@@ -453,9 +490,20 @@ final class CampaignGroupSettings
                     ['key' => 'cash_remember_no_label', 'label' => 'I do not remember button', 'type' => 'input'],
                 ],
             ],
+            'mixed' => [
+                'title' => 'Mixed payment page',
+                'blurb' => 'After they choose mixed, they say how much was cash and how much was bank transfer.',
+                'preview_key' => 'mixed_ask',
+                'fields' => [
+                    ['key' => 'mixed_label', 'label' => 'Mixed button', 'type' => 'input'],
+                    ['key' => 'mixed_ask', 'label' => 'Split-amounts prompt', 'type' => 'textarea'],
+                    ['key' => 'mixed_cash_label', 'label' => 'Cash amount label', 'type' => 'input'],
+                    ['key' => 'mixed_bank_label', 'label' => 'Bank transfer amount label', 'type' => 'input'],
+                ],
+            ],
             'proof' => [
                 'title' => 'Bank screenshot page',
-                'blurb' => 'After they choose bank transfer, they can send a screenshot.',
+                'blurb' => 'After cash, bank transfer, or mixed, they can send a screenshot.',
                 'preview_key' => 'proof_ask',
                 'fields' => [
                     ['key' => 'proof_ask', 'label' => 'Screenshot question', 'type' => 'textarea'],
@@ -487,7 +535,7 @@ final class CampaignGroupSettings
             ],
             'thanks' => [
                 'title' => 'Thank-you page',
-                'blurb' => 'One message after a booked call, and one after cash details, a screenshot, or a paid date.',
+                'blurb' => 'One message after a booked call, and one after cash, mixed, a screenshot, or a paid date.',
                 'preview_key' => 'done_message',
                 'fields' => [
                     ['key' => 'done_message', 'label' => 'After they book a call', 'type' => 'textarea'],

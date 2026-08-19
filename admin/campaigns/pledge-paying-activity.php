@@ -220,7 +220,17 @@ $dash = static function (string $value) use ($h): string {
                                         <div class="dvc-detail-value"><?php echo $dash((string) ($activity['cash_remember_label'] ?? '')); ?></div>
                                     </div>
                                     <?php endif; ?>
-                                    <?php if (in_array((string) ($activity['paid_method'] ?? ''), ['cash', 'bank'], true)): ?>
+                                    <?php if (($activity['paid_method'] ?? '') === 'mixed'): ?>
+                                    <div class="dvc-detail-row">
+                                        <div class="dvc-detail-label">Cash amount</div>
+                                        <div class="dvc-detail-value"><?php echo $dash((string) ($activity['mixed_cash_label'] ?? '')); ?></div>
+                                    </div>
+                                    <div class="dvc-detail-row">
+                                        <div class="dvc-detail-label">Bank transfer amount</div>
+                                        <div class="dvc-detail-value"><?php echo $dash((string) ($activity['mixed_bank_label'] ?? '')); ?></div>
+                                    </div>
+                                    <?php endif; ?>
+                                    <?php if (in_array((string) ($activity['paid_method'] ?? ''), ['cash', 'bank', 'mixed'], true)): ?>
                                     <div class="dvc-detail-row">
                                         <div class="dvc-detail-label">Can send screenshot</div>
                                         <div class="dvc-detail-value"><?php echo $dash((string) ($activity['send_proof_label'] ?? '')); ?></div>

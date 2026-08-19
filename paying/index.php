@@ -41,6 +41,10 @@ $correctionAmountLabelHtml = '';
 $correctionMethodAskHtml = '';
 $correctionCashHtml = '';
 $correctionCardHtml = '';
+$correctionMixedHtml = '';
+$mixedAskHtml = '';
+$mixedCashLabelHtml = '';
+$mixedBankLabelHtml = '';
 $cashRememberAskHtml = '';
 $cashWhenLabelHtml = '';
 $cashWhomLabelHtml = '';
@@ -161,6 +165,10 @@ if ($donor === null) {
     $correctionMethodAskHtml = $renderText($correctionMethodAskTemplate);
     $correctionCashHtml = $renderText($correctionCashTemplate);
     $correctionCardHtml = $renderText($correctionCardTemplate);
+    $correctionMixedHtml = $renderText((string) $payingPages['mixed_label']);
+    $mixedAskHtml = $renderText((string) $payingPages['mixed_ask']);
+    $mixedCashLabelHtml = $renderText((string) $payingPages['mixed_cash_label']);
+    $mixedBankLabelHtml = $renderText((string) $payingPages['mixed_bank_label']);
     $cashRememberAskHtml = $renderText((string) $payingPages['cash_remember_ask']);
     $cashWhenLabelHtml = $renderText((string) $payingPages['cash_when_label']);
     $cashWhomLabelHtml = $renderText((string) $payingPages['cash_whom_label']);
@@ -329,9 +337,10 @@ if ($donor !== null && $token !== '') {
                     <div class="pay-card">
                         <div class="pay-title"><?php echo $correctionMethodAskHtml; ?></div>
                         <div class="pay-field pay-field-last">
-                            <div class="pay-choices" role="group" aria-label="<?php echo htmlspecialchars(strip_tags($correctionMethodAskHtml), ENT_QUOTES, 'UTF-8'); ?>">
+                            <div class="pay-choices pay-choices-three" role="group" aria-label="<?php echo htmlspecialchars(strip_tags($correctionMethodAskHtml), ENT_QUOTES, 'UTF-8'); ?>">
                                 <button type="button" class="pay-choice" data-pay-choice="paid_method" data-pay-value="cash"><?php echo $correctionCashHtml; ?></button>
                                 <button type="button" class="pay-choice" data-pay-choice="paid_method" data-pay-value="bank"><?php echo $correctionCardHtml; ?></button>
+                                <button type="button" class="pay-choice" data-pay-choice="paid_method" data-pay-value="mixed"><?php echo $correctionMixedHtml; ?></button>
                             </div>
                         </div>
                     </div>
@@ -355,6 +364,27 @@ if ($donor !== null && $token !== '') {
                                 <button type="button" class="pay-choice pay-choice-no" data-pay-choice="cash_remember" data-pay-value="no"><?php echo $cashRememberNoHtml; ?></button>
                             </div>
                         </div>
+                        <button type="button" class="pay-continue pay-continue-inline" data-pay-next data-pay-next-stay><?php echo $continueHtml; ?></button>
+                    </div>
+                </div>
+            </section>
+
+            <section class="pay-screen" data-pay-step="mixed_split" id="payMixedSplit" hidden aria-label="ድብልቅ ክፍያ">
+                <div class="pay-stack">
+                    <div class="pay-card">
+                        <div class="pay-title"><?php echo $correctionAmountLabelHtml; ?></div>
+                        <div class="pay-phone-display" data-pay-reported-paid></div>
+                    </div>
+                    <div class="pay-card">
+                        <div class="pay-title"><?php echo $mixedAskHtml; ?></div>
+                        <label class="pay-field">
+                            <span class="pay-label"><?php echo $mixedCashLabelHtml; ?></span>
+                            <input type="text" data-pay-field="mixed_cash" inputmode="decimal" autocomplete="off">
+                        </label>
+                        <label class="pay-field">
+                            <span class="pay-label"><?php echo $mixedBankLabelHtml; ?></span>
+                            <input type="text" data-pay-field="mixed_bank" inputmode="decimal" autocomplete="off">
+                        </label>
                         <button type="button" class="pay-continue pay-continue-inline" data-pay-next data-pay-next-stay><?php echo $continueHtml; ?></button>
                     </div>
                 </div>

@@ -159,6 +159,26 @@ assertSameValue(true, $cashProofAdmin['has_proof'], 'Admin flags a cash receipt 
 assertSameValue($proof, $cashProofAdmin['proof_file'], 'Admin keeps the cash receipt path');
 assertSameValue(false, $cashProofAdmin['booked'], 'Cash with a photo is not a call booking');
 
+$mixedSplit = persistPayingAnswers([
+    ['status_correct' => 'no'],
+    ['reported_paid' => '80'],
+    ['paid_method' => 'mixed'],
+    ['mixed_cash' => '£20', 'mixed_bank' => '60.5'],
+    ['send_proof' => 'yes', 'proof_file' => $proof],
+]);
+$mixedAdmin = adminView($mixedSplit, 'done');
+assertSameValue('mixed', $mixedSplit['paid_method'] ?? null, 'Mixed is stored');
+assertSameValue('20.00', $mixedSplit['mixed_cash'] ?? null, 'Mixed cash amount is stored');
+assertSameValue('60.50', $mixedSplit['mixed_bank'] ?? null, 'Mixed bank-transfer amount is stored');
+assertSameValue('yes', $mixedSplit['send_proof'] ?? null, 'Mixed screenshot yes is stored');
+assertSameValue($proof, $mixedSplit['proof_file'] ?? null, 'Mixed screenshot path is stored');
+assertSameValue('Mixed', $mixedAdmin['paid_method_label'], 'Admin sees Mixed');
+assertSameValue('£20.00', $mixedAdmin['mixed_cash_label'], 'Admin sees the mixed cash amount');
+assertSameValue('£60.50', $mixedAdmin['mixed_bank_label'], 'Admin sees the mixed bank-transfer amount');
+assertSameValue('Yes', $mixedAdmin['send_proof_label'], 'Admin sees mixed screenshot yes');
+assertSameValue(true, $mixedAdmin['has_proof'], 'Admin flags a mixed receipt photo');
+assertSameValue(false, $mixedAdmin['booked'], 'Mixed with a photo is not a call booking');
+
 $bankProof = persistPayingAnswers([
     ['status_correct' => 'no'],
     ['reported_paid' => '80'],

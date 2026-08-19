@@ -344,6 +344,9 @@ final class CampaignPayingReport
         if ($step === CampaignPayingProgress::STEP_CASH_DETAIL) {
             return 'Cash details';
         }
+        if ($step === CampaignPayingProgress::STEP_MIXED_SPLIT) {
+            return 'Mixed split';
+        }
         if ($step === CampaignPayingProgress::STEP_BANK_PROOF) {
             return 'Bank screenshot';
         }
@@ -448,6 +451,10 @@ final class CampaignPayingReport
             'paid_date_label' => $form['paid_date_label'],
             'paid_remember' => $form['paid_remember'],
             'paid_remember_label' => $form['paid_remember_label'],
+            'mixed_cash' => $form['mixed_cash'],
+            'mixed_cash_label' => $form['mixed_cash_label'],
+            'mixed_bank' => $form['mixed_bank'],
+            'mixed_bank_label' => $form['mixed_bank_label'],
             'answers' => $answers,
             'timeline' => $timeline,
         ];
@@ -646,6 +653,10 @@ final class CampaignPayingReport
                 'paid_date_label' => $form['paid_date_label'],
                 'paid_remember' => $form['paid_remember'],
                 'paid_remember_label' => $form['paid_remember_label'],
+                'mixed_cash' => $form['mixed_cash'],
+                'mixed_cash_label' => $form['mixed_cash_label'],
+                'mixed_bank' => $form['mixed_bank'],
+                'mixed_bank_label' => $form['mixed_bank_label'],
             ];
         }
         $stmt->close();
@@ -747,7 +758,11 @@ final class CampaignPayingReport
      *     reported_paid:string,
      *     reported_paid_label:string,
      *     paid_method:string,
-     *     paid_method_label:string
+     *     paid_method_label:string,
+     *     mixed_cash:string,
+     *     mixed_cash_label:string,
+     *     mixed_bank:string,
+     *     mixed_bank_label:string
      * }
      */
     private static function formAnswerFields(array $answers, string $storedPhone): array
@@ -773,7 +788,11 @@ final class CampaignPayingReport
             $paidMethodLabel = 'Cash';
         } elseif ($paidMethod === 'bank') {
             $paidMethodLabel = 'Bank transfer';
+        } elseif ($paidMethod === 'mixed') {
+            $paidMethodLabel = 'Mixed';
         }
+        $mixedCash = CampaignPayingProgress::normalizeMoney($answers['mixed_cash'] ?? null);
+        $mixedBank = CampaignPayingProgress::normalizeMoney($answers['mixed_bank'] ?? null);
         $cashWhen = CampaignPayingProgress::normalizeIsoDate($answers['cash_when'] ?? null) ?? '';
         $cashRemember = strtolower(trim((string) ($answers['cash_remember'] ?? '')));
         $sendProof = strtolower(trim((string) ($answers['send_proof'] ?? '')));
@@ -806,6 +825,14 @@ final class CampaignPayingReport
             'paid_date_label' => self::formatDate($paidDate),
             'paid_remember' => $paidRemember,
             'paid_remember_label' => self::yesNoRememberLabel($paidRemember),
+            'mixed_cash' => $mixedCash ?? '',
+            'mixed_cash_label' => $mixedCash !== null
+                ? CampaignPayingLink::formatMoney((float) $mixedCash)
+                : '',
+            'mixed_bank' => $mixedBank ?? '',
+            'mixed_bank_label' => $mixedBank !== null
+                ? CampaignPayingLink::formatMoney((float) $mixedBank)
+                : '',
         ];
     }
 

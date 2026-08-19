@@ -218,6 +218,12 @@ assertSameValue(
 );
 assertSameValue('ጥሬ ገንዘብ', CampaignGroupSettings::defaultCorrectionCashLabel(), 'cash has a default label');
 assertSameValue('ባንክ ትራንስፈር', CampaignGroupSettings::defaultCorrectionCardLabel(), 'bank transfer has a default label');
+assertSameValue('ድብልቅ', CampaignGroupSettings::defaultCorrectionMixedLabel(), 'mixed has a default label');
+assertSameValue(
+    'ከዚህ ውስጥ ምን ያህሉ በጥሬ ገንዘብ እና ምን ያህሉ በባንክ ትራንስፈር ነው?',
+    CampaignGroupSettings::defaultMixedAsk(),
+    'mixed asks how much was cash and how much was bank transfer'
+);
 assertSameValue(
     'ባንክ ትራንስፈር',
     CampaignGroupSettings::correctionCardLabelText('ካርድ'),
@@ -260,6 +266,7 @@ assertSameValue(
 assertSameValue(false, array_key_exists('unknown_key', $savedPages), 'unknown paying-page keys are dropped');
 $sections = CampaignGroupSettings::payingCopySections();
 assertSameValue(true, isset($sections['cash']), 'staff can edit the cash details page');
+assertSameValue(true, isset($sections['mixed']), 'staff can edit the mixed payment page');
 assertSameValue(true, isset($sections['proof']), 'staff can edit the bank screenshot page');
 assertSameValue(true, isset($sections['date']), 'staff can edit the bank paid-date page');
 assertSameValue(true, isset($sections['phone']), 'staff can edit the phone check page');

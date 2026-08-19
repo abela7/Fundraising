@@ -221,6 +221,10 @@ body {
   gap: 0.65rem;
 }
 
+.pay-choices-three .pay-choice:last-child {
+  grid-column: 1 / -1;
+}
+
 .pay-choice {
   min-height: 3.15rem;
   border: 2px solid var(--pay-blue);

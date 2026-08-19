@@ -69,6 +69,12 @@
     if (row.answer === 'no' && row.paid_method_label) {
       extras.push(escapeHtml(row.paid_method_label));
     }
+    if (row.answer === 'no' && row.paid_method === 'mixed' && row.mixed_cash_label) {
+      extras.push('Cash ' + escapeHtml(row.mixed_cash_label));
+    }
+    if (row.answer === 'no' && row.paid_method === 'mixed' && row.mixed_bank_label) {
+      extras.push('Bank ' + escapeHtml(row.mixed_bank_label));
+    }
     if (row.answer === 'no' && row.cash_when_label) {
       extras.push('Paid ' + escapeHtml(row.cash_when_label));
     }

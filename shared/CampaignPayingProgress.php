@@ -15,6 +15,7 @@ final class CampaignPayingProgress
     public const STEP_CORRECTION = 'correction';
     public const STEP_PAY_METHOD = 'pay_method';
     public const STEP_CASH_DETAIL = 'cash_detail';
+    public const STEP_MIXED_SPLIT = 'mixed_split';
     public const STEP_BANK_PROOF = 'bank_proof';
     public const STEP_BANK_DATE = 'bank_date';
     public const MAX_JSON_BYTES = 16384;
@@ -30,6 +31,7 @@ final class CampaignPayingProgress
         self::STEP_CORRECTION,
         self::STEP_PAY_METHOD,
         self::STEP_CASH_DETAIL,
+        self::STEP_MIXED_SPLIT,
         self::STEP_BANK_PROOF,
         self::STEP_BANK_DATE,
         self::STEP_CONTACT,
@@ -106,6 +108,7 @@ final class CampaignPayingProgress
             self::STEP_CORRECTION,
             self::STEP_PAY_METHOD,
             self::STEP_CASH_DETAIL,
+            self::STEP_MIXED_SPLIT,
             self::STEP_BANK_PROOF,
             self::STEP_BANK_DATE,
         ], true)) {
@@ -124,6 +127,7 @@ final class CampaignPayingProgress
             self::STEP_CORRECTION,
             self::STEP_PAY_METHOD,
             self::STEP_CASH_DETAIL,
+            self::STEP_MIXED_SPLIT,
             self::STEP_BANK_PROOF,
             self::STEP_BANK_DATE,
         ], true)) {
@@ -162,6 +166,9 @@ final class CampaignPayingProgress
         $method = self::normalizePaidMethod($answers['paid_method'] ?? '');
         if ($method === 'cash') {
             return self::resolveCashPathStep($step, $answers);
+        }
+        if ($method === 'mixed') {
+            return self::resolveMixedPathStep($step, $answers);
         }
 
         if ($step === self::STEP_BANK_PROOF) {
@@ -232,8 +239,18 @@ final class CampaignPayingProgress
         if ($step === self::STEP_CASH_DETAIL) {
             return self::STEP_PAY_METHOD;
         }
+        if ($step === self::STEP_MIXED_SPLIT) {
+            return self::STEP_PAY_METHOD;
+        }
         if ($step === self::STEP_BANK_PROOF) {
-            return $method === 'cash' ? self::STEP_CASH_DETAIL : self::STEP_PAY_METHOD;
+            if ($method === 'cash') {
+                return self::STEP_CASH_DETAIL;
+            }
+            if ($method === 'mixed') {
+                return self::STEP_MIXED_SPLIT;
+            }
+
+            return self::STEP_PAY_METHOD;
         }
         if ($step === self::STEP_BANK_DATE) {
             return self::STEP_BANK_PROOF;
@@ -248,10 +265,12 @@ final class CampaignPayingProgress
             if ($status === 'yes' || self::needsCallback($answers)) {
                 return self::STEP_PHONE;
             }
-            if ($method === 'cash') {
+            if ($method === 'cash' || $method === 'mixed') {
+                $beforeProof = $method === 'cash' ? self::STEP_CASH_DETAIL : self::STEP_MIXED_SPLIT;
+
                 return ($sendProof === 'yes' || $sendProof === 'no')
                     ? self::STEP_BANK_PROOF
-                    : self::STEP_CASH_DETAIL;
+                    : $beforeProof;
             }
             if ($sendProof === 'yes') {
                 return self::STEP_BANK_PROOF;
@@ -299,6 +318,38 @@ final class CampaignPayingProgress
     }
 
     /**
+     * Mixed: cash and bank-transfer amounts, then optional photo, then thank-you.
+     *
+     * @param array<string, mixed> $answers
+     */
+    private static function resolveMixedPathStep(string $step, array $answers): string
+    {
+        if ($step === self::STEP_MIXED_SPLIT) {
+            return self::STEP_MIXED_SPLIT;
+        }
+        if (!self::isMixedSplitComplete($answers)) {
+            return self::STEP_MIXED_SPLIT;
+        }
+        if ($step === self::STEP_BANK_PROOF) {
+            return self::STEP_BANK_PROOF;
+        }
+
+        $sendProof = strtolower(trim((string) ($answers['send_proof'] ?? '')));
+        if ($sendProof === 'yes') {
+            if ($step === self::STEP_DONE && self::isProofComplete($answers)) {
+                return self::STEP_DONE;
+            }
+
+            return self::STEP_BANK_PROOF;
+        }
+        if ($sendProof === 'no' && $step === self::STEP_DONE) {
+            return self::STEP_DONE;
+        }
+
+        return self::STEP_BANK_PROOF;
+    }
+
+    /**
      * @param array<string, mixed> $answers
      */
     public static function isReportedPaidComplete(array $answers): bool
@@ -321,7 +372,7 @@ final class CampaignPayingProgress
             $method = 'bank';
         }
 
-        return in_array($method, ['cash', 'bank'], true) ? $method : null;
+        return in_array($method, ['cash', 'bank', 'mixed'], true) ? $method : null;
     }
 
     /**
@@ -340,6 +391,22 @@ final class CampaignPayingProgress
         $whom = trim((string) ($answers['cash_whom'] ?? ''));
 
         return $when !== '' || $whom !== '';
+    }
+
+    /**
+     * Mixed needs a cash amount and a bank-transfer amount, both above zero.
+     *
+     * @param array<string, mixed> $answers
+     */
+    public static function isMixedSplitComplete(array $answers): bool
+    {
+        if (self::normalizePaidMethod($answers['paid_method'] ?? null) !== 'mixed') {
+            return false;
+        }
+        $cash = self::normalizeMoney($answers['mixed_cash'] ?? null);
+        $bank = self::normalizeMoney($answers['mixed_bank'] ?? null);
+
+        return $cash !== null && $bank !== null && (float) $cash > 0 && (float) $bank > 0;
     }
 
     /**
@@ -904,7 +971,7 @@ final class CampaignPayingProgress
 
             return $phone ?? '__reject__';
         }
-        if ($key === 'reported_paid') {
+        if ($key === 'reported_paid' || $key === 'mixed_cash' || $key === 'mixed_bank') {
             return self::normalizeMoney($value) ?? '__reject__';
         }
         if ($key === 'paid_method') {

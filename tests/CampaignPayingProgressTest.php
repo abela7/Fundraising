@@ -68,6 +68,11 @@ assertSameValue(
     'a later yes leaves the how-they-paid step'
 );
 assertSameValue(
+    'contact',
+    CampaignPayingProgress::resolveStep('mixed_split', ['status_correct' => 'yes']),
+    'a later yes leaves the mixed cash-and-bank step'
+);
+assertSameValue(
     'status',
     CampaignPayingProgress::resolveStep('contact', []),
     'contact is blocked before a status answer'
@@ -265,6 +270,110 @@ assertSameValue(
     'bank',
     CampaignPayingProgress::normalizePaidMethod('card'),
     'normalizes the old card choice to bank'
+);
+assertSameValue(
+    'mixed',
+    CampaignPayingProgress::sanitizeAnswers(['paid_method' => 'mixed'])['paid_method'] ?? null,
+    'stores mixed as how they paid'
+);
+assertSameValue(
+    true,
+    CampaignPayingProgress::isPaidMethodComplete(['paid_method' => 'mixed']),
+    'mixed completes the how-they-paid step'
+);
+assertSameValue(
+    '20.00',
+    CampaignPayingProgress::sanitizeAnswers(['mixed_cash' => '£20'])['mixed_cash'] ?? null,
+    'stores the mixed cash amount'
+);
+assertSameValue(
+    '60.50',
+    CampaignPayingProgress::sanitizeAnswers(['mixed_bank' => '60.5'])['mixed_bank'] ?? null,
+    'stores the mixed bank-transfer amount'
+);
+assertSameValue(
+    true,
+    CampaignPayingProgress::isMixedSplitComplete([
+        'paid_method' => 'mixed',
+        'mixed_cash' => '20.00',
+        'mixed_bank' => '60.00',
+    ]),
+    'cash and bank amounts complete the mixed split'
+);
+assertSameValue(
+    false,
+    CampaignPayingProgress::isMixedSplitComplete([
+        'paid_method' => 'mixed',
+        'mixed_cash' => '80.00',
+        'mixed_bank' => '0',
+    ]),
+    'mixed needs an amount in both cash and bank transfer'
+);
+assertSameValue(
+    'mixed_split',
+    CampaignPayingProgress::sanitizeStep('mixed_split'),
+    'allows the mixed cash-and-bank step'
+);
+assertSameValue(
+    'mixed_split',
+    CampaignPayingProgress::resolveStep('mixed_split', [
+        'status_correct' => 'no',
+        'reported_paid' => '80.00',
+        'paid_method' => 'mixed',
+    ]),
+    'mixed opens the cash-and-bank amounts step'
+);
+assertSameValue(
+    'bank_proof',
+    CampaignPayingProgress::resolveStep('done', [
+        'status_correct' => 'no',
+        'reported_paid' => '80.00',
+        'paid_method' => 'mixed',
+        'mixed_cash' => '20.00',
+        'mixed_bank' => '60.00',
+    ]),
+    'mixed amounts ask for a photo before thank-you'
+);
+assertSameValue(
+    'done',
+    CampaignPayingProgress::resolveStep('done', [
+        'status_correct' => 'no',
+        'reported_paid' => '80.00',
+        'paid_method' => 'mixed',
+        'mixed_cash' => '20.00',
+        'mixed_bank' => '60.00',
+        'send_proof' => 'no',
+    ]),
+    'mixed can skip the photo and finish on thank-you'
+);
+assertSameValue(
+    'pay_method',
+    CampaignPayingProgress::previousStep('mixed_split', [
+        'status_correct' => 'no',
+        'paid_method' => 'mixed',
+    ]),
+    'mixed amounts back goes to how they paid'
+);
+assertSameValue(
+    'mixed_split',
+    CampaignPayingProgress::previousStep('bank_proof', [
+        'status_correct' => 'no',
+        'paid_method' => 'mixed',
+        'mixed_cash' => '20.00',
+        'mixed_bank' => '60.00',
+    ]),
+    'mixed photo step back goes to the split amounts'
+);
+assertSameValue(
+    'bank_proof',
+    CampaignPayingProgress::previousStep('done', [
+        'status_correct' => 'no',
+        'paid_method' => 'mixed',
+        'mixed_cash' => '20.00',
+        'mixed_bank' => '60.00',
+        'send_proof' => 'no',
+    ]),
+    'mixed thank-you back goes to the photo step after they skip it'
 );
 assertSameValue(
     '2026-03-01',
@@ -730,6 +839,17 @@ assertSameValue(
         'paid_method' => 'cash',
     ]),
     'an empty page-open cannot rewind the cash follow-up'
+);
+assertSameValue(
+    'mixed_split',
+    CampaignPayingProgress::preferStep('welcome', 'mixed_split', [
+        'status_correct' => 'no',
+        'reported_paid' => '80.00',
+        'paid_method' => 'mixed',
+        'mixed_cash' => '20.00',
+        'mixed_bank' => '60.00',
+    ]),
+    'an empty page-open cannot rewind the mixed split'
 );
 assertSameValue(
     'contact',

@@ -129,6 +129,7 @@ assertSameValue('How they paid', CampaignPayingReport::stepLabel('pay_method'), 
 assertSameValue('Cash details', CampaignPayingReport::stepLabel('cash_detail'), 'labels the cash when-and-whom step');
 assertSameValue('Bank screenshot', CampaignPayingReport::stepLabel('bank_proof'), 'labels the bank screenshot step');
 assertSameValue('Bank paid date', CampaignPayingReport::stepLabel('bank_date'), 'labels the bank paid-date step');
+assertSameValue('Mixed split', CampaignPayingReport::stepLabel('mixed_split'), 'labels the mixed cash-and-bank step');
 
 $activity = CampaignPayingReport::present([
     'id' => 4,
@@ -213,6 +214,24 @@ $bankActivity = CampaignPayingReport::present([
 assertSameValue('Bank transfer', $bankActivity['paid_method_label'], 'presents the old card choice as bank transfer');
 assertSameValue('Yes', $bankActivity['send_proof_label'], 'presents that they can send a screenshot');
 assertSameValue(true, $bankActivity['has_proof'], 'flags an attached screenshot');
+
+$mixedActivity = CampaignPayingReport::present([
+    'id' => 12,
+    'name' => 'Abeba',
+    'token' => 'c3d4e5f678901ab2',
+    'step' => 'mixed_split',
+    'answers' => [
+        'status_correct' => 'no',
+        'reported_paid' => '80.00',
+        'paid_method' => 'mixed',
+        'mixed_cash' => '20.00',
+        'mixed_bank' => '60.00',
+    ],
+]);
+assertSameValue('Mixed', $mixedActivity['paid_method_label'], 'presents mixed as how they paid');
+assertSameValue('£20.00', $mixedActivity['mixed_cash_label'], 'presents the mixed cash amount');
+assertSameValue('£60.00', $mixedActivity['mixed_bank_label'], 'presents the mixed bank-transfer amount');
+assertSameValue('Mixed split', $mixedActivity['step_label'], 'presents the mixed cash-and-bank page');
 
 $cashMemory = CampaignPayingReport::present([
     'id' => 9,
