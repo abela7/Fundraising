@@ -220,7 +220,7 @@ $dash = static function (string $value) use ($h): string {
                                         <div class="dvc-detail-value"><?php echo $dash((string) ($activity['cash_remember_label'] ?? '')); ?></div>
                                     </div>
                                     <?php endif; ?>
-                                    <?php if (($activity['paid_method'] ?? '') === 'bank'): ?>
+                                    <?php if (in_array((string) ($activity['paid_method'] ?? ''), ['cash', 'bank'], true)): ?>
                                     <div class="dvc-detail-row">
                                         <div class="dvc-detail-label">Can send screenshot</div>
                                         <div class="dvc-detail-value"><?php echo $dash((string) ($activity['send_proof_label'] ?? '')); ?></div>
@@ -235,6 +235,8 @@ $dash = static function (string $value) use ($h): string {
                                             <?php endif; ?>
                                         </div>
                                     </div>
+                                    <?php endif; ?>
+                                    <?php if (($activity['paid_method'] ?? '') === 'bank'): ?>
                                     <div class="dvc-detail-row">
                                         <div class="dvc-detail-label">Paid date</div>
                                         <div class="dvc-detail-value"><?php echo $dash((string) ($activity['paid_date_label'] ?? '')); ?></div>

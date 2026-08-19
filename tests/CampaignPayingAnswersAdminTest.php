@@ -144,6 +144,21 @@ assertSameValue('£40.50', $cashForgotAdmin['reported_paid_label'], 'Admin sees 
 assertSameValue('I do not remember', $cashForgotAdmin['cash_remember_label'], 'Admin sees cash I-do-not-remember');
 assertSameValue(false, $cashForgotAdmin['booked'], 'Cash I-do-not-remember is not a callback booking');
 
+$cashProof = persistPayingAnswers([
+    ['status_correct' => 'no'],
+    ['reported_paid' => '25'],
+    ['paid_method' => 'cash'],
+    ['cash_remember' => 'no'],
+    ['send_proof' => 'yes', 'proof_file' => $proof],
+]);
+$cashProofAdmin = adminView($cashProof, 'done');
+assertSameValue('yes', $cashProof['send_proof'] ?? null, 'Cash screenshot yes is stored');
+assertSameValue($proof, $cashProof['proof_file'] ?? null, 'Cash screenshot path is stored');
+assertSameValue('Yes', $cashProofAdmin['send_proof_label'], 'Admin sees cash screenshot yes');
+assertSameValue(true, $cashProofAdmin['has_proof'], 'Admin flags a cash receipt photo');
+assertSameValue($proof, $cashProofAdmin['proof_file'], 'Admin keeps the cash receipt path');
+assertSameValue(false, $cashProofAdmin['booked'], 'Cash with a photo is not a call booking');
+
 $bankProof = persistPayingAnswers([
     ['status_correct' => 'no'],
     ['reported_paid' => '80'],

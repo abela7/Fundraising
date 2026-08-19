@@ -161,14 +161,7 @@ final class CampaignPayingProgress
 
         $method = self::normalizePaidMethod($answers['paid_method'] ?? '');
         if ($method === 'cash') {
-            if ($step === self::STEP_CASH_DETAIL) {
-                return self::STEP_CASH_DETAIL;
-            }
-            if ($step === self::STEP_DONE && self::isCashDetailComplete($answers)) {
-                return self::STEP_DONE;
-            }
-
-            return self::STEP_CASH_DETAIL;
+            return self::resolveCashPathStep($step, $answers);
         }
 
         if ($step === self::STEP_BANK_PROOF) {
@@ -236,8 +229,11 @@ final class CampaignPayingProgress
         if ($step === self::STEP_PAY_METHOD) {
             return self::STEP_CORRECTION;
         }
-        if ($step === self::STEP_CASH_DETAIL || $step === self::STEP_BANK_PROOF) {
+        if ($step === self::STEP_CASH_DETAIL) {
             return self::STEP_PAY_METHOD;
+        }
+        if ($step === self::STEP_BANK_PROOF) {
+            return $method === 'cash' ? self::STEP_CASH_DETAIL : self::STEP_PAY_METHOD;
         }
         if ($step === self::STEP_BANK_DATE) {
             return self::STEP_BANK_PROOF;
@@ -253,7 +249,9 @@ final class CampaignPayingProgress
                 return self::STEP_PHONE;
             }
             if ($method === 'cash') {
-                return self::STEP_CASH_DETAIL;
+                return ($sendProof === 'yes' || $sendProof === 'no')
+                    ? self::STEP_BANK_PROOF
+                    : self::STEP_CASH_DETAIL;
             }
             if ($sendProof === 'yes') {
                 return self::STEP_BANK_PROOF;
@@ -266,6 +264,38 @@ final class CampaignPayingProgress
         }
 
         return '';
+    }
+
+    /**
+     * Cash: when/whom first, then optional photo, then thank-you.
+     *
+     * @param array<string, mixed> $answers
+     */
+    private static function resolveCashPathStep(string $step, array $answers): string
+    {
+        if ($step === self::STEP_CASH_DETAIL) {
+            return self::STEP_CASH_DETAIL;
+        }
+        if (!self::isCashDetailComplete($answers)) {
+            return self::STEP_CASH_DETAIL;
+        }
+        if ($step === self::STEP_BANK_PROOF) {
+            return self::STEP_BANK_PROOF;
+        }
+
+        $sendProof = strtolower(trim((string) ($answers['send_proof'] ?? '')));
+        if ($sendProof === 'yes') {
+            if ($step === self::STEP_DONE && self::isProofComplete($answers)) {
+                return self::STEP_DONE;
+            }
+
+            return self::STEP_BANK_PROOF;
+        }
+        if ($sendProof === 'no' && $step === self::STEP_DONE) {
+            return self::STEP_DONE;
+        }
+
+        return self::STEP_BANK_PROOF;
     }
 
     /**

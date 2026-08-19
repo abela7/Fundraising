@@ -225,11 +225,11 @@
       return '';
     }
     if (state.step === 'cash_detail') {
-      return 'done';
+      return 'bank_proof';
     }
     if (state.step === 'bank_proof') {
       if (String(state.answers.send_proof || '') === 'no') {
-        return 'bank_date';
+        return paidMethod() === 'cash' ? 'done' : 'bank_date';
       }
       if (String(state.answers.send_proof || '') === 'yes') {
         return 'done';
@@ -261,8 +261,11 @@
     if (state.step === 'pay_method') {
       return 'correction';
     }
-    if (state.step === 'cash_detail' || state.step === 'bank_proof') {
+    if (state.step === 'cash_detail') {
       return 'pay_method';
+    }
+    if (state.step === 'bank_proof') {
+      return paidMethod() === 'cash' ? 'cash_detail' : 'pay_method';
     }
     if (state.step === 'bank_date') {
       return 'bank_proof';
@@ -278,7 +281,10 @@
         return 'phone';
       }
       if (paidMethod() === 'cash') {
-        return 'cash_detail';
+        return String(state.answers.send_proof || '') === 'yes'
+          || String(state.answers.send_proof || '') === 'no'
+          ? 'bank_proof'
+          : 'cash_detail';
       }
       if (String(state.answers.send_proof || '') === 'yes') {
         return 'bank_proof';
@@ -313,10 +319,22 @@
         if (step === 'cash_detail') {
           return 'cash_detail';
         }
-        if (step === 'done' && cashDetailComplete()) {
+        if (!cashDetailComplete()) {
+          return 'cash_detail';
+        }
+        if (step === 'bank_proof') {
+          return 'bank_proof';
+        }
+        if (String(state.answers.send_proof || '') === 'yes') {
+          if (step === 'done' && proofComplete()) {
+            return 'done';
+          }
+          return 'bank_proof';
+        }
+        if (String(state.answers.send_proof || '') === 'no' && step === 'done') {
           return 'done';
         }
-        return 'cash_detail';
+        return 'bank_proof';
       }
       if (step === 'bank_proof') {
         return 'bank_proof';
@@ -388,7 +406,7 @@
       return false;
     }
     if (state.step === 'cash_detail') {
-      return true;
+      return cashDetailComplete();
     }
     if (state.step === 'bank_proof') {
       return String(state.answers.send_proof || '') === 'yes' && proofComplete();
@@ -820,10 +838,10 @@
         showStep(value === 'cash' ? 'cash_detail' : 'bank_proof', false);
       }
       if (key === 'send_proof' && value === 'no') {
-        showStep('bank_date', false);
+        showStep(paidMethod() === 'cash' ? 'done' : 'bank_date', false);
       }
       if (key === 'cash_remember' && value === 'no') {
-        showStep('done', false);
+        showStep('bank_proof', false);
       }
       if (key === 'paid_remember' && value === 'no') {
         showStep('contact', false);

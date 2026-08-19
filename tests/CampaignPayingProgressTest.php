@@ -360,7 +360,7 @@ assertSameValue(
     'cash opens the when-and-whom step'
 );
 assertSameValue(
-    'done',
+    'bank_proof',
     CampaignPayingProgress::resolveStep('done', [
         'status_correct' => 'no',
         'reported_paid' => '80.00',
@@ -369,7 +369,32 @@ assertSameValue(
         'cash_when' => '2026-03-01',
         'cash_whom' => 'Abeba',
     ]),
-    'cash details can finish on thank-you without a booking'
+    'cash details ask for a photo before thank-you'
+);
+assertSameValue(
+    'done',
+    CampaignPayingProgress::resolveStep('done', [
+        'status_correct' => 'no',
+        'reported_paid' => '80.00',
+        'paid_method' => 'cash',
+        'cash_remember' => 'yes',
+        'cash_when' => '2026-03-01',
+        'cash_whom' => 'Abeba',
+        'send_proof' => 'no',
+    ]),
+    'cash can skip the photo and finish on thank-you'
+);
+assertSameValue(
+    'done',
+    CampaignPayingProgress::resolveStep('done', [
+        'status_correct' => 'no',
+        'reported_paid' => '80.00',
+        'paid_method' => 'cash',
+        'cash_remember' => 'no',
+        'send_proof' => 'yes',
+        'proof_file' => $proofPath,
+    ]),
+    'cash with a photo can finish on thank-you'
 );
 assertSameValue(
     'bank_proof',
@@ -474,11 +499,22 @@ $cashDone = [
     'paid_method' => 'cash',
     'cash_remember' => 'yes',
     'cash_when' => '2026-03-01',
+    'send_proof' => 'no',
 ];
 assertSameValue(
     'cash_detail',
     CampaignPayingProgress::resolveStep('cash_detail', $cashDone),
     'back from cash thank-you can return to cash details'
+);
+assertSameValue(
+    'bank_proof',
+    CampaignPayingProgress::resolveStep('bank_proof', $cashDone),
+    'back from cash thank-you can return to the photo question'
+);
+assertSameValue(
+    'cash_detail',
+    CampaignPayingProgress::previousStep('bank_proof', $cashDone),
+    'cash photo step back goes to cash details'
 );
 assertSameValue(
     'pay_method',
@@ -491,7 +527,7 @@ assertSameValue(
     'cash details back goes to how they paid'
 );
 assertSameValue(
-    'cash_detail',
+    'bank_proof',
     CampaignPayingProgress::resolveStep(
         CampaignPayingProgress::previousStep('done', $cashDone),
         $cashDone
