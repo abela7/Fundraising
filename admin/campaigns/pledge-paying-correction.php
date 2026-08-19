@@ -32,6 +32,7 @@ $defaultCardLabel = (string) ($campaignSettings['default_correction_card_label']
 $pageConfig = [
     'csrf' => $csrfToken,
     'group' => $dvc_campaign_group,
+    'preview' => $dvcPreviewDonor,
     'default_correction_message' => $defaultMessage,
     'default_correction_ask' => $defaultAsk,
     'default_correction_amount_label' => $defaultAmountLabel,

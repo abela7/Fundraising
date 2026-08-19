@@ -185,4 +185,44 @@ assertSameValue(
     'the report exposes the public not-started link'
 );
 
+$storedPayingOnNotStarted = [
+    'total_pledged' => 400,
+    'total_paid' => 0,
+    'balance' => 400,
+    'link_group' => DonorCampaignGroups::PLEDGE_PAYING,
+];
+assertSameValue(
+    DonorCampaignGroups::PLEDGE_PAYING,
+    CampaignPayingLink::groupFromDonorRow($storedPayingOnNotStarted),
+    'the sent URL stays on the stored paying path'
+);
+assertSameValue(
+    DonorCampaignGroups::PLEDGE_NOT_STARTED,
+    CampaignPayingLink::formGroupFromDonorRow($storedPayingOnNotStarted),
+    'form copy follows live not-started amounts even if the link was stored as paying'
+);
+
+$storedNotStartedAfterPay = [
+    'total_pledged' => 400,
+    'total_paid' => 20,
+    'balance' => 380,
+    'link_group' => DonorCampaignGroups::PLEDGE_NOT_STARTED,
+];
+assertSameValue(
+    DonorCampaignGroups::PLEDGE_NOT_STARTED,
+    CampaignPayingLink::groupFromDonorRow($storedNotStartedAfterPay),
+    'the sent URL stays on /not-started/ after they later pay'
+);
+assertSameValue(
+    DonorCampaignGroups::PLEDGE_PAYING,
+    CampaignPayingLink::formGroupFromDonorRow($storedNotStartedAfterPay),
+    'form copy switches to still-paying after a payment is recorded'
+);
+
+assertSameValue(
+    CampaignGroupSettings::defaultContactMessageFor(CampaignGroupSettings::GROUP_PAYING),
+    CampaignGroupSettings::contactMessageText(''),
+    'empty still-paying after-yes copy keeps the paying default'
+);
+
 fwrite(STDOUT, "PASS campaign not-started tests\n");

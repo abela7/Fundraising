@@ -28,6 +28,7 @@ $page_title = $campaignTitlePrefix . ' — ' . $section['title'];
 $pageConfig = [
     'csrf' => $csrfToken,
     'group' => $dvc_campaign_group,
+    'preview' => $dvcPreviewDonor,
     'page' => $pageKey,
     'fields' => $section['fields'],
     'defaults' => $defaults,

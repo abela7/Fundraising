@@ -284,6 +284,21 @@ $cashDone = CampaignPayingReport::present([
 assertSameValue(false, $cashDone['booked'], 'finishing cash details is not a call booking');
 assertSameValue('I do not remember', $callbackBooked['paid_remember_label'], 'presents that they do not remember the bank date');
 
+$mixedDoneMissingStatus = CampaignPayingReport::present([
+    'id' => 13,
+    'name' => 'Abeba',
+    'token' => '2901ab2c3d4e5f67',
+    'step' => 'done',
+    'answers' => [
+        'paid_method' => 'mixed',
+        'mixed_cash' => '20.00',
+        'mixed_bank' => '60.00',
+        'send_proof' => 'no',
+    ],
+]);
+assertSameValue('Not answered', $mixedDoneMissingStatus['answer_label'], 'a finished mixed form without Yes/No is not labelled Yes');
+assertSameValue(false, $mixedDoneMissingStatus['booked'], 'a finished mixed form without a booking is not booked');
+
 $corrected = CampaignPayingReport::present([
     'id' => 6,
     'name' => 'Abeba',

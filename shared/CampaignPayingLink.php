@@ -129,7 +129,7 @@ final class CampaignPayingLink
             if (!is_array($row)) {
                 return null;
             }
-            $row['campaign_group'] = self::groupFromDonorRow($row);
+            $row['campaign_group'] = self::formGroupFromDonorRow($row);
 
             return $row;
         } catch (Throwable $e) {
@@ -283,6 +283,8 @@ final class CampaignPayingLink
     }
 
     /**
+     * Group stored on the unique link. Used for the URL that was sent.
+     *
      * @param array<string, mixed> $row
      */
     public static function groupFromDonorRow(array $row): string
@@ -295,6 +297,22 @@ final class CampaignPayingLink
         $classified = DonorCampaignGroups::fromDonor($row);
 
         return self::isEligibleGroup($classified) ? $classified : DonorCampaignGroups::PLEDGE_PAYING;
+    }
+
+    /**
+     * Copy on the donor form follows the live pledged/paid amounts.
+     * A leftover paying link on a not-started donor must not show still-paying text.
+     *
+     * @param array<string, mixed> $row
+     */
+    public static function formGroupFromDonorRow(array $row): string
+    {
+        $classified = DonorCampaignGroups::fromDonor($row);
+        if (self::isEligibleGroup($classified)) {
+            return $classified;
+        }
+
+        return self::groupFromDonorRow($row);
     }
 
     private static function touchGroup(mysqli $db, int $donorId, string $group): void

@@ -21,6 +21,7 @@ $defaultLabels = $campaignSettings['default_status_labels'] ?? CampaignGroupSett
 $pageConfig = [
     'csrf' => $csrfToken,
     'group' => $dvc_campaign_group,
+    'preview' => $dvcPreviewDonor,
     'default_status' => $defaultStatus,
     'default_status_title' => $defaultTitle,
     'default_status_labels' => $defaultLabels,

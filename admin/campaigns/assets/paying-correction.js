@@ -24,12 +24,12 @@
   const fieldEls = [messageEl, askEl, amountEl, methodAskEl, cashEl, cardEl];
   let activeEl = messageEl;
 
-  const previewDonor = {
+  const previewDonor = Object.assign({
     name: 'Abeba',
     pledged: 400,
     paid: 120,
     balance: 280
-  };
+  }, config.preview || {});
 
   function money(amount) {
     return '£' + Number(amount || 0).toLocaleString('en-GB', {

@@ -67,5 +67,5 @@ try {
 } catch (Throwable $e) {
     error_log('Paying report API failed: ' . $e->getMessage());
     http_response_code(500);
-    echo json_encode(['success' => false, 'error' => 'Could not load the still-paying report.']);
+    echo json_encode(['success' => false, 'error' => 'Could not load the campaign report.']);
 }

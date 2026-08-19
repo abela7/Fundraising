@@ -259,7 +259,7 @@ try {
         }
         echo json_encode([
             'success' => true,
-            'contact_message' => CampaignGroupSettings::contactMessageText($message),
+            'contact_message' => CampaignGroupSettings::contactMessageText($message, $group),
             'contact_ask' => CampaignGroupSettings::contactAskText($ask),
             'callback_message' => CampaignGroupSettings::payingPages(null, ['callback_message' => $callback])['callback_message'],
             'contact_labels' => CampaignGroupSettings::contactLabels(null, $labels),

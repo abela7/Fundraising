@@ -6,7 +6,8 @@ require_once __DIR__ . '/includes/paying-boot.php';
 
 $page_title = $campaignTitlePrefix . ' — Contact page';
 $savedMessage = CampaignGroupSettings::contactMessageText(
-    (string) ($campaignSettings['contact_message'] ?? '')
+    (string) ($campaignSettings['contact_message'] ?? ''),
+    $dvc_campaign_group
 );
 $savedAsk = CampaignGroupSettings::contactAskText(
     (string) ($campaignSettings['contact_ask'] ?? '')
@@ -15,7 +16,7 @@ $savedLabels = CampaignGroupSettings::contactLabels(
     null,
     is_array($campaignSettings['contact_labels'] ?? null) ? $campaignSettings['contact_labels'] : []
 );
-$defaultMessage = (string) ($campaignSettings['default_contact_message'] ?? CampaignGroupSettings::defaultContactMessage());
+$defaultMessage = (string) ($campaignSettings['default_contact_message'] ?? CampaignGroupSettings::defaultContactMessageFor($dvc_campaign_group));
 $defaultAsk = (string) ($campaignSettings['default_contact_ask'] ?? CampaignGroupSettings::defaultContactAsk());
 $defaultLabels = $campaignSettings['default_contact_labels'] ?? CampaignGroupSettings::defaultContactLabels();
 $payingPages = is_array($campaignSettings['paying_pages'] ?? null)
@@ -29,6 +30,7 @@ $defaultCallback = (string) ($defaultPayingPages['callback_message'] ?? Campaign
 $pageConfig = [
     'csrf' => $csrfToken,
     'group' => $dvc_campaign_group,
+    'preview' => $dvcPreviewDonor,
     'default_contact_message' => $defaultMessage,
     'default_contact_ask' => $defaultAsk,
     'default_contact_labels' => $defaultLabels,

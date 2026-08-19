@@ -43,12 +43,13 @@ $welcomePreview = $clip($welcomePreview);
 $statusPreview = $clip($statusPreview);
 
 $savedContactMessage = CampaignGroupSettings::contactMessageText(
-    (string) ($campaignSettings['contact_message'] ?? '')
+    (string) ($campaignSettings['contact_message'] ?? ''),
+    $dvc_campaign_group
 );
 $savedContactAsk = CampaignGroupSettings::contactAskText(
     (string) ($campaignSettings['contact_ask'] ?? '')
 );
-$defaultContactMessage = (string) ($campaignSettings['default_contact_message'] ?? CampaignGroupSettings::defaultContactMessage());
+$defaultContactMessage = (string) ($campaignSettings['default_contact_message'] ?? CampaignGroupSettings::defaultContactMessageFor($dvc_campaign_group));
 $defaultContactAsk = (string) ($campaignSettings['default_contact_ask'] ?? CampaignGroupSettings::defaultContactAsk());
 $contactIsCustom = ($savedContactMessage !== $defaultContactMessage)
     || ($savedContactAsk !== $defaultContactAsk);

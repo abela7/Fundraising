@@ -10,6 +10,7 @@ $defaultWelcome = (string) ($campaignSettings['default_welcome'] ?? CampaignGrou
 $pageConfig = [
     'csrf' => $csrfToken,
     'group' => $dvc_campaign_group,
+    'preview' => $dvcPreviewDonor,
     'default_welcome' => $defaultWelcome,
 ];
 ?>

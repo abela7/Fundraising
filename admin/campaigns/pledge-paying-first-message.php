@@ -10,6 +10,7 @@ $defaultMessage = (string) $campaignSettings['default_message'];
 $pageConfig = [
     'csrf' => $csrfToken,
     'group' => $dvc_campaign_group,
+    'preview' => $dvcPreviewDonor,
     'default_message' => $defaultMessage,
 ];
 ?>

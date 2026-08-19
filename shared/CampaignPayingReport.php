@@ -84,7 +84,11 @@ final class CampaignPayingReport
             CampaignPayingProgress::STEP_PHONE,
             CampaignPayingProgress::STEP_DONE,
         ], true);
-        if ($answer === null && $reachedContact) {
+        if (
+            $answer === null
+            && $reachedContact
+            && !CampaignPayingProgress::isPaidMethodComplete($answers)
+        ) {
             $answer = 'yes';
         }
         $booked = (

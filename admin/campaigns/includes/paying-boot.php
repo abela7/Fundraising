@@ -21,6 +21,9 @@ $isNotStartedCampaign = $dvc_campaign_group === CampaignGroupSettings::GROUP_NOT
 $campaignFilePrefix = $isNotStartedCampaign ? 'pledge-not-started' : 'pledge-paying';
 $campaignTitlePrefix = $isNotStartedCampaign ? 'Not started' : 'Still paying';
 $campaignTone = $isNotStartedCampaign ? 'not-started' : 'paying';
+$dvcPreviewDonor = $isNotStartedCampaign
+    ? ['name' => 'Abeba', 'pledged' => 400.0, 'paid' => 0.0, 'balance' => 400.0]
+    : ['name' => 'Abeba', 'pledged' => 400.0, 'paid' => 120.0, 'balance' => 280.0];
 $campaignSettings = [
     'first_message' => $hello,
     'default_message' => $hello,

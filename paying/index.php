@@ -70,7 +70,7 @@ try {
 if ($donor === null) {
     http_response_code(404);
 } else {
-    $campaignGroup = CampaignPayingLink::groupFromDonorRow($donor);
+    $campaignGroup = CampaignPayingLink::formGroupFromDonorRow($donor);
     $welcomeTemplate = CampaignGroupSettings::defaultWelcomeMessageFor($campaignGroup);
     $statusTemplate = CampaignGroupSettings::defaultStatusMessage();
     $statusTitleTemplate = CampaignGroupSettings::defaultStatusTitle();

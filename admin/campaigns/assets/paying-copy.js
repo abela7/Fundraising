@@ -12,13 +12,13 @@
   }
   let activeEl = fieldEls[0];
 
-  const previewDonor = {
+  const previewDonor = Object.assign({
     name: 'Abeba',
     pledged: 400,
     paid: 120,
     balance: 280,
     phone: '07360436171'
-  };
+  }, config.preview || {});
 
   function money(amount) {
     return '£' + Number(amount || 0).toLocaleString('en-GB', {

@@ -31,5 +31,5 @@ try {
 } catch (Throwable $e) {
     error_log('Campaign paying ids failed: ' . $e->getMessage());
     http_response_code(500);
-    echo json_encode(['success' => false, 'error' => 'Could not load still-paying donors.']);
+    echo json_encode(['success' => false, 'error' => 'Could not load campaign donors.']);
 }

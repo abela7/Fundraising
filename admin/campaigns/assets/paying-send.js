@@ -193,7 +193,7 @@
     });
     const data = await res.json();
     if (!res.ok || !data.success) {
-      throw new Error(data.error || 'Could not load the still-paying list.');
+      throw new Error(data.error || 'Could not load the donor list.');
     }
     allPaying = data.donors || [];
     allPaying.forEach(function (row) {
