@@ -7,19 +7,21 @@ require_login();
 
 try {
     $db = db();
-    $user_id = (int)$_SESSION['user']['id'];
-    $user_name = $_SESSION['user']['name'] ?? 'Agent';
 
-    // Get user's phone number for Twilio
-    $user_phone_query = "SELECT phone, phone_number FROM users WHERE id = ?";
-    $stmt = $db->prepare($user_phone_query);
-    $stmt->bind_param('i', $user_id);
-    $stmt->execute();
-    $user_result = $stmt->get_result();
-    $user_data = $user_result->fetch_assoc();
-    $stmt->close();
-
-    $user_phone = $user_data['phone_number'] ?? $user_data['phone'] ?? '';
+    // Get agents (admin/registrar) with a phone number on file
+    $agents = [];
+    $agents_result = $db->query("
+        SELECT id, name, phone, phone_number
+        FROM users
+        WHERE role IN ('admin', 'registrar') AND active = 1
+        ORDER BY name
+    ");
+    if ($agents_result) {
+        while ($row = $agents_result->fetch_assoc()) {
+            $row['display_phone'] = $row['phone_number'] ?: $row['phone'];
+            $agents[] = $row;
+        }
+    }
 
 } catch (Exception $e) {
     error_log("Dial Custom Error: " . $e->getMessage());
@@ -44,13 +46,12 @@ $page_title = 'Dial Custom Number';
             --cc-success: #10b981;
             --cc-border: #e2e8f0;
             --cc-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-            --cc-shadow-lg: 0 8px 20px rgba(0, 0, 0, 0.12);
             --cc-light: #f8fafc;
             --cc-dark: #1e293b;
         }
 
         .dial-container {
-            max-width: 600px;
+            max-width: 560px;
             margin: 0 auto;
             padding: 1.5rem;
         }
@@ -60,13 +61,13 @@ $page_title = 'Dial Custom Number';
             color: white;
             border-radius: 16px;
             padding: 1.5rem;
-            margin-bottom: 2rem;
+            margin-bottom: 1.5rem;
             box-shadow: 0 4px 12px rgba(10, 98, 134, 0.15);
             text-align: center;
         }
 
         .dial-header h1 {
-            font-size: 1.75rem;
+            font-size: 1.5rem;
             font-weight: 700;
             margin: 0;
         }
@@ -101,18 +102,18 @@ $page_title = 'Dial Custom Number';
             font-size: 0.9375rem;
         }
 
+        .form-select,
         .form-control {
             border-radius: 10px;
             border: 2px solid var(--cc-border);
             padding: 0.75rem 1rem;
             font-size: 1rem;
-            transition: all 0.2s;
         }
 
+        .form-select:focus,
         .form-control:focus {
             border-color: var(--cc-primary);
             box-shadow: 0 0 0 3px rgba(10, 98, 134, 0.1);
-            outline: none;
         }
 
         .form-text {
@@ -121,26 +122,25 @@ $page_title = 'Dial Custom Number';
             margin-top: 0.375rem;
         }
 
-        .input-group-text {
-            background: var(--cc-light);
-            border: 2px solid var(--cc-border);
-            color: var(--cc-dark);
-            font-weight: 600;
-        }
-
-        .input-group .form-control {
-            border-left: none;
-        }
-
-        .input-group .form-control:focus ~ .input-group-text {
-            border-color: var(--cc-primary);
+        .step-number {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            background: var(--cc-primary);
+            color: white;
+            font-size: 0.75rem;
+            font-weight: 700;
+            margin-right: 0.5rem;
         }
 
         .dial-pad {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
             gap: 0.625rem;
-            margin-bottom: 1rem;
+            margin-top: 0.75rem;
             padding: 1rem;
             background: var(--cc-light);
             border-radius: 10px;
@@ -162,40 +162,6 @@ $page_title = 'Dial Custom Number';
             background: var(--cc-primary);
             color: white;
             border-color: var(--cc-primary);
-            transform: scale(1.05);
-        }
-
-        .dial-btn:active {
-            transform: scale(0.95);
-        }
-
-        .info-section {
-            background: #dbeafe;
-            border-left: 4px solid #0284c7;
-            border-radius: 8px;
-            padding: 1rem;
-            margin-bottom: 1.5rem;
-            color: #0c4a6e;
-        }
-
-        .info-section strong {
-            display: block;
-            margin-bottom: 0.25rem;
-        }
-
-        .action-buttons {
-            display: grid;
-            grid-template-columns: 1fr;
-            gap: 0.75rem;
-        }
-
-        .btn-dial {
-            padding: 0.875rem 1.5rem;
-            font-size: 1.0625rem;
-            font-weight: 700;
-            border-radius: 10px;
-            transition: all 0.3s;
-            border-width: 2px;
         }
 
         .btn-dial-primary {
@@ -203,97 +169,21 @@ $page_title = 'Dial Custom Number';
             border-color: var(--cc-success);
             color: white;
             box-shadow: 0 4px 12px rgba(16, 185, 129, 0.25);
+            padding: 0.875rem 1.5rem;
+            font-size: 1.0625rem;
+            font-weight: 700;
+            border-radius: 10px;
+            width: 100%;
         }
 
         .btn-dial-primary:hover:not(:disabled) {
             background: #059669;
             border-color: #059669;
-            transform: translateY(-2px);
-            box-shadow: 0 6px 16px rgba(16, 185, 129, 0.35);
         }
 
-        .btn-dial-secondary {
-            background: white;
-            border-color: var(--cc-border);
-            color: var(--cc-dark);
-        }
-
-        .btn-dial-secondary:hover:not(:disabled) {
-            background: var(--cc-light);
-            border-color: #cbd5e1;
-        }
-
-        .input-display {
-            background: var(--cc-light);
-            border-radius: 10px;
-            padding: 1rem;
-            margin-bottom: 1rem;
-            font-size: 1.5rem;
-            font-weight: 700;
-            color: var(--cc-dark);
-            text-align: center;
-            letter-spacing: 2px;
-            min-height: 60px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            word-break: break-all;
-        }
-
-        .input-display.empty {
-            color: #94a3b8;
-            font-size: 1rem;
-            font-weight: 500;
-            letter-spacing: normal;
-        }
-
-        .clear-btn {
-            position: absolute;
-            right: 10px;
-            top: 50%;
-            transform: translateY(-50%);
-            background: none;
-            border: none;
-            color: #64748b;
-            cursor: pointer;
-            font-size: 1.25rem;
-            padding: 0.5rem;
-        }
-
-        .clear-btn:hover {
-            color: var(--cc-primary);
-        }
-
-        .number-input-wrapper {
-            position: relative;
-        }
-
-        @media (max-width: 576px) {
-            .dial-container {
-                padding: 1rem;
-            }
-
-            .dial-header {
-                padding: 1.25rem;
-                margin-bottom: 1.5rem;
-            }
-
-            .dial-header h1 {
-                font-size: 1.5rem;
-            }
-
-            .form-card {
-                padding: 1.25rem;
-            }
-
-            .dial-pad {
-                gap: 0.5rem;
-                padding: 0.75rem;
-            }
-
-            .dial-btn {
-                font-size: 1rem;
-            }
+        .btn-dial-primary:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
         }
     </style>
 </head>
@@ -306,58 +196,49 @@ $page_title = 'Dial Custom Number';
 
         <main class="main-content">
             <div class="dial-container">
-                <!-- Header -->
                 <div class="dial-header">
-                    <h1>
-                        <i class="fas fa-phone-volume me-2"></i>Dial Custom Number
-                    </h1>
+                    <h1><i class="fas fa-phone-volume me-2"></i>Dial Custom Number</h1>
                     <p>Call anyone - no registration needed</p>
                 </div>
 
-                <!-- Info Alert -->
-                <div class="info-section">
-                    <strong><i class="fas fa-info-circle me-2"></i>How it works:</strong>
-                    <ol style="margin: 0.5rem 0 0 0; padding-left: 1.5rem; font-size: 0.875rem;">
-                        <li>Enter or dial the phone number</li>
-                        <li>Click "Call Now" - your phone will ring first</li>
-                        <li>Answer and you'll be connected to the recipient</li>
-                    </ol>
-                </div>
-
-                <!-- Dial Form -->
                 <div class="form-card">
                     <form id="customDialForm">
                         <?php require_once __DIR__ . '/../../shared/csrf.php'; echo csrf_input(); ?>
 
-                        <!-- Phone Number Input -->
+                        <!-- Step 1: Choose Agent -->
                         <div class="form-group">
-                            <label for="customPhoneInput" class="form-label">
-                                <i class="fas fa-phone me-2"></i>Phone Number
+                            <label for="agentSelect" class="form-label">
+                                <span class="step-number">1</span>Choose Agent
                             </label>
-                            <div class="input-group number-input-wrapper">
-                                <span class="input-group-text">+44</span>
-                                <input
-                                    type="tel"
-                                    class="form-control form-control-lg"
-                                    id="customPhoneInput"
-                                    name="custom_phone"
-                                    placeholder="7XXXXXXXXX"
-                                    autocomplete="off"
-                                    maxlength="20"
-                                    required
-                                >
-                                <button type="button" class="clear-btn" onclick="clearPhoneInput()" title="Clear">
-                                    <i class="fas fa-times-circle"></i>
-                                </button>
-                            </div>
-                            <div class="form-text">
-                                <i class="fas fa-lock me-1"></i>UK mobile format: 07XXXXXXXXX (we'll add country code)
-                            </div>
+                            <select class="form-select form-select-lg" id="agentSelect" required>
+                                <option value="">-- Select agent --</option>
+                                <?php foreach ($agents as $agent): ?>
+                                    <?php if (!empty($agent['display_phone'])): ?>
+                                    <option value="<?php echo htmlspecialchars($agent['display_phone']); ?>">
+                                        <?php echo htmlspecialchars($agent['name']); ?> (<?php echo htmlspecialchars($agent['display_phone']); ?>)
+                                    </option>
+                                    <?php endif; ?>
+                                <?php endforeach; ?>
+                            </select>
+                            <div class="form-text">This agent's phone will ring first.</div>
                         </div>
 
-                        <!-- Dial Pad -->
+                        <!-- Step 2: Number to Call -->
                         <div class="form-group">
-                            <label class="form-label">Quick Dial Pad</label>
+                            <label for="customPhoneInput" class="form-label">
+                                <span class="step-number">2</span>Number to Call
+                            </label>
+                            <input
+                                type="tel"
+                                class="form-control form-control-lg"
+                                id="customPhoneInput"
+                                placeholder="07XXXXXXXXX or +447XXXXXXXXX"
+                                autocomplete="off"
+                                maxlength="20"
+                                required
+                            >
+                            <div class="form-text">UK format accepted, e.g. 07123456789</div>
+
                             <div class="dial-pad" id="dialPad">
                                 <button type="button" class="dial-btn" data-digit="1">1</button>
                                 <button type="button" class="dial-btn" data-digit="2">2</button>
@@ -374,83 +255,26 @@ $page_title = 'Dial Custom Number';
                             </div>
                         </div>
 
-                        <!-- Action Buttons -->
-                        <div class="action-buttons mt-4">
-                            <?php if (!empty($user_phone)): ?>
-                            <button type="button" class="btn btn-dial btn-dial-primary btn-lg" id="dialBtn" onclick="initiateCustomCall()">
-                                <i class="fas fa-phone-volume me-2"></i>Call Now
-                                <small class="d-block" style="font-size: 0.7rem; opacity: 0.9; font-weight: 400;">Your phone (<?php echo htmlspecialchars($user_phone); ?>) will ring first</small>
+                        <!-- Step 3: Call -->
+                        <div class="form-group mt-4">
+                            <button type="button" class="btn-dial-primary" id="dialBtn" onclick="initiateCustomCall()">
+                                <i class="fas fa-phone-volume me-2"></i>Call
                             </button>
-                            <?php else: ?>
-                            <button type="button" class="btn btn-dial btn-dial-primary btn-lg" onclick="showAgentPhoneModal()">
-                                <i class="fas fa-phone-volume me-2"></i>Call Now
-                                <small class="d-block" style="font-size: 0.7rem; opacity: 0.9; font-weight: 400;">Enter your phone number</small>
-                            </button>
-                            <?php endif; ?>
-
-                            <a href="index.php" class="btn btn-dial btn-dial-secondary btn-lg">
-                                <i class="fas fa-arrow-left me-2"></i>Back to Dashboard
-                            </a>
                         </div>
                     </form>
                 </div>
+
+                <a href="index.php" class="btn btn-outline-secondary w-100">
+                    <i class="fas fa-arrow-left me-2"></i>Back to Dashboard
+                </a>
             </div>
         </main>
-    </div>
-</div>
-
-<!-- Agent Phone Modal -->
-<div class="modal fade" id="agentPhoneModal" tabindex="-1" aria-labelledby="agentPhoneModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-header bg-primary text-white">
-                <h5 class="modal-title" id="agentPhoneModalLabel">
-                    <i class="fas fa-phone me-2"></i>Your Phone Number
-                </h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <form id="agentPhoneForm">
-                    <div class="mb-3">
-                        <label for="agentPhoneInput" class="form-label fw-semibold">
-                            Your Phone Number <span class="text-danger">*</span>
-                        </label>
-                        <input
-                            type="tel"
-                            class="form-control form-control-lg"
-                            id="agentPhoneInput"
-                            name="agent_phone"
-                            placeholder="07XXXXXXXXX or +447XXXXXXXXX"
-                            required
-                            pattern="^(07[0-9]{9}|447[0-9]{9}|\+447[0-9]{9})$"
-                        >
-                        <div class="form-text">
-                            <i class="fas fa-lock me-1"></i>UK mobile format (e.g., 07123456789)
-                        </div>
-                    </div>
-
-                    <div class="alert alert-warning">
-                        <i class="fas fa-exclamation-triangle me-2"></i>
-                        <strong>Important:</strong> Make sure your phone is nearby and volume is on!
-                    </div>
-                </form>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-primary btn-lg" onclick="confirmCustomCall()">
-                    <i class="fas fa-phone-volume me-2"></i>Call Now
-                </button>
-            </div>
-        </div>
     </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="../assets/admin.js"></script>
 <script>
-let agentPhoneModal = null;
-
-// Initialize dial pad
 document.addEventListener('DOMContentLoaded', function() {
     const dialPad = document.getElementById('dialPad');
     const phoneInput = document.getElementById('customPhoneInput');
@@ -458,67 +282,35 @@ document.addEventListener('DOMContentLoaded', function() {
     dialPad.addEventListener('click', function(e) {
         if (e.target.classList.contains('dial-btn')) {
             e.preventDefault();
-            const digit = e.target.dataset.digit;
-            phoneInput.value += digit;
+            phoneInput.value += e.target.dataset.digit;
             phoneInput.focus();
         }
     });
 
-    // Sanitize input - only allow digits, spaces, +, -, ()
     phoneInput.addEventListener('input', function() {
         this.value = this.value.replace(/[^0-9\s\+\-()]/g, '');
     });
 });
 
-function clearPhoneInput() {
-    document.getElementById('customPhoneInput').value = '';
-    document.getElementById('customPhoneInput').focus();
-}
-
-function showAgentPhoneModal() {
-    if (!agentPhoneModal) {
-        agentPhoneModal = new bootstrap.Modal(document.getElementById('agentPhoneModal'));
-    }
-    agentPhoneModal.show();
-}
-
-function confirmCustomCall() {
-    const agentPhone = document.getElementById('agentPhoneInput').value.trim();
+function initiateCustomCall() {
+    const agentPhone = document.getElementById('agentSelect').value;
+    const customPhone = document.getElementById('customPhoneInput').value.trim();
 
     if (!agentPhone) {
-        showToast('Error', 'error', 'Please enter your phone number');
+        showToast('Error', 'error', 'Please choose an agent');
         return;
     }
-
-    // Store phone in form and close modal
-    const form = document.getElementById('customDialForm');
-    form.innerHTML += '<input type="hidden" name="agent_phone" value="' + htmlEscape(agentPhone) + '">';
-
-    agentPhoneModal.hide();
-    initiateCustomCall();
-}
-
-function initiateCustomCall() {
-    const customPhone = document.getElementById('customPhoneInput').value.trim();
-    const agentPhone = document.querySelector('input[name="agent_phone"]')?.value || '<?php echo htmlspecialchars($user_phone); ?>';
 
     if (!customPhone) {
         showToast('Error', 'error', 'Please enter a phone number to call');
         return;
     }
 
-    if (!agentPhone) {
-        showToast('Error', 'error', 'Agent phone number is missing. Please try again.');
-        return;
-    }
-
-    const btn = document.getElementById('dialBtn') || event.target;
+    const btn = document.getElementById('dialBtn');
     const originalHTML = btn.innerHTML;
 
     btn.disabled = true;
-    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Initiating Call...';
-
-    showToast('Initiating Call', 'info', 'Preparing to call your phone...');
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Calling...';
 
     const formData = new FormData();
     formData.append('custom_phone', customPhone);
@@ -532,10 +324,10 @@ function initiateCustomCall() {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            showToast('Call Started', 'success', 'Your phone will ring shortly');
-            setTimeout(() => {
-                window.location.href = 'custom-call-status.php?session_id=' + data.session_id;
-            }, 1000);
+            showToast('Call Started', 'success', 'The agent phone will ring shortly');
+            btn.disabled = false;
+            btn.innerHTML = originalHTML;
+            document.getElementById('customPhoneInput').value = '';
         } else {
             throw new Error(data.error || 'Failed to initiate call');
         }
@@ -546,12 +338,6 @@ function initiateCustomCall() {
         btn.disabled = false;
         btn.innerHTML = originalHTML;
     });
-}
-
-function htmlEscape(str) {
-    const div = document.createElement('div');
-    div.textContent = str;
-    return div.innerHTML;
 }
 
 function showToast(title, type, message) {

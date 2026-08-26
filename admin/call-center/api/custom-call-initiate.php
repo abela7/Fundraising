@@ -2,8 +2,11 @@
 /**
  * Custom Call Initiation API
  *
- * AJAX endpoint to start a Twilio call to any phone number
- * (doesn't require a registered donor)
+ * Starts a two-leg Twilio call to any phone number: the chosen agent's
+ * phone rings first, then connects to the number entered. No donor
+ * record is required and no call_center_sessions row is created, since
+ * that table's donor_id column is a foreign key and a custom call has
+ * no donor to attach to.
  */
 
 declare(strict_types=1);
@@ -23,17 +26,14 @@ try {
 
     require_login();
 
-    $db = db();
-    $userId = (int)$_SESSION['user']['id'];
-
-    // Verify CSRF
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
         throw new Exception('Invalid request method');
     }
 
     verify_csrf();
 
-    // Get parameters
+    $db = db();
+
     $customPhone = trim($_POST['custom_phone'] ?? '');
     $agentPhone = trim($_POST['agent_phone'] ?? '');
 
@@ -42,172 +42,35 @@ try {
     }
 
     if (empty($agentPhone)) {
-        throw new Exception('Agent phone number is required');
+        throw new Exception('Please choose an agent');
     }
 
-    // Get user name
-    $user_query = $db->prepare("SELECT name FROM users WHERE id = ?");
-    $user_query->bind_param('i', $userId);
-    $user_query->execute();
-    $user_result = $user_query->get_result();
-    $user_data = $user_result->fetch_assoc();
-    $user_query->close();
-
-    $userName = $user_data['name'] ?? 'Agent';
-
-    // Create custom call session
-    $columns_check = $db->query("SHOW COLUMNS FROM call_center_sessions");
-    $available_columns = [];
-    while ($col = $columns_check->fetch_assoc()) {
-        $available_columns[] = $col['Field'];
-    }
-
-    // Build INSERT query based on available columns
-    $insert_columns = ['agent_id'];
-    $insert_values = ['?'];
-    $param_types = 'i';
-    $param_values = [$userId];
-
-    // Add call_started_at if column exists
-    if (in_array('call_started_at', $available_columns)) {
-        $insert_columns[] = 'call_started_at';
-        $insert_values[] = 'NOW()';
-    }
-
-    // Add is_custom_call if column exists (to mark this as custom)
-    if (in_array('is_custom_call', $available_columns)) {
-        $insert_columns[] = 'is_custom_call';
-        $insert_values[] = '?';
-        $param_types .= 'i';
-        $param_values[] = 1;
-    }
-
-    // Add status if column exists
-    if (in_array('status', $available_columns)) {
-        $insert_columns[] = 'status';
-        $insert_values[] = '?';
-        $param_types .= 's';
-        $param_values[] = 'initiating';
-    }
-
-    // Add conversation_stage if column exists
-    if (in_array('conversation_stage', $available_columns)) {
-        $insert_columns[] = 'conversation_stage';
-        $insert_values[] = '?';
-        $param_types .= 's';
-        $param_values[] = 'pending';
-    }
-
-    // Add call_source if column exists
-    if (in_array('call_source', $available_columns)) {
-        $insert_columns[] = 'call_source';
-        $insert_values[] = '?';
-        $param_types .= 's';
-        $param_values[] = 'twilio';
-    }
-
-    // Add agent_phone_number if column exists
-    if (in_array('agent_phone_number', $available_columns)) {
-        $insert_columns[] = 'agent_phone_number';
-        $insert_values[] = '?';
-        $param_types .= 's';
-        $param_values[] = $agentPhone;
-    }
-
-    // Add donor_phone_number (called custom_phone_number for clarity)
-    if (in_array('donor_phone_number', $available_columns)) {
-        $insert_columns[] = 'donor_phone_number';
-        $insert_values[] = '?';
-        $param_types .= 's';
-        $param_values[] = $customPhone;
-    }
-
-    // Add custom_phone_label to track what was called
-    if (in_array('notes', $available_columns)) {
-        $insert_columns[] = 'notes';
-        $insert_values[] = '?';
-        $param_types .= 's';
-        $param_values[] = '[Custom Call] No donor record';
-    }
-
-    // Build and execute query
-    $sql = "INSERT INTO call_center_sessions (" . implode(', ', $insert_columns) . ") VALUES (" . implode(', ', $insert_values) . ")";
-
-    $stmt = $db->prepare($sql);
-    if (!$stmt) {
-        throw new Exception('Failed to prepare session insert: ' . $db->error);
-    }
-
-    if (count($param_values) > 0) {
-        $stmt->bind_param($param_types, ...$param_values);
-    }
-
-    if (!$stmt->execute()) {
-        throw new Exception('Failed to create session: ' . $stmt->error);
-    }
-
-    $sessionId = $db->insert_id;
-    $stmt->close();
-
-    // Initialize Twilio service
     $twilio = TwilioService::fromDatabase($db);
 
     if (!$twilio) {
         throw new Exception('Twilio is not configured. Please configure Twilio settings first.');
     }
 
-    // Extract first name for greeting
-    $displayName = 'Contact'; // Generic greeting for unknown number
-    $callerId = htmlspecialchars($customPhone); // Show the number being called
-
-    // Initiate the call
+    // No session row needed here — the answer webhook receives the phone
+    // numbers directly via URL params, and the status callback exits
+    // gracefully if session_id is 0. Passing 0 keeps that path harmless.
     $result = $twilio->initiateCall(
         $agentPhone,
         $customPhone,
-        $displayName,
-        $sessionId
+        'the number',
+        0
     );
 
     if (!$result['success']) {
-        // Update session as failed
-        $stmt = $db->prepare("
-            UPDATE call_center_sessions
-            SET conversation_stage = 'attempt_failed',
-                outcome = 'call_failed_technical',
-                notes = ?
-            WHERE id = ?
-        ");
-        $errorMsg = $result['message'] ?? 'Unknown error';
-        $stmt->bind_param('si', $errorMsg, $sessionId);
-        $stmt->execute();
-        $stmt->close();
-
         throw new Exception($result['message'] ?? 'Failed to initiate call');
     }
 
-    // Update session with call SID
-    $callSid = $result['call_sid'];
-    $stmt = $db->prepare("
-        UPDATE call_center_sessions
-        SET twilio_call_sid = ?,
-            twilio_status = 'queued',
-            conversation_stage = 'initiating'
-        WHERE id = ?
-    ");
-    $stmt->bind_param('si', $callSid, $sessionId);
-    $stmt->execute();
-    $stmt->close();
-
-    // Clear output buffer
     ob_end_clean();
 
     echo json_encode([
         'success' => true,
-        'message' => 'Custom call initiated! Your phone will ring first.',
-        'session_id' => $sessionId,
-        'call_sid' => $callSid,
-        'phone_number' => $customPhone,
-        'redirect_url' => '../custom-call-status.php?session_id=' . $sessionId
+        'message' => 'Call initiated. Agent phone will ring first.',
+        'call_sid' => $result['call_sid'],
     ]);
 
 } catch (Exception $e) {
