@@ -503,6 +503,17 @@ $talk_time_formatted = $hours > 0 ? "{$hours}h {$minutes}m" : "{$minutes}m";
                                 </h2>
             </div>
                             <div class="action-list">
+                                <a href="dial-custom.php" class="action-item">
+                                    <div class="action-icon" style="background: #fcd34d; color: #92400e;">
+                                        <i class="fas fa-phone-volume"></i>
+                                    </div>
+                                    <div class="action-content">
+                                        <p class="action-name">Dial Custom Number</p>
+                                        <p class="action-desc">Call unregistered person</p>
+                                    </div>
+                                    <i class="fas fa-chevron-right text-muted"></i>
+                                </a>
+
                                 <a href="../donor-management/donors.php" class="action-item">
                                     <div class="action-icon bg-primary-light">
                                         <i class="fas fa-users"></i>
@@ -513,7 +524,7 @@ $talk_time_formatted = $hours > 0 ? "{$hours}h {$minutes}m" : "{$minutes}m";
                                                         </div>
                                     <i class="fas fa-chevron-right text-muted"></i>
                                 </a>
-                                
+
                                 <a href="my-schedule.php" class="action-item">
                                     <div class="action-icon bg-info-light">
                                         <i class="fas fa-calendar"></i>
