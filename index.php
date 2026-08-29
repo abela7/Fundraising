@@ -163,7 +163,7 @@
         </div>
 
         <div class="cta-grid fade-in-up">
-            <a href="public/donate/" class="cta-button">
+            <a href="public/donate/" class="cta-button" id="donateNowBtn">
                 <i class="fas fa-heart"></i>
                 Donate Now
             </a>
@@ -187,6 +187,56 @@
             <img id="lightbox-img" class="lightbox-img" src="" alt="Enlarged View">
         </div>
     </div>
+
+    <!-- Bank Details Drawer -->
+    <div id="bankDrawerOverlay" class="bank-drawer-overlay"></div>
+    <aside id="bankDrawer" class="bank-drawer" aria-hidden="true">
+        <button type="button" class="bank-drawer-close" id="bankDrawerClose" aria-label="Close">&times;</button>
+
+        <div class="bank-drawer-header">
+            <div class="bank-drawer-icon">
+                <i class="fas fa-university"></i>
+            </div>
+            <h3 class="bank-drawer-title">Bank Account Details</h3>
+            <p class="bank-drawer-subtitle">For immediate transfers and payments</p>
+        </div>
+
+        <div class="bank-drawer-list">
+            <div class="bank-drawer-item">
+                <div class="bank-drawer-item-text">
+                    <div class="bank-drawer-label">Account Name</div>
+                    <div class="bank-drawer-value" data-copy-value="LMKATH">LMKATH</div>
+                </div>
+                <button type="button" class="bank-copy-btn" data-copy-value="LMKATH" aria-label="Copy account name">
+                    <i class="fas fa-copy"></i>
+                </button>
+            </div>
+
+            <div class="bank-drawer-item">
+                <div class="bank-drawer-item-text">
+                    <div class="bank-drawer-label">Account Number</div>
+                    <div class="bank-drawer-value" data-copy-value="85455687">85455687</div>
+                </div>
+                <button type="button" class="bank-copy-btn" data-copy-value="85455687" aria-label="Copy account number">
+                    <i class="fas fa-copy"></i>
+                </button>
+            </div>
+
+            <div class="bank-drawer-item">
+                <div class="bank-drawer-item-text">
+                    <div class="bank-drawer-label">Sort Code</div>
+                    <div class="bank-drawer-value" data-copy-value="53-70-44">53-70-44</div>
+                </div>
+                <button type="button" class="bank-copy-btn" data-copy-value="53-70-44" aria-label="Copy sort code">
+                    <i class="fas fa-copy"></i>
+                </button>
+            </div>
+        </div>
+
+        <p class="bank-drawer-thanks">
+            በሊቨርፑል መካነ ቅዱሳን አቡነ ተክለሃይማኖት ቤተክርስቲያን ለሚደረገው የሕንጻ ግዢ አሻራዎን ለማስቀመጥ ስለፈቀዱ በእግዚአብሔር ስም ከፍ ያለ ምስጋናችንን እናቀርባለን።
+        </p>
+    </aside>
 
     <!-- Scripts -->
     <script src="assets/script.js"></script>
