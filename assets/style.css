@@ -232,6 +232,10 @@ h1, h2, h3, h4, h5, h6 {
     color: var(--primary-dark);
 }
 
+.cta-section .pledge-reminder-card {
+    margin-bottom: 3rem;
+}
+
 /* Floor Plan Section */
 .floor-plan {
     padding: 6rem 1rem;

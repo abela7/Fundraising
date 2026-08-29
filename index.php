@@ -151,6 +151,17 @@
     
     <!-- Call to Action Section -->
     <section class="cta-section">
+        <!-- New Pledge, Pay Later Reminder -->
+        <div class="pledge-reminder-card fade-in-up">
+            <p class="pledge-reminder-text">
+                ዛሬ ላይ ቃል ገብተው ክፍያውን በሂደት ባመችወት ጊዜ ለመክፈል ካሰቡ
+            </p>
+            <a href="https://donate.abuneteklehaymanot.org/public/donate/" class="pledge-reminder-btn">
+                <i class="fas fa-hand-point-right"></i>
+                ይሄንን ይንኩ
+            </a>
+        </div>
+
         <div class="cta-grid fade-in-up">
             <a href="public/donate/" class="cta-button">
                 <i class="fas fa-heart"></i>
