@@ -58,9 +58,20 @@
                     ይህን ታላቅ ምዕራፍ ለመጨረስ ግን የእያንዳንዳችን ድርሻ ወሳኝ ነው። እርስዎም የበኩሎዎን በመወጣት የበረከት ተካፋይ እና የዚህ ታሪካዊ ስኬት አካል እንዲሆኑ በጻድቁ አቡነ ተክለሃይማኖት ስም በአክብሮት እንጠይቃለን።
                 </p>
                 <p class="amharic-text text-gold">
-                    በካሬ ዋጋ ድጋፍ ያድርጉ <br> 
+                    በካሬ ዋጋ ድጋፍ ያድርጉ <br>
                     ከታች በተቀመጠው የካሬ ዋጋ መሰረት አቅምዎ የፈቀደውን ድጋፍ ያድርጉልን። ቢያንስ እርስዎ ወይም ወዳጅዎ ቆመው የሚያስቀድሱባትን ቦታ ይግዙልን።
                 </p>
+            </div>
+
+            <!-- Existing Pledge Payment Reminder -->
+            <div class="pledge-reminder-card fade-in-up">
+                <p class="pledge-reminder-text">
+                    ካሁን በፊት የገቡትን ቃል ክፍያ ለመፈጸም
+                </p>
+                <a href="https://donate.abuneteklehaymanot.org/donor" class="pledge-reminder-btn">
+                    <i class="fas fa-hand-point-right"></i>
+                    ይሄንን ይንኩ
+                </a>
             </div>
         </div>
     </section>

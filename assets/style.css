@@ -190,6 +190,48 @@ h1, h2, h3, h4, h5, h6 {
     margin-right: auto;
 }
 
+/* Pledge Payment Reminder Card */
+.pledge-reminder-card {
+    max-width: 700px;
+    margin: 2rem auto 0;
+    text-align: center;
+    background: linear-gradient(180deg, rgba(255, 215, 0, 0.1) 0%, rgba(255, 255, 255, 0.02) 100%);
+    backdrop-filter: blur(10px);
+    border-radius: 24px;
+    padding: 2.5rem 2rem;
+    border: 1px solid rgba(255, 215, 0, 0.3);
+}
+
+.pledge-reminder-text {
+    font-size: 1.3rem;
+    font-weight: 700;
+    color: var(--accent-gold);
+    margin-bottom: 1.5rem;
+    line-height: 1.8;
+}
+
+.pledge-reminder-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.6rem;
+    padding: 1rem 2.5rem;
+    font-size: 1.1rem;
+    font-weight: 700;
+    text-decoration: none;
+    color: var(--primary-dark);
+    background: var(--gradient-gold);
+    border-radius: 50px;
+    transition: all 0.3s ease;
+    box-shadow: 0 10px 20px rgba(226, 202, 24, 0.2);
+}
+
+.pledge-reminder-btn:hover {
+    transform: translateY(-3px) scale(1.02);
+    box-shadow: 0 15px 30px rgba(226, 202, 24, 0.3);
+    color: var(--primary-dark);
+}
+
 /* Floor Plan Section */
 .floor-plan {
     padding: 6rem 1rem;
@@ -461,4 +503,7 @@ h1, h2, h3, h4, h5, h6 {
     .floor-map-container { padding: 1.5rem; }
     .grid-container { grid-template-columns: 1fr; }
     .cta-button { width: 100%; }
+    .pledge-reminder-card { padding: 1.75rem 1.25rem; }
+    .pledge-reminder-text { font-size: 1.1rem; }
+    .pledge-reminder-btn { width: 100%; }
 }
