@@ -1,0 +1,669 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Meskel Community Engagement Poster — Print Designer</title>
+    <link rel="icon" type="image/svg+xml" href="../assets/favicon.svg">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            background: #e8ecef;
+            display: flex;
+            min-height: 100vh;
+            font-family: 'Outfit', sans-serif;
+            color: #1e293b;
+        }
+
+        /* ===== SIDEBAR ===== */
+        .sidebar {
+            width: 310px;
+            min-width: 310px;
+            background: #1e293b;
+            color: #e2e8f0;
+            overflow-y: auto;
+            height: 100vh;
+            position: sticky;
+            top: 0;
+            font-size: 13px;
+            z-index: 100;
+            transition: transform 0.3s ease;
+        }
+
+        .sidebar.collapsed {
+            transform: translateX(-310px);
+            margin-right: -310px;
+        }
+
+        .sidebar-header {
+            padding: 18px 16px;
+            background: #0f172a;
+            font-size: 15px;
+            font-weight: 700;
+            color: #fff;
+            border-bottom: 1px solid #334155;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .sidebar-toggle {
+            position: fixed;
+            top: 14px;
+            left: 315px;
+            z-index: 110;
+            background: #0f172a;
+            color: #fff;
+            border: 1px solid #334155;
+            border-radius: 8px;
+            width: 34px;
+            height: 34px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            transition: left 0.3s ease, background 0.2s;
+        }
+
+        .sidebar.collapsed + .sidebar-toggle {
+            left: 14px;
+        }
+
+        .sidebar-section {
+            padding: 16px;
+            border-bottom: 1px solid #334155;
+        }
+
+        .sidebar-title {
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: #94a3b8;
+            margin-bottom: 12px;
+        }
+
+        .ctrl-group {
+            margin-bottom: 14px;
+        }
+
+        .ctrl-group label {
+            display: block;
+            font-size: 12px;
+            font-weight: 500;
+            color: #cbd5e1;
+            margin-bottom: 5px;
+        }
+
+        .ctrl-group input[type="text"],
+        .ctrl-group select {
+            width: 100%;
+            padding: 9px 12px;
+            background: #0f172a;
+            border: 1px solid #334155;
+            border-radius: 8px;
+            color: #fff;
+            font-family: inherit;
+            font-size: 13px;
+            outline: none;
+        }
+
+        .ctrl-group input[type="text"]:focus,
+        .ctrl-group select:focus {
+            border-color: #38bdf8;
+        }
+
+        .ctrl-group input[type="range"] {
+            width: 100%;
+            accent-color: #38bdf8;
+            cursor: pointer;
+        }
+
+        .btn-primary {
+            width: 100%;
+            padding: 12px;
+            background: linear-gradient(135deg, #0a6286, #0d8ab5);
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            font-weight: 700;
+            font-size: 13px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            margin-bottom: 10px;
+            transition: transform 0.15s, box-shadow 0.15s;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(10, 98, 134, 0.4);
+        }
+
+        .btn-secondary {
+            width: 100%;
+            padding: 10px;
+            background: #334155;
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 12px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .btn-secondary:hover { background: #475569; }
+
+        /* ===== CANVAS AREA ===== */
+        .canvas-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 2.5rem 1.5rem;
+            overflow: auto;
+        }
+
+        .canvas-hint {
+            font-size: 12px;
+            color: #64748b;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        /* ===== A4 POSTER PAGE (LANDSCAPE BI-FOLD) ===== */
+        .a4-page {
+            width: 297mm;
+            height: 210mm;
+            min-width: 297mm;
+            min-height: 210mm;
+            position: relative;
+            background: #faf8f2;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+            overflow: hidden;
+            display: flex;
+        }
+
+        /* Traditional Pattern Borders */
+        .tibeb-top, .tibeb-bottom {
+            position: absolute; left: 0; right: 0; height: 18px;
+            background: url('Pattern_Two!.jpeg') repeat-x center;
+            background-size: auto 100%; z-index: 20;
+        }
+        .tibeb-top { top: 0; }
+        .tibeb-bottom { bottom: 0; }
+
+        .tibeb-left, .tibeb-right {
+            position: absolute; top: 0; bottom: 0; width: 18px;
+            background: url('Pattern_Two! - Vertical.jpeg') repeat-y center;
+            background-size: 100% auto; z-index: 20;
+        }
+        .tibeb-left { left: 0; }
+        .tibeb-right { right: 0; }
+
+        /* Center fold border */
+        .tibeb-center {
+            position: absolute; top: 0; bottom: 0; left: 50%;
+            width: 18px; transform: translateX(-50%);
+            background: url('Pattern_Two! - Vertical.jpeg') repeat-y center;
+            background-size: 100% auto; z-index: 20;
+        }
+
+        /* Background subtle tint */
+        .poster-bg {
+            position: absolute; inset: 0; z-index: 1; pointer-events: none;
+            background:
+                radial-gradient(ellipse 65% 45% at 5% 5%, rgba(0, 128, 55, 0.08), transparent),
+                radial-gradient(ellipse 55% 35% at 50% 50%, rgba(252, 209, 22, 0.06), transparent),
+                radial-gradient(ellipse 65% 45% at 95% 95%, rgba(186, 34, 34, 0.08), transparent);
+        }
+
+        /* Panels */
+        .poster-panel {
+            width: 50%;
+            height: 100%;
+            padding: 30px 36px 30px;
+            position: relative;
+            z-index: 10;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        /* Editable elements */
+        [contenteditable="true"] {
+            outline: none;
+            transition: background 0.15s;
+            border-radius: 4px;
+        }
+
+        [contenteditable="true"]:hover {
+            background: rgba(56, 189, 248, 0.08);
+        }
+
+        [contenteditable="true"]:focus {
+            background: rgba(56, 189, 248, 0.12);
+            box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.4);
+        }
+
+        /* Left Panel - Story & Meskel Overview */
+        .left-panel {
+            text-align: center;
+            padding-right: 32px;
+            padding-left: 36px;
+        }
+
+        .seal-img {
+            width: 72px;
+            height: auto;
+            margin: 0 auto 8px;
+            filter: drop-shadow(0 2px 6px rgba(0,0,0,0.15));
+        }
+
+        .left-church-title {
+            font-size: 12.5pt;
+            font-weight: 700;
+            color: #0a6286;
+            margin-bottom: 14px;
+            line-height: 1.35;
+        }
+
+        .story-text-wrap {
+            font-size: 9.8pt;
+            color: #333;
+            line-height: 1.45;
+            text-align: center;
+            margin-bottom: 14px;
+        }
+
+        .story-text-wrap p {
+            margin-bottom: 8px;
+        }
+
+        .story-text-wrap p:last-child {
+            margin-bottom: 0;
+        }
+
+        .qr-box {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 14px;
+            margin-top: 10px;
+            padding: 8px 14px;
+            background: rgba(255, 255, 255, 0.85);
+            border: 1px solid rgba(10, 98, 134, 0.15);
+            border-radius: 10px;
+            max-width: 320px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .qr-img {
+            width: 65px;
+            height: 65px;
+            flex-shrink: 0;
+        }
+
+        .qr-desc {
+            text-align: left;
+            font-size: 8pt;
+            color: #555;
+            line-height: 1.35;
+        }
+
+        .qr-desc strong {
+            color: #0a6286;
+            display: block;
+            font-size: 8.5pt;
+            margin-bottom: 2px;
+        }
+
+        /* Right Panel - Programme Title & Details */
+        .right-panel {
+            text-align: center;
+            padding-left: 32px;
+            padding-right: 36px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .right-church-header {
+            font-size: 11pt;
+            font-weight: 700;
+            color: #0a6286;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            line-height: 1.35;
+            margin-bottom: 4px;
+        }
+
+        .right-diocese {
+            font-size: 9pt;
+            color: #555;
+            font-style: italic;
+            margin-bottom: 12px;
+        }
+
+        .divider-line {
+            width: 75%;
+            height: 1px;
+            background: #cbd5e1;
+            margin: 10px auto;
+        }
+
+        .prog-title {
+            font-size: 21pt;
+            font-weight: 800;
+            color: #1a1a1a;
+            text-transform: uppercase;
+            line-height: 1.2;
+            letter-spacing: 0.05em;
+            margin: 8px 0;
+        }
+
+        .event-datetime {
+            font-size: 11.5pt;
+            font-weight: 700;
+            color: #0a6286;
+            margin-top: 10px;
+            margin-bottom: 4px;
+            line-height: 1.4;
+        }
+
+        .event-venue {
+            font-size: 9.5pt;
+            color: #444;
+            line-height: 1.45;
+            margin-top: 4px;
+        }
+
+        /* Print media query */
+        @media print {
+            body {
+                background: none;
+                margin: 0;
+                padding: 0;
+            }
+            .sidebar, .sidebar-toggle, .canvas-hint {
+                display: none !important;
+            }
+            .canvas-area {
+                padding: 0 !important;
+                margin: 0 !important;
+            }
+            .a4-page {
+                box-shadow: none !important;
+                page-break-after: always;
+            }
+            @page {
+                size: A4 landscape;
+                margin: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<!-- SIDEBAR CONTROLS -->
+<aside class="sidebar">
+    <div class="sidebar-header">
+        <span>Poster Designer</span>
+        <span style="font-size: 11px; background: #0a6286; padding: 2px 8px; border-radius: 4px;">A4 Print</span>
+    </div>
+
+    <div class="sidebar-section">
+        <div class="sidebar-title">Export / Print</div>
+        <button class="btn-primary" id="downloadBtn" onclick="downloadPoster()">
+            <svg width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/><path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3z"/></svg>
+            Download Print PNG
+        </button>
+        <button class="btn-secondary" onclick="window.print()">
+            Print / Save as PDF (Ctrl+P)
+        </button>
+    </div>
+
+    <div class="sidebar-section">
+        <div class="sidebar-title">QR Code Link</div>
+        <div class="ctrl-group">
+            <label>Scan Destination URL</label>
+            <input type="text" id="qrUrlInput" value="https://abuneteklehaymanot.org/meskel" onchange="updateQrCode(this.value)">
+        </div>
+    </div>
+
+    <div class="sidebar-section">
+        <div class="sidebar-title">Border Style</div>
+        <div class="ctrl-group">
+            <label>Pattern Design</label>
+            <select id="patternSelect" onchange="changePattern(this.value)">
+                <option value="pattern2" selected>Pattern Two (Authentic)</option>
+                <option value="ethiopian">Traditional Ethiopian Design</option>
+            </select>
+        </div>
+        <div class="ctrl-group">
+            <label>Border Thickness (<span id="borderThicknessVal">18</span>px)</label>
+            <input type="range" min="12" max="28" value="18" oninput="setBorderThickness(this.value)">
+        </div>
+    </div>
+
+    <div class="sidebar-section">
+        <div class="sidebar-title">Quick Settings</div>
+        <div class="ctrl-group">
+            <label>Story Font Size (<span id="storyFontVal">9.8</span>pt)</label>
+            <input type="range" min="8" max="12" step="0.2" value="9.8" oninput="setStoryFontSize(this.value)">
+        </div>
+        <div class="ctrl-group">
+            <label>Title Font Size (<span id="titleFontVal">21</span>pt)</label>
+            <input type="range" min="16" max="26" step="1" value="21" oninput="setTitleFontSize(this.value)">
+        </div>
+    </div>
+
+    <div class="sidebar-section" style="font-size: 11.5px; color: #94a3b8; line-height: 1.5;">
+        <strong style="color: #cbd5e1; display: block; margin-bottom: 4px;">Direct Edit Mode:</strong>
+        Click any text on the poster to edit it directly before downloading or printing.
+    </div>
+</aside>
+
+<button class="sidebar-toggle" onclick="toggleSidebar()">&#9664;</button>
+
+<!-- CANVAS DISPLAY -->
+<main class="canvas-area">
+    <div class="canvas-hint">
+        <svg width="14" height="14" fill="#64748b" viewBox="0 0 16 16"><path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14zm0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16z"/><path d="m8.93 6.588-2.29.287-.082.38.45.083c.294.07.352.176.288.469l-.738 3.468c-.194.897.105 1.319.808 1.319.545 0 1.178-.252 1.465-.598l.088-.416c-.2.176-.492.246-.686.246-.275 0-.375-.193-.304-.533L8.93 6.588zM9 4.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0z"/></svg>
+        A4 Landscape Bi-Fold Print Preview (297mm × 210mm)
+    </div>
+
+    <div class="a4-page" id="posterPage">
+        <!-- Background Gradient -->
+        <div class="poster-bg"></div>
+
+        <!-- Pattern Borders -->
+        <div class="tibeb-top"></div>
+        <div class="tibeb-bottom"></div>
+        <div class="tibeb-left"></div>
+        <div class="tibeb-right"></div>
+        <div class="tibeb-center"></div>
+
+        <!-- LEFT PANEL: MESKEL OVERVIEW & QR -->
+        <section class="poster-panel left-panel">
+            <img src="EOTC_Icon.png" alt="Church Seal" class="seal-img">
+            <div class="left-church-title" contenteditable="true">
+                Liverpool Mekane Kidusan<br>Abune Teklehaymanot EOTC
+            </div>
+
+            <div class="story-text-wrap" id="storyText" contenteditable="true">
+                <p>The Ethiopian calendar is embarking into the New Year, 2019!</p>
+                <p>We commemorate the finding of the True Cross by St. Helena. This is one of UNESCO World Heritage of Ethiopian culture. Usually, it is an outdoor event (use the QR to see how it is celebrated in Ethiopia).</p>
+                <p>We would like to have just the feel for it, as the circumstances allow us to practise.</p>
+                <p>The adaptation is to use incense instead of flame and smoke, while gathering outside the church at St. Gabriel's Church for prayer and praise.</p>
+                <p>We will have a cross at the centre of the built-up bushes (to represent the mountain of rubbish that had to be dug out to get the Cross).</p>
+                <p>We will then sing joyful songs to celebrate the finding of the Cross.</p>
+            </div>
+
+            <div class="qr-box">
+                <img id="posterQrImg" src="https://api.qrserver.com/v1/create-qr-code/?size=250x250&qzone=1&color=000000&data=https://abuneteklehaymanot.org/meskel" alt="QR Code" class="qr-img">
+                <div class="qr-desc" contenteditable="true">
+                    <strong>Scan with Camera</strong>
+                    Watch how Meskel is celebrated in Ethiopia &amp; explore our church community.
+                </div>
+            </div>
+        </section>
+
+        <!-- RIGHT PANEL: PROGRAMME TITLE & LOCATION -->
+        <section class="poster-panel right-panel">
+            <img src="EOTC_Icon.png" alt="Church Seal" class="seal-img">
+            <div class="right-church-header" contenteditable="true">
+                LIVERPOOL MEKANE KIDUSAN<br>
+                ABUNE TEKLEHAYMANOT<br>
+                ETHIOPIAN ORTHODOX TEWAHEDO CHURCH
+            </div>
+            <div class="right-diocese" contenteditable="true">
+                Diocese of Great Britain &amp; Northern Ireland
+            </div>
+
+            <div class="divider-line"></div>
+
+            <div class="prog-title" id="posterTitle" contenteditable="true">
+                COMMUNITY<br>
+                ENGAGEMENT<br>
+                PROGRAMME
+            </div>
+
+            <div class="divider-line"></div>
+
+            <div class="event-datetime" contenteditable="true">
+                Saturday, 26 September 2026<br>
+                3:00 PM — 5:00 PM
+            </div>
+
+            <div class="event-venue" contenteditable="true">
+                St. Gabriel's Church<br>
+                16 Yates Street, L8 6RD, Liverpool
+            </div>
+        </section>
+    </div>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/dom-to-image-more@3.4.5/dist/dom-to-image-more.min.js"></script>
+<script>
+    // Auto-detect current host for QR code default
+    (function initQr() {
+        var base = window.location.origin;
+        var path = window.location.pathname.replace(/\/poster\.html.*$/, '');
+        var fullUrl = base + path + '/';
+        if (window.location.protocol.startsWith('http')) {
+            document.getElementById('qrUrlInput').value = fullUrl;
+            updateQrCode(fullUrl);
+        }
+    })();
+
+    // Update QR Code
+    function updateQrCode(url) {
+        var cleanUrl = (url || '').trim();
+        if (!cleanUrl) return;
+        var qrSrc = 'https://api.qrserver.com/v1/create-qr-code/?size=250x250&qzone=1&color=000000&data=' + encodeURIComponent(cleanUrl);
+        document.getElementById('posterQrImg').src = qrSrc;
+    }
+
+    // Toggle Sidebar
+    function toggleSidebar() {
+        var sb = document.querySelector('.sidebar');
+        var btn = document.querySelector('.sidebar-toggle');
+        sb.classList.toggle('collapsed');
+        btn.innerHTML = sb.classList.contains('collapsed') ? '&#9654;' : '&#9664;';
+    }
+
+    // Change Pattern
+    function changePattern(style) {
+        var h = style === 'ethiopian' ? 'Ethiopian_Design.png' : 'Pattern_Two!.jpeg';
+        var v = style === 'ethiopian' ? 'Ethiopian_Design - Vertical.png' : 'Pattern_Two! - Vertical.jpeg';
+        document.querySelectorAll('.tibeb-top, .tibeb-bottom').forEach(function(el) {
+            el.style.backgroundImage = "url('" + h + "')";
+        });
+        document.querySelectorAll('.tibeb-left, .tibeb-right, .tibeb-center').forEach(function(el) {
+            el.style.backgroundImage = "url('" + v + "')";
+        });
+    }
+
+    // Border Thickness
+    function setBorderThickness(val) {
+        document.querySelectorAll('.tibeb-top, .tibeb-bottom').forEach(function(el) {
+            el.style.height = val + 'px';
+        });
+        document.querySelectorAll('.tibeb-left, .tibeb-right, .tibeb-center').forEach(function(el) {
+            el.style.width = val + 'px';
+        });
+        document.getElementById('borderThicknessVal').textContent = val;
+    }
+
+    // Font Size Adjustments
+    function setStoryFontSize(val) {
+        document.getElementById('storyText').style.fontSize = val + 'pt';
+        document.getElementById('storyFontVal').textContent = val;
+    }
+
+    function setTitleFontSize(val) {
+        document.getElementById('posterTitle').style.fontSize = val + 'pt';
+        document.getElementById('titleFontVal').textContent = val;
+    }
+
+    // High Resolution Print PNG Download
+    async function downloadPoster() {
+        var btn = document.getElementById('downloadBtn');
+        var originalText = btn.innerHTML;
+        btn.disabled = true;
+        btn.textContent = 'Generating 300 DPI Print PNG...';
+
+        var page = document.getElementById('posterPage');
+        var w = page.offsetWidth;
+        var h = page.offsetHeight;
+        var scale = 4; // Ultra crisp print scale
+
+        try {
+            if (document.fonts && document.fonts.ready) await document.fonts.ready;
+
+            // Warm render cache
+            await domtoimage.toPng(page, { width: w, height: h, cacheBust: true });
+
+            // High resolution render
+            var dataUrl = await domtoimage.toPng(page, {
+                width: w * scale,
+                height: h * scale,
+                quality: 1,
+                cacheBust: true,
+                bgcolor: '#faf8f2',
+                style: {
+                    transform: 'scale(' + scale + ')',
+                    transformOrigin: 'top left',
+                    width: w + 'px',
+                    height: h + 'px'
+                }
+            });
+
+            var link = document.createElement('a');
+            link.download = 'Meskel-Community-Poster-A4.png';
+            link.href = dataUrl;
+            link.click();
+        } catch (err) {
+            console.error('Export failed:', err);
+            alert('Export failed. You can also press Ctrl+P to Print or Save as PDF directly.');
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = originalText;
+        }
+    }
+</script>
+</body>
+</html>
