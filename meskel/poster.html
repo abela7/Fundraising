@@ -259,28 +259,28 @@
         /* Left Panel - Story & Meskel Overview */
         .left-panel {
             text-align: center;
-            padding-right: 32px;
-            padding-left: 36px;
+            padding-right: 36px;
+            padding-left: 38px;
         }
 
         .seal-img {
-            width: 66px;
+            width: 82px;
             height: auto;
-            margin: 0 auto 6px;
+            margin: 0 auto 10px;
             filter: drop-shadow(0 2px 5px rgba(0,0,0,0.12));
         }
 
         .left-church-title {
-            font-size: 13pt;
+            font-size: 15.5pt;
             font-weight: 700;
             color: #0a6286;
-            margin-bottom: 12px;
-            line-height: 1.35;
+            margin-bottom: 14px;
+            line-height: 1.32;
         }
 
         .story-text-wrap {
-            font-size: 11.2pt;
-            font-weight: 450;
+            font-size: 13.5pt;
+            font-weight: 500;
             color: #1e293b;
             line-height: 1.52;
             text-align: center;
@@ -288,7 +288,7 @@
         }
 
         .story-text-wrap p {
-            margin-bottom: 7px;
+            margin-bottom: 8px;
         }
 
         .story-text-wrap p:last-child {
@@ -299,105 +299,110 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            margin-top: 10px;
+            margin-top: 12px;
         }
 
         .qr-img-clean {
-            width: 72px;
-            height: 72px;
+            width: 95px;
+            height: 95px;
             background: #fff;
-            padding: 4px;
-            border-radius: 6px;
-            border: 1px solid rgba(10, 98, 134, 0.15);
-            box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+            padding: 5px;
+            border-radius: 8px;
+            border: 1px solid rgba(10, 98, 134, 0.18);
+            box-shadow: 0 3px 8px rgba(0,0,0,0.08);
         }
 
         /* Right Panel - Programme Title & Details */
         .right-panel {
             text-align: center;
-            padding-left: 32px;
-            padding-right: 36px;
+            padding-left: 36px;
+            padding-right: 38px;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
         }
 
+        .right-panel .seal-img {
+            width: 92px;
+            margin: 0 auto 12px;
+        }
+
         .right-church-header {
-            font-size: 11pt;
+            font-size: 14.5pt;
             font-weight: 700;
             color: #0a6286;
             text-transform: uppercase;
             letter-spacing: 0.05em;
-            line-height: 1.35;
-            margin-bottom: 4px;
+            line-height: 1.38;
+            margin-bottom: 6px;
         }
 
         .right-diocese {
-            font-size: 9pt;
-            color: #555;
+            font-size: 11.5pt;
+            color: #64748b;
             font-style: italic;
-            margin-bottom: 10px;
+            margin-bottom: 8px;
         }
 
         .divider-line {
-            width: 75%;
-            height: 1px;
-            background: #cbd5e1;
-            margin: 8px auto;
+            width: 82%;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, #0a6286, transparent);
+            margin: 22px auto;
         }
 
         .cover-hook {
-            font-size: 9.5pt;
-            font-weight: 700;
+            font-size: 13pt;
+            font-weight: 800;
             color: #d4a017;
             text-transform: uppercase;
-            letter-spacing: 0.18em;
-            margin-bottom: 4px;
+            letter-spacing: 0.22em;
+            margin-bottom: 8px;
         }
 
         .prog-title {
-            font-size: 20pt;
+            font-size: 28pt;
             font-weight: 800;
-            color: #1a1a1a;
+            color: #0f172a;
             text-transform: uppercase;
             line-height: 1.15;
-            letter-spacing: 0.04em;
-            margin: 6px 0 4px;
+            letter-spacing: 0.03em;
+            margin: 8px 0;
         }
 
         .prog-subtitle {
             display: block;
-            font-size: 12pt;
+            font-size: 16.5pt;
             font-weight: 700;
             color: #0a6286;
             letter-spacing: 0.06em;
-            margin-top: 4px;
+            margin-top: 8px;
         }
 
         .unesco-tagline {
-            font-size: 8.8pt;
+            font-size: 11.8pt;
             font-weight: 600;
-            color: #555;
+            color: #475569;
             letter-spacing: 0.03em;
             font-style: italic;
-            margin-top: 4px;
+            margin-top: 10px;
         }
 
         .event-datetime {
-            font-size: 11.5pt;
+            font-size: 16pt;
             font-weight: 700;
             color: #0a6286;
-            margin-top: 8px;
-            margin-bottom: 4px;
-            line-height: 1.4;
+            margin-top: 6px;
+            margin-bottom: 8px;
+            line-height: 1.45;
         }
 
         .event-venue {
-            font-size: 9.5pt;
-            color: #444;
-            line-height: 1.45;
-            margin-top: 4px;
+            font-size: 13.5pt;
+            color: #334155;
+            line-height: 1.5;
+            margin-top: 8px;
         }
 
         /* Print media query */
@@ -471,12 +476,12 @@
     <div class="sidebar-section">
         <div class="sidebar-title">Quick Settings</div>
         <div class="ctrl-group">
-            <label>Story Font Size (<span id="storyFontVal">11.2</span>pt)</label>
-            <input type="range" min="9" max="14" step="0.2" value="11.2" oninput="setStoryFontSize(this.value)">
+            <label>Story Font Size (<span id="storyFontVal">13.5</span>pt)</label>
+            <input type="range" min="10" max="17" step="0.2" value="13.5" oninput="setStoryFontSize(this.value)">
         </div>
         <div class="ctrl-group">
-            <label>Title Font Size (<span id="titleFontVal">20</span>pt)</label>
-            <input type="range" min="16" max="26" step="1" value="20" oninput="setTitleFontSize(this.value)">
+            <label>Title Font Size (<span id="titleFontVal">28</span>pt)</label>
+            <input type="range" min="20" max="38" step="1" value="28" oninput="setTitleFontSize(this.value)">
         </div>
     </div>
 
