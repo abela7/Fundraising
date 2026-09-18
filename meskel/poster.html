@@ -573,7 +573,7 @@
     </div>
 </main>
 
-<script src="https://cdn.jsdelivr.net/npm/dom-to-image-more@3.4.5/dist/dom-to-image-more.min.js"></script>
+<script src="html2canvas.min.js"></script>
 <script>
     // Auto-detect current host for QR code default
     (function initQr() {
@@ -636,41 +636,36 @@
         document.getElementById('titleFontVal').textContent = val;
     }
 
-    // High Resolution Print PNG Download
+    // True A4 300 DPI High Resolution Export (3508 x 2480)
     async function downloadPoster() {
         var btn = document.getElementById('downloadBtn');
         var originalText = btn.innerHTML;
         btn.disabled = true;
-        btn.textContent = 'Generating 300 DPI Print PNG...';
+        btn.textContent = 'Generating 300 DPI A4 Print PNG...';
 
         var page = document.getElementById('posterPage');
-        var w = page.offsetWidth;
-        var h = page.offsetHeight;
-        var scale = 4; // Ultra crisp print scale
 
         try {
             if (document.fonts && document.fonts.ready) await document.fonts.ready;
 
-            // Warm render cache
-            await domtoimage.toPng(page, { width: w, height: h, cacheBust: true });
+            // Target exact standard A4 landscape at 300 DPI (3508 x 2480 px)
+            var targetWidth = 3508;
+            var currentWidth = page.offsetWidth;
+            var scaleFactor = targetWidth / currentWidth;
 
-            // High resolution render
-            var dataUrl = await domtoimage.toPng(page, {
-                width: w * scale,
-                height: h * scale,
-                quality: 1,
-                cacheBust: true,
-                bgcolor: '#faf8f2',
-                style: {
-                    transform: 'scale(' + scale + ')',
-                    transformOrigin: 'top left',
-                    width: w + 'px',
-                    height: h + 'px'
-                }
+            var canvas = await html2canvas(page, {
+                scale: scaleFactor,
+                useCORS: true,
+                allowTaint: true,
+                backgroundColor: '#faf8f2',
+                logging: false,
+                imageTimeout: 15000
             });
 
+            var dataUrl = canvas.toDataURL('image/png', 1.0);
+
             var link = document.createElement('a');
-            link.download = 'Meskel-Community-Poster-A4.png';
+            link.download = 'Meskel-Celebration-A4-Poster.png';
             link.href = dataUrl;
             link.click();
         } catch (err) {
