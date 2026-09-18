@@ -264,69 +264,52 @@
         }
 
         .seal-img {
-            width: 72px;
+            width: 66px;
             height: auto;
-            margin: 0 auto 8px;
-            filter: drop-shadow(0 2px 6px rgba(0,0,0,0.15));
+            margin: 0 auto 6px;
+            filter: drop-shadow(0 2px 5px rgba(0,0,0,0.12));
         }
 
         .left-church-title {
-            font-size: 12.5pt;
+            font-size: 13pt;
             font-weight: 700;
             color: #0a6286;
-            margin-bottom: 14px;
+            margin-bottom: 12px;
             line-height: 1.35;
         }
 
         .story-text-wrap {
-            font-size: 9.8pt;
-            color: #333;
-            line-height: 1.45;
+            font-size: 11.2pt;
+            font-weight: 450;
+            color: #1e293b;
+            line-height: 1.52;
             text-align: center;
-            margin-bottom: 14px;
+            margin-bottom: 12px;
         }
 
         .story-text-wrap p {
-            margin-bottom: 8px;
+            margin-bottom: 7px;
         }
 
         .story-text-wrap p:last-child {
             margin-bottom: 0;
         }
 
-        .qr-box {
+        .qr-box-clean {
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 14px;
             margin-top: 10px;
-            padding: 8px 14px;
-            background: rgba(255, 255, 255, 0.85);
+        }
+
+        .qr-img-clean {
+            width: 72px;
+            height: 72px;
+            background: #fff;
+            padding: 4px;
+            border-radius: 6px;
             border: 1px solid rgba(10, 98, 134, 0.15);
-            border-radius: 10px;
-            max-width: 320px;
-            margin-left: auto;
-            margin-right: auto;
-        }
-
-        .qr-img {
-            width: 65px;
-            height: 65px;
-            flex-shrink: 0;
-        }
-
-        .qr-desc {
-            text-align: left;
-            font-size: 8pt;
-            color: #555;
-            line-height: 1.35;
-        }
-
-        .qr-desc strong {
-            color: #0a6286;
-            display: block;
-            font-size: 8.5pt;
-            margin-bottom: 2px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.06);
         }
 
         /* Right Panel - Programme Title & Details */
@@ -354,31 +337,58 @@
             font-size: 9pt;
             color: #555;
             font-style: italic;
-            margin-bottom: 12px;
+            margin-bottom: 10px;
         }
 
         .divider-line {
             width: 75%;
             height: 1px;
             background: #cbd5e1;
-            margin: 10px auto;
+            margin: 8px auto;
+        }
+
+        .cover-hook {
+            font-size: 9.5pt;
+            font-weight: 700;
+            color: #d4a017;
+            text-transform: uppercase;
+            letter-spacing: 0.18em;
+            margin-bottom: 4px;
         }
 
         .prog-title {
-            font-size: 21pt;
+            font-size: 20pt;
             font-weight: 800;
             color: #1a1a1a;
             text-transform: uppercase;
-            line-height: 1.2;
-            letter-spacing: 0.05em;
-            margin: 8px 0;
+            line-height: 1.15;
+            letter-spacing: 0.04em;
+            margin: 6px 0 4px;
+        }
+
+        .prog-subtitle {
+            display: block;
+            font-size: 12pt;
+            font-weight: 700;
+            color: #0a6286;
+            letter-spacing: 0.06em;
+            margin-top: 4px;
+        }
+
+        .unesco-tagline {
+            font-size: 8.8pt;
+            font-weight: 600;
+            color: #555;
+            letter-spacing: 0.03em;
+            font-style: italic;
+            margin-top: 4px;
         }
 
         .event-datetime {
             font-size: 11.5pt;
             font-weight: 700;
             color: #0a6286;
-            margin-top: 10px;
+            margin-top: 8px;
             margin-bottom: 4px;
             line-height: 1.4;
         }
@@ -461,12 +471,12 @@
     <div class="sidebar-section">
         <div class="sidebar-title">Quick Settings</div>
         <div class="ctrl-group">
-            <label>Story Font Size (<span id="storyFontVal">9.8</span>pt)</label>
-            <input type="range" min="8" max="12" step="0.2" value="9.8" oninput="setStoryFontSize(this.value)">
+            <label>Story Font Size (<span id="storyFontVal">11.2</span>pt)</label>
+            <input type="range" min="9" max="14" step="0.2" value="11.2" oninput="setStoryFontSize(this.value)">
         </div>
         <div class="ctrl-group">
-            <label>Title Font Size (<span id="titleFontVal">21</span>pt)</label>
-            <input type="range" min="16" max="26" step="1" value="21" oninput="setTitleFontSize(this.value)">
+            <label>Title Font Size (<span id="titleFontVal">20</span>pt)</label>
+            <input type="range" min="16" max="26" step="1" value="20" oninput="setTitleFontSize(this.value)">
         </div>
     </div>
 
@@ -512,12 +522,8 @@
                 <p>We will then sing joyful songs to celebrate the finding of the Cross.</p>
             </div>
 
-            <div class="qr-box">
-                <img id="posterQrImg" src="https://api.qrserver.com/v1/create-qr-code/?size=250x250&qzone=1&color=000000&data=https://abuneteklehaymanot.org/meskel" alt="QR Code" class="qr-img">
-                <div class="qr-desc" contenteditable="true">
-                    <strong>Scan with Camera</strong>
-                    Watch how Meskel is celebrated in Ethiopia &amp; explore our church community.
-                </div>
+            <div class="qr-box-clean">
+                <img id="posterQrImg" src="https://api.qrserver.com/v1/create-qr-code/?size=250x250&qzone=1&color=000000&data=https://abuneteklehaymanot.org/meskel" alt="QR Code" class="qr-img-clean">
             </div>
         </section>
 
@@ -535,10 +541,15 @@
 
             <div class="divider-line"></div>
 
+            <div class="cover-hook" contenteditable="true">YOU ARE WARMLY INVITED</div>
+
             <div class="prog-title" id="posterTitle" contenteditable="true">
-                COMMUNITY<br>
-                ENGAGEMENT<br>
-                PROGRAMME
+                THE FEAST OF MESKEL
+                <span class="prog-subtitle">FINDING OF THE TRUE CROSS</span>
+            </div>
+
+            <div class="unesco-tagline" contenteditable="true">
+                A UNESCO Inscribed Living World Heritage Tradition
             </div>
 
             <div class="divider-line"></div>
