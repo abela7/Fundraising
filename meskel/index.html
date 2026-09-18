@@ -1,0 +1,1184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Feast of Meskel (Finding of the True Cross) — LMKAT EOTC</title>
+    <meta name="description" content="Discover the Feast of Meskel (Finding of the True Cross), a UNESCO Intangible Cultural Heritage celebrated by Liverpool Mekane Kidusan Abune Teklehaymanot EOTC at St Gabriel's Church.">
+    <link rel="icon" type="image/svg+xml" href="../assets/favicon.svg">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        /* ============================================
+           CSS VARIABLES & RESET
+           ============================================ */
+        :root {
+            --blue: #0a6286;
+            --blue-deep: #064a66;
+            --blue-dark: #042f42;
+            --blue-light: #0d7ba8;
+            --gold: #e2ca18;
+            --gold-warm: #d4a017;
+            --gold-light: #f5e66b;
+            --gold-pale: #fdf8e1;
+            --cream: #faf6eb;
+            --ivory: #fefcf5;
+            --charcoal: #1a1a1a;
+            --text: #2c2c2c;
+            --text-muted: #6b6b6b;
+            --white: #ffffff;
+
+            --font-display: 'Cormorant Garamond', Georgia, serif;
+            --font-body: 'Outfit', -apple-system, sans-serif;
+
+            --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+            --ease-out-back: cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        *, *::before, *::after {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html {
+            scroll-behavior: smooth;
+            -webkit-text-size-adjust: 100%;
+        }
+
+        body {
+            font-family: var(--font-body);
+            color: var(--text);
+            background: var(--ivory);
+            overflow-x: hidden;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* ============================================
+           ORTHODOX CROSS IMAGE & ICONS
+           ============================================ */
+        .eth-cross {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            vertical-align: middle;
+        }
+
+        .eth-cross img {
+            display: block;
+            height: 100%;
+            width: auto;
+        }
+
+        .eth-cross--sm { height: 22px; }
+        .eth-cross--md { height: 28px; }
+        .eth-cross--lg { height: 46px; }
+
+        .eth-cross--gold img {
+            filter: brightness(0) saturate(100%) invert(79%) sepia(60%) saturate(500%) hue-rotate(10deg) brightness(97%) contrast(90%);
+        }
+
+        .eth-cross--white img {
+            filter: brightness(0) invert(1);
+        }
+
+        /* ============================================
+           TIBEB SEPARATORS
+           ============================================ */
+        .tibeb {
+            display: block;
+            width: 100%;
+            height: 18px;
+            background: url('Ethiopian_Design.png') repeat-x center;
+            background-size: auto 100%;
+            flex-shrink: 0;
+        }
+
+        .tibeb-alt {
+            display: block;
+            width: 100%;
+            height: 18px;
+            background: url('Pattern_Two!.jpeg') repeat-x center;
+            background-size: auto 100%;
+            flex-shrink: 0;
+        }
+
+        @media (min-width: 768px) {
+            .tibeb, .tibeb-alt { height: 24px; }
+        }
+
+        @media (min-width: 1024px) {
+            .tibeb, .tibeb-alt { height: 30px; }
+        }
+
+        /* ============================================
+           BACKGROUND PATTERNS
+           ============================================ */
+        .eth-cross-pattern {
+            position: absolute;
+            pointer-events: none;
+            opacity: 0.05;
+            background-image: url('../assets/images/orthodox-cross-outline.svg');
+            background-size: 70px 80px;
+            background-repeat: repeat;
+        }
+
+        .geo-pattern {
+            --geo-gold: #D4AF37;
+            --geo-gold-dim: rgba(212, 175, 55, 0.12);
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            z-index: 0;
+            overflow: hidden;
+        }
+
+        .geo-pattern::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background-image:
+                linear-gradient(45deg, var(--geo-gold-dim) 1px, transparent 1px),
+                linear-gradient(-45deg, var(--geo-gold-dim) 1px, transparent 1px);
+            background-size: 60px 60px;
+            opacity: 0.6;
+        }
+
+        .geo-pattern--subtle::before { opacity: 0.35; }
+
+        /* ============================================
+           SCROLL REVEAL ANIMATIONS
+           ============================================ */
+        .reveal {
+            opacity: 0;
+            transform: translateY(35px);
+            transition: opacity 0.8s var(--ease-out-expo), transform 0.8s var(--ease-out-expo);
+        }
+
+        .reveal.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .reveal-delay-1 { transition-delay: 0.1s; }
+        .reveal-delay-2 { transition-delay: 0.2s; }
+        .reveal-delay-3 { transition-delay: 0.3s; }
+        .reveal-delay-4 { transition-delay: 0.4s; }
+
+        /* ============================================
+           HERO SECTION
+           ============================================ */
+        .hero {
+            position: relative;
+            min-height: 90vh;
+            min-height: 90dvh;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            padding: 3rem 1.25rem 3.5rem;
+            overflow: hidden;
+        }
+
+        .hero-bg {
+            position: absolute;
+            inset: 0;
+            z-index: 0;
+        }
+
+        .hero-bg img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            object-position: center 25%;
+            filter: brightness(0.4) saturate(1.15);
+        }
+
+        .hero-bg::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(
+                to bottom,
+                rgba(4, 47, 66, 0.45) 0%,
+                rgba(4, 47, 66, 0.25) 30%,
+                rgba(4, 47, 66, 0.65) 65%,
+                rgba(4, 47, 66, 0.96) 100%
+            );
+        }
+
+        .hero-content {
+            position: relative;
+            z-index: 2;
+            text-align: center;
+            color: var(--white);
+            max-width: 720px;
+            margin: 0 auto;
+        }
+
+        .hero-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            background: rgba(226, 202, 24, 0.18);
+            border: 1px solid rgba(226, 202, 24, 0.4);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            padding: 0.5rem 1.3rem;
+            border-radius: 100px;
+            font-size: 0.72rem;
+            font-weight: 600;
+            letter-spacing: 0.14em;
+            text-transform: uppercase;
+            color: var(--gold-light);
+            margin-bottom: 1.25rem;
+            animation: fadeDown 1s var(--ease-out-expo) 0.2s both;
+        }
+
+        .hero-title-wrapper {
+            animation: fadeUp 1.2s var(--ease-out-expo) 0.4s both;
+        }
+
+        .hero-title {
+            font-family: var(--font-display);
+            font-size: clamp(2.4rem, 8vw, 4.2rem);
+            font-weight: 300;
+            line-height: 1.05;
+            letter-spacing: -0.01em;
+            margin-bottom: 0.6rem;
+        }
+
+        .hero-title em {
+            font-style: italic;
+            font-weight: 400;
+            color: var(--gold);
+        }
+
+        .hero-tagline {
+            font-size: clamp(0.95rem, 2.5vw, 1.2rem);
+            font-weight: 300;
+            color: rgba(255, 255, 255, 0.9);
+            line-height: 1.5;
+            margin: 0.8rem auto 1.2rem;
+            max-width: 580px;
+        }
+
+        .hero-church-name {
+            font-family: var(--font-body);
+            font-size: clamp(0.68rem, 2vw, 0.8rem);
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.18em;
+            color: rgba(255, 255, 255, 0.7);
+            line-height: 1.6;
+        }
+
+        .hero-scroll-hint {
+            position: relative;
+            z-index: 2;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.5rem;
+            color: rgba(255, 255, 255, 0.5);
+            font-size: 0.68rem;
+            letter-spacing: 0.18em;
+            text-transform: uppercase;
+            margin-top: 2rem;
+            animation: fadeUp 1s var(--ease-out-expo) 1.2s both;
+        }
+
+        .hero-scroll-hint .scroll-line {
+            width: 1.5px;
+            height: 30px;
+            background: linear-gradient(to bottom, var(--gold), transparent);
+            animation: scrollPulse 2s ease-in-out infinite;
+        }
+
+        @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(28px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes fadeDown {
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes scrollPulse {
+            0%, 100% { opacity: 0.3; transform: scaleY(0.6); transform-origin: top; }
+            50% { opacity: 1; transform: scaleY(1); }
+        }
+
+        /* ============================================
+           SECTION GENERAL
+           ============================================ */
+        .section-label {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-family: var(--font-body);
+            font-size: 0.68rem;
+            font-weight: 600;
+            letter-spacing: 0.22em;
+            text-transform: uppercase;
+            color: var(--gold-warm);
+            margin-bottom: 1.25rem;
+        }
+
+        .section-label::before,
+        .section-label::after {
+            content: '';
+            width: 22px;
+            height: 1px;
+            background: var(--gold);
+        }
+
+        /* ============================================
+           STORY / HISTORY SECTION
+           ============================================ */
+        .story-section {
+            position: relative;
+            padding: 4.5rem 1.25rem;
+            background: var(--ivory);
+            text-align: center;
+            overflow: hidden;
+        }
+
+        .story-section .eth-cross-pattern {
+            inset: 0;
+        }
+
+        .story-inner {
+            position: relative;
+            z-index: 1;
+            max-width: 680px;
+            margin: 0 auto;
+        }
+
+        .story-headline {
+            font-family: var(--font-display);
+            font-size: clamp(1.9rem, 6vw, 3rem);
+            font-weight: 400;
+            line-height: 1.2;
+            color: var(--blue-deep);
+            margin-bottom: 1.5rem;
+        }
+
+        .story-headline em {
+            font-style: italic;
+            color: var(--gold-warm);
+        }
+
+        .story-body {
+            font-size: 1rem;
+            line-height: 1.85;
+            color: var(--text-muted);
+            text-align: left;
+            margin-bottom: 1.5rem;
+        }
+
+        .story-body p {
+            margin-bottom: 1.2rem;
+        }
+
+        .story-body strong {
+            color: var(--blue-deep);
+            font-weight: 600;
+        }
+
+        .story-callout {
+            background: rgba(10, 98, 134, 0.05);
+            border-left: 3px solid var(--gold-warm);
+            padding: 1.25rem 1.25rem;
+            border-radius: 0 12px 12px 0;
+            font-size: 0.95rem;
+            line-height: 1.75;
+            color: var(--blue-dark);
+            text-align: left;
+            margin: 2rem 0 1rem;
+        }
+
+        .story-callout i {
+            color: var(--gold-warm);
+            margin-right: 0.4rem;
+        }
+
+        /* ============================================
+           VIDEO / UNESCO SECTION
+           ============================================ */
+        .video-section {
+            position: relative;
+            padding: 4.5rem 1.25rem;
+            background: var(--blue-deep);
+            color: var(--white);
+            overflow: hidden;
+        }
+
+        .video-section::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: url('Ethiopian_Design.png') repeat;
+            background-size: 200px auto;
+            opacity: 0.22;
+        }
+
+        .video-section::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(
+                180deg,
+                rgba(6, 74, 102, 0.85) 0%,
+                rgba(6, 74, 102, 0.75) 50%,
+                rgba(6, 74, 102, 0.88) 100%
+            );
+            pointer-events: none;
+        }
+
+        .video-inner {
+            position: relative;
+            z-index: 1;
+            max-width: 720px;
+            margin: 0 auto;
+            text-align: center;
+        }
+
+        .video-section .section-label {
+            color: var(--gold-light);
+        }
+
+        .video-headline {
+            font-family: var(--font-display);
+            font-size: clamp(1.8rem, 6vw, 3rem);
+            font-weight: 300;
+            color: var(--white);
+            margin-bottom: 0.75rem;
+        }
+
+        .video-headline em {
+            font-style: italic;
+            font-weight: 400;
+            color: var(--gold);
+        }
+
+        .video-sub {
+            font-size: 0.95rem;
+            color: rgba(255, 255, 255, 0.75);
+            line-height: 1.7;
+            max-width: 520px;
+            margin: 0 auto 2rem;
+        }
+
+        .video-frame {
+            padding: 6px;
+            background: linear-gradient(135deg, rgba(226, 202, 24, 0.35), rgba(10, 98, 134, 0.4));
+            border-radius: 1.1rem;
+            box-shadow: 0 16px 48px rgba(0, 0, 0, 0.35);
+        }
+
+        .video-wrapper {
+            position: relative;
+            width: 100%;
+            padding-bottom: 56.25%;
+            border-radius: 0.85rem;
+            overflow: hidden;
+            background: #000;
+        }
+
+        .video-wrapper iframe {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            border: 0;
+        }
+
+        .unesco-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.6rem;
+            margin-top: 1.75rem;
+            padding: 0.6rem 1.4rem;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(226, 202, 24, 0.25);
+            font-size: 0.78rem;
+            color: var(--gold-light);
+            letter-spacing: 0.05em;
+        }
+
+        /* ============================================
+           LOCAL PRACTICE & ADAPTATION SECTION
+           ============================================ */
+        .adaptation-section {
+            position: relative;
+            padding: 4.5rem 1.25rem;
+            background: var(--cream);
+            overflow: hidden;
+        }
+
+        .adaptation-inner {
+            position: relative;
+            z-index: 1;
+            max-width: 820px;
+            margin: 0 auto;
+            text-align: center;
+        }
+
+        .adaptation-headline {
+            font-family: var(--font-display);
+            font-size: clamp(1.8rem, 6vw, 3rem);
+            font-weight: 400;
+            color: var(--blue-deep);
+            margin-bottom: 0.75rem;
+        }
+
+        .adaptation-headline em {
+            font-style: italic;
+            color: var(--gold-warm);
+        }
+
+        .adaptation-sub {
+            font-size: 0.95rem;
+            color: var(--text-muted);
+            margin-bottom: 2.75rem;
+            max-width: 520px;
+            margin-left: auto;
+            margin-right: auto;
+            line-height: 1.7;
+        }
+
+        .cards-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 1.25rem;
+            text-align: left;
+        }
+
+        @media (min-width: 700px) {
+            .cards-grid {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+
+        .practice-card {
+            background: var(--white);
+            border-radius: 1.25rem;
+            padding: 2rem 1.4rem;
+            border: 1px solid rgba(10, 98, 134, 0.08);
+            box-shadow: 0 4px 20px rgba(10, 98, 134, 0.04);
+            transition: transform 0.35s var(--ease-out-expo), box-shadow 0.35s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .practice-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 12px 32px rgba(10, 98, 134, 0.09);
+        }
+
+        .practice-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3.5px;
+            background: linear-gradient(90deg, var(--gold), var(--gold-warm));
+        }
+
+        .card-icon-wrap {
+            width: 52px;
+            height: 52px;
+            border-radius: 14px;
+            background: var(--gold-pale);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.3rem;
+            color: var(--gold-warm);
+            margin-bottom: 1.25rem;
+        }
+
+        .card-title {
+            font-family: var(--font-display);
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: var(--blue-deep);
+            margin-bottom: 0.6rem;
+            line-height: 1.3;
+        }
+
+        .card-desc {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            line-height: 1.65;
+        }
+
+        /* ============================================
+           EVENT DETAILS SECTION
+           ============================================ */
+        .event-details {
+            position: relative;
+            padding: 4.5rem 1.25rem 4rem;
+            background: var(--blue-dark);
+            color: var(--white);
+            overflow: hidden;
+            text-align: center;
+        }
+
+        .event-details::before {
+            content: '';
+            position: absolute;
+            top: -100px;
+            left: -100px;
+            width: 350px;
+            height: 350px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(226, 202, 24, 0.09), transparent 70%);
+            pointer-events: none;
+        }
+
+        .event-details-inner {
+            position: relative;
+            z-index: 1;
+            max-width: 780px;
+            margin: 0 auto;
+        }
+
+        .event-details .section-label {
+            color: var(--gold-light);
+        }
+
+        .event-headline {
+            font-family: var(--font-display);
+            font-size: clamp(1.8rem, 6vw, 2.8rem);
+            font-weight: 300;
+            margin-bottom: 2.5rem;
+            color: var(--white);
+        }
+
+        .event-headline em {
+            font-style: italic;
+            color: var(--gold);
+        }
+
+        .event-cards {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 1rem;
+        }
+
+        @media (min-width: 650px) {
+            .event-cards {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+
+        .event-card {
+            padding: 1.8rem 1.2rem;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(226, 202, 24, 0.15);
+            border-radius: 1.25rem;
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+        }
+
+        .event-card-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 14px;
+            background: linear-gradient(135deg, var(--gold), var(--gold-warm));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            color: var(--blue-dark);
+            margin: 0 auto 1rem;
+        }
+
+        .event-card-title {
+            font-size: 0.68rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.16em;
+            color: var(--gold-light);
+            margin-bottom: 0.4rem;
+        }
+
+        .event-card-value {
+            font-family: var(--font-display);
+            font-size: 1.35rem;
+            font-weight: 500;
+            color: var(--white);
+            line-height: 1.3;
+        }
+
+        .event-card-value small {
+            display: block;
+            font-family: var(--font-body);
+            font-size: 0.78rem;
+            font-weight: 400;
+            color: rgba(255, 255, 255, 0.55);
+            margin-top: 0.25rem;
+        }
+
+        .location-action {
+            margin-top: 2.2rem;
+        }
+
+        .location-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.6rem;
+            padding: 0.85rem 1.6rem;
+            background: var(--white);
+            border-radius: 100px;
+            font-size: 0.88rem;
+            font-weight: 600;
+            color: var(--blue-deep);
+            text-decoration: none;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+            transition: transform 0.25s ease, box-shadow 0.25s ease;
+        }
+
+        .location-pill:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 25px rgba(0, 0, 0, 0.35);
+        }
+
+        .location-pill i {
+            color: #d32f2f;
+        }
+
+        .event-welcome-note {
+            margin-top: 1.5rem;
+            font-size: 0.85rem;
+            color: rgba(255, 255, 255, 0.7);
+            letter-spacing: 0.04em;
+        }
+
+
+        /* ============================================
+           CONTACT & HOSPITALITY
+           ============================================ */
+        .contact-section {
+            position: relative;
+            padding: 4rem 1.25rem;
+            background: var(--cream);
+            text-align: center;
+            overflow: hidden;
+        }
+
+        .contact-inner {
+            position: relative;
+            z-index: 1;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .contact-headline {
+            font-family: var(--font-display);
+            font-size: clamp(1.6rem, 5vw, 2.4rem);
+            font-weight: 400;
+            color: var(--blue-deep);
+            margin-bottom: 1.8rem;
+        }
+
+        .contact-methods {
+            display: flex;
+            flex-direction: column;
+            gap: 0.9rem;
+            margin-bottom: 1.8rem;
+        }
+
+        @media (min-width: 520px) {
+            .contact-methods {
+                flex-direction: row;
+            }
+        }
+
+        .contact-item {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 1rem 1.2rem;
+            background: var(--white);
+            border-radius: 1rem;
+            border: 1px solid rgba(10, 98, 134, 0.08);
+            text-decoration: none;
+            color: inherit;
+            box-shadow: 0 2px 12px rgba(10, 98, 134, 0.04);
+            transition: transform 0.2s ease, border-color 0.2s ease;
+        }
+
+        .contact-item:hover {
+            transform: translateY(-2px);
+            border-color: var(--gold-warm);
+        }
+
+        .contact-icon {
+            width: 42px;
+            height: 42px;
+            border-radius: 10px;
+            background: var(--gold-pale);
+            color: var(--gold-warm);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.1rem;
+            flex-shrink: 0;
+        }
+
+        .contact-label {
+            font-size: 0.68rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.12em;
+            color: var(--text-muted);
+            margin-bottom: 0.2rem;
+        }
+
+        .contact-value {
+            font-size: 0.88rem;
+            font-weight: 600;
+            color: var(--blue-deep);
+        }
+
+        .website-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.6rem;
+            padding: 0.85rem 1.6rem;
+            border-radius: 100px;
+            background: linear-gradient(135deg, var(--blue), var(--blue-deep));
+            color: var(--white);
+            text-decoration: none;
+            font-size: 0.85rem;
+            font-weight: 600;
+            letter-spacing: 0.06em;
+            box-shadow: 0 4px 16px rgba(10, 98, 134, 0.25);
+            transition: transform 0.25s ease;
+        }
+
+        .website-link:hover {
+            transform: translateY(-2px);
+        }
+
+        /* ============================================
+           FOOTER
+           ============================================ */
+        .footer {
+            position: relative;
+            padding: 3.5rem 1.25rem 2.5rem;
+            background: var(--blue-dark);
+            color: var(--white);
+            text-align: center;
+            overflow: hidden;
+        }
+
+        .footer-cross {
+            margin-bottom: 1.2rem;
+        }
+
+        .footer-msg {
+            font-family: var(--font-display);
+            font-size: 1.35rem;
+            font-style: italic;
+            color: var(--gold-light);
+            margin-bottom: 0.6rem;
+        }
+
+        .footer-org {
+            font-size: 0.72rem;
+            letter-spacing: 0.16em;
+            text-transform: uppercase;
+            color: rgba(255, 255, 255, 0.55);
+            line-height: 1.6;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- ==================== HERO ==================== -->
+    <header class="hero">
+        <div class="hero-bg">
+            <img src="../assets/images/new-church.png" alt="St Gabriel's Church, Liverpool" loading="lazy">
+        </div>
+        <div class="hero-content">
+            <div class="hero-badge">
+                <span class="eth-cross eth-cross--sm eth-cross--gold">
+                    <img src="../assets/images/orthodox-cross.svg" alt="Orthodox Cross">
+                </span>
+                UNESCO Intangible Heritage • Ethiopian New Year 2019
+            </div>
+            <div class="hero-title-wrapper">
+                <h1 class="hero-title">The Feast of <em>Meskel</em></h1>
+                <p class="hero-tagline">Commemorating the Finding of the True Cross by Saint Helena</p>
+                <p class="hero-church-name">
+                    Liverpool Mekane Kidusan Abune Teklehaymanot<br>
+                    Ethiopian Orthodox Tewahedo Church • St Gabriel's
+                </p>
+            </div>
+            <div class="hero-scroll-hint">
+                <span>Discover</span>
+                <div class="scroll-line"></div>
+            </div>
+        </div>
+    </header>
+
+    <div class="tibeb"></div>
+
+    <!-- ==================== SACRED STORY ==================== -->
+    <section class="story-section">
+        <div class="eth-cross-pattern"></div>
+        <div class="story-inner">
+            <div class="reveal">
+                <span class="section-label"><span>Our Sacred History</span></span>
+            </div>
+            <h2 class="story-headline reveal reveal-delay-1">
+                The Miracle of the <em>True Cross</em>
+            </h2>
+            <div class="story-body reveal reveal-delay-2">
+                <p>
+                    As the Ethiopian calendar embarks upon the peaceful dawn of the <strong>New Year (2019)</strong>, the Ethiopian Orthodox Tewahedo Church rejoices in celebrating <strong>Meskel</strong> — commemorating the 4th-century discovery of the True Cross of Christ by the Roman Empress, <strong>Saint Helena (Queen Eleni)</strong>.
+                </p>
+                <p>
+                    For three centuries, the Holy Cross had remained hidden, buried deep beneath a vast mound of rubbish and earth. Guided by prayer and revelation, Queen Helena lit a sacred fire and heaped sweet <strong>incense (ዕጣን)</strong> upon it. The smoke billowed skyward, turned in mid-air, and drifted directly toward the hidden resting place of the Cross.
+                </p>
+                <p>
+                    Following where the heavenly fragrance settled, workers dug into the mound with joy and unearthed the life-giving Cross. Today, this profound heritage is celebrated by millions worldwide and is officially inscribed on the <strong>UNESCO Representative List of the Intangible Cultural Heritage of Humanity</strong>.
+                </p>
+            </div>
+            <div class="story-callout reveal reveal-delay-3">
+                <i class="fas fa-quote-left"></i>
+                <em>"The smoke of the incense rose to the heavens and bowed to the earth, revealing the treasure of life that had been buried in silence."</em>
+            </div>
+        </div>
+    </section>
+
+    <div class="tibeb-alt"></div>
+
+    <!-- ==================== VIDEO / UNESCO ==================== -->
+    <section class="video-section">
+        <div class="video-inner">
+            <span class="section-label reveal"><span>UNESCO Cultural Heritage</span></span>
+            <h2 class="video-headline reveal reveal-delay-1">
+                Experience Meskel in <em>Ethiopia</em>
+            </h2>
+            <p class="video-sub reveal reveal-delay-2">
+                Watch how hundreds of thousands gather in Addis Ababa’s Meskel Square — draped in pristine white garments, singing ancient hymns in Ge'ez, and rejoicing together.
+            </p>
+
+            <div class="video-frame reveal reveal-delay-3">
+                <div class="video-wrapper">
+                    <iframe
+                        id="youtubePlayer"
+                        src="https://www.youtube-nocookie.com/embed/-28oVN0LAsc?rel=0&modestbranding=1"
+                        title="Meskel Celebration in Ethiopia"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                        allowfullscreen
+                        loading="lazy">
+                    </iframe>
+                </div>
+            </div>
+
+            <div class="reveal reveal-delay-4">
+                <div class="unesco-badge">
+                    <i class="fas fa-certificate" style="color: var(--gold);"></i>
+                    <span>Inscribed by UNESCO as World Intangible Cultural Heritage</span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <div class="tibeb"></div>
+
+    <!-- ==================== LOCAL CELEBRATION & ADAPTATION ==================== -->
+    <section class="adaptation-section">
+        <div class="adaptation-inner">
+            <div class="reveal">
+                <span class="section-label"><span>Our Local Gathering</span></span>
+            </div>
+            <h2 class="adaptation-headline reveal reveal-delay-1">
+                Celebrating in <em>Liverpool</em>
+            </h2>
+            <p class="adaptation-sub reveal reveal-delay-2">
+                While traditional celebrations in Ethiopia feature large open bonfires, we have thoughtfully adapted our ceremony to be peaceful, reverent, and safe for our surrounding community.
+            </p>
+
+            <div class="cards-grid">
+                <div class="practice-card reveal reveal-delay-1">
+                    <div class="card-icon-wrap">
+                        <i class="fas fa-fire-burner"></i>
+                    </div>
+                    <h3 class="card-title">Sacred Incense</h3>
+                    <p class="card-desc">
+                        Instead of heavy smoke or open flame, we burn fragrant Frankincense in sacred censers — directly honouring the heavenly incense smoke Saint Helena followed to locate the Cross.
+                    </p>
+                </div>
+
+                <div class="practice-card reveal reveal-delay-2">
+                    <div class="card-icon-wrap">
+                        <i class="fas fa-cross"></i>
+                    </div>
+                    <h3 class="card-title">The Cross &amp; Demera</h3>
+                    <p class="card-desc">
+                        A Holy Cross stands elevated at the center of gathered branches and greenery — representing the mountain of earth that was dug through in faith to reveal the Cross.
+                    </p>
+                </div>
+
+                <div class="practice-card reveal reveal-delay-3">
+                    <div class="card-icon-wrap">
+                        <i class="fas fa-hands-praying"></i>
+                    </div>
+                    <h3 class="card-title">Prayer &amp; Joyful Songs</h3>
+                    <p class="card-desc">
+                        Clergy, choir, and neighbours gather outside in front of the church for communal prayer, Saint Yared’s liturgical chants, and joyful songs of praise.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <div class="tibeb-alt"></div>
+
+    <!-- ==================== EVENT DETAILS ==================== -->
+    <section class="event-details">
+        <div class="event-details-inner">
+            <span class="section-label reveal"><span>Event Information</span></span>
+            <h2 class="event-headline reveal reveal-delay-1">
+                Join Us Outside <em>St Gabriel's</em>
+            </h2>
+
+            <div class="event-cards">
+                <div class="event-card reveal reveal-delay-1">
+                    <div class="event-card-icon">
+                        <i class="fas fa-calendar-check"></i>
+                    </div>
+                    <div class="event-card-title">Date</div>
+                    <div class="event-card-value">
+                        Saturday
+                        <small>26 September 2026</small>
+                    </div>
+                </div>
+
+                <div class="event-card reveal reveal-delay-2">
+                    <div class="event-card-icon">
+                        <i class="fas fa-clock"></i>
+                    </div>
+                    <div class="event-card-title">Time</div>
+                    <div class="event-card-value">
+                        3:00 PM
+                        <small>to 5:00 PM</small>
+                    </div>
+                </div>
+
+                <div class="event-card reveal reveal-delay-3">
+                    <div class="event-card-icon">
+                        <i class="fas fa-church"></i>
+                    </div>
+                    <div class="event-card-title">Venue</div>
+                    <div class="event-card-value">
+                        St Gabriel's
+                        <small>16 Yates St, Liverpool</small>
+                    </div>
+                </div>
+            </div>
+
+            <div class="location-action reveal reveal-delay-4">
+                <a href="https://maps.google.com/?q=16+Yates+Street+Liverpool+L8+6RD" target="_blank" rel="noopener" class="location-pill">
+                    <i class="fas fa-map-marker-alt"></i>
+                    <span>Open in Google Maps (L8 6RD)</span>
+                </a>
+            </div>
+
+            <p class="event-welcome-note reveal reveal-delay-4">
+                <i class="fas fa-heart" style="color: var(--gold); margin-right: 4px;"></i>
+                Free Admission • All neighbours, families, and friends are warmly welcome!
+            </p>
+        </div>
+    </section>
+
+    <div class="tibeb"></div>
+
+    <!-- ==================== CONTACT & HOSPITALITY ==================== -->
+    <section class="contact-section">
+        <div class="contact-inner">
+            <div class="reveal">
+                <span class="section-label"><span>Community &amp; Fellowship</span></span>
+            </div>
+            <h2 class="contact-headline reveal reveal-delay-1">
+                We'd Love to Meet You
+            </h2>
+
+            <div class="contact-methods reveal reveal-delay-2">
+                <a href="tel:07951403936" class="contact-item">
+                    <div class="contact-icon">
+                        <i class="fas fa-phone-alt"></i>
+                    </div>
+                    <div>
+                        <div class="contact-label">Call or Text</div>
+                        <div class="contact-value">07951 403936</div>
+                    </div>
+                </a>
+
+                <a href="mailto:stakeholder@abuneteklehaymanot.org" class="contact-item">
+                    <div class="contact-icon">
+                        <i class="fas fa-envelope"></i>
+                    </div>
+                    <div>
+                        <div class="contact-label">Email Us</div>
+                        <div class="contact-value">stakeholder@abuneteklehaymanot.org</div>
+                    </div>
+                </a>
+            </div>
+
+            <div class="reveal reveal-delay-3">
+                <a href="https://abuneteklehaymanot.org/" target="_blank" rel="noopener" class="website-link">
+                    <i class="fas fa-globe"></i>
+                    <span>Visit Church Website</span>
+                    <i class="fas fa-arrow-right" style="font-size: 0.75rem; margin-left: 0.3rem;"></i>
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <div class="tibeb"></div>
+
+    <!-- ==================== FOOTER ==================== -->
+    <footer class="footer">
+        <div class="footer-cross">
+            <span class="eth-cross eth-cross--lg eth-cross--gold">
+                <img src="../assets/images/orthodox-cross.svg" alt="Cross">
+            </span>
+        </div>
+        <div class="footer-msg">መልካም የመስቀል በዓል ይሁንልዎ!</div>
+        <div class="footer-msg" style="font-size: 1.05rem; font-style: normal; margin-bottom: 0.8rem;">May the blessings of the True Cross be with you.</div>
+        <div class="footer-org">
+            Liverpool Mekane Kidusan Abune Teklehaymanot EOTC<br>
+            St Gabriel's Church • 16 Yates Street, Liverpool, L8 6RD
+        </div>
+    </footer>
+
+    <!-- ==================== SCRIPTS ==================== -->
+    <script>
+        // Scroll Reveal Animations
+        const reveals = document.querySelectorAll('.reveal');
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('visible');
+                }
+            });
+        }, { threshold: 0.1, rootMargin: '0px 0px -30px 0px' });
+
+        reveals.forEach(el => observer.observe(el));
+    </script>
+</body>
+</html>
