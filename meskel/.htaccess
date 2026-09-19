@@ -1,0 +1,5 @@
+<IfModule mod_rewrite.c>
+RewriteEngine On
+# Ensure /meskel/am and /meskel/am/ cleanly map to am/index.html
+RewriteRule ^am/?$ am/index.html [L,QSA]
+</IfModule>
