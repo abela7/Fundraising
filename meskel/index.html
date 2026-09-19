@@ -8,7 +8,7 @@
     <link rel="icon" type="image/svg+xml" href="../assets/favicon.svg">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Noto+Sans+Ethiopic:wght@300;400;500;600;700;800&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <style>
         /* ============================================
@@ -32,9 +32,98 @@
 
             --font-display: 'Cormorant Garamond', Georgia, serif;
             --font-body: 'Outfit', -apple-system, sans-serif;
+            --font-amharic: 'Noto Sans Ethiopic', 'Outfit', sans-serif;
 
             --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
             --ease-out-back: cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        /* Amharic Font Adaptations */
+        html[lang="am"] {
+            font-family: var(--font-amharic);
+        }
+
+        html[lang="am"] .hero-title,
+        html[lang="am"] .story-headline,
+        html[lang="am"] .video-headline,
+        html[lang="am"] .adaptation-headline,
+        html[lang="am"] .event-headline,
+        html[lang="am"] .contact-headline,
+        html[lang="am"] .footer-msg,
+        html[lang="am"] .card-title {
+            font-family: var(--font-amharic);
+            font-weight: 700;
+        }
+
+        html[lang="am"] .hero-tagline,
+        html[lang="am"] .hero-church-name,
+        html[lang="am"] .section-label,
+        html[lang="am"] .story-body,
+        html[lang="am"] .adaptation-sub,
+        html[lang="am"] .card-desc,
+        html[lang="am"] .event-card-value,
+        html[lang="am"] .event-welcome-note {
+            font-family: var(--font-amharic);
+        }
+
+        /* ============================================
+           LANGUAGE SWITCHER (FLOATING)
+           ============================================ */
+        .lang-switch-fixed {
+            position: fixed;
+            top: 16px;
+            right: 16px;
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            background: rgba(4, 47, 66, 0.88);
+            backdrop-filter: blur(14px);
+            -webkit-backdrop-filter: blur(14px);
+            padding: 4px;
+            border-radius: 100px;
+            border: 1.5px solid rgba(226, 202, 24, 0.45);
+            box-shadow: 0 4px 22px rgba(0, 0, 0, 0.35);
+            gap: 3px;
+        }
+
+        .lang-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 7px 14px;
+            border-radius: 100px;
+            border: none;
+            background: transparent;
+            color: rgba(255, 255, 255, 0.88);
+            font-family: 'Outfit', 'Noto Sans Ethiopic', sans-serif;
+            font-size: 0.84rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.25s ease;
+            text-decoration: none;
+        }
+
+        .lang-btn.active {
+            background: linear-gradient(135deg, var(--gold-warm), var(--gold));
+            color: var(--blue-dark);
+            font-weight: 700;
+            box-shadow: 0 2px 10px rgba(212, 160, 23, 0.45);
+        }
+
+        .lang-btn:hover:not(.active) {
+            background: rgba(255, 255, 255, 0.15);
+            color: #fff;
+        }
+
+        @media (max-width: 480px) {
+            .lang-switch-fixed {
+                top: 10px;
+                right: 10px;
+            }
+            .lang-btn {
+                padding: 6px 11px;
+                font-size: 0.78rem;
+            }
         }
 
         *, *::before, *::after {
@@ -893,6 +982,12 @@
 </head>
 <body>
 
+    <!-- ==================== LANGUAGE SWITCHER ==================== -->
+    <nav class="lang-switch-fixed" aria-label="Language selection">
+        <a href="#" class="lang-btn active" aria-current="page"><span aria-hidden="true">🇬🇧</span> English</a>
+        <a href="am/" class="lang-btn"><span aria-hidden="true">🇪🇹</span> አማርኛ</a>
+    </nav>
+
     <!-- ==================== HERO ==================== -->
     <header class="hero">
         <div class="hero-bg">
@@ -1160,6 +1255,16 @@
         }, { threshold: 0.1, rootMargin: '0px 0px -30px 0px' });
 
         reveals.forEach(el => observer.observe(el));
+
+        // Language Switch Trailing Slash Handler
+        document.querySelectorAll('.lang-btn[href="am/"]').forEach(link => {
+            link.addEventListener('click', function(e) {
+                if (!window.location.pathname.endsWith('/')) {
+                    e.preventDefault();
+                    window.location.href = window.location.pathname + '/am/';
+                }
+            });
+        });
     </script>
 </body>
 </html>
