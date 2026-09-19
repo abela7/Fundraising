@@ -3,12 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>የመስቀል በዓል (ደመራ) — ሊቨርፑል መካነ ቅዱሳን አቡነ ተክለሃይማኖት ቤተክርስቲያን</title>
-    <meta name="description" content="የኢትዮጵያ ኦርቶዶክስ ተዋሕዶ ቤተክርስቲያን የበዓለ መስቀል (ደመራ) ታሪካዊ ክብረ በዓል — ሊቨርፑል መካነ ቅዱሳን አቡነ ተክለሃይማኖት ቤተክርስቲያን። የዩኔስኮ ዓለም አቀፍ ቅርስ።">
+    <title>የደመራ እና የመስቀል ክብረ በዓል — የሊቨርፑል መካነ ቅዱሳን አቡነ ተክለሃይማኖት ቤተ ክርስቲያን</title>
+    <meta name="description" content="የኢትዮጵያ ኦርቶዶክስ ተዋሕዶ ቤተ ክርስቲያን የበዓለ መስቀል (ደመራ) ታሪካዊ ክብረ በዓል — በሊቨርፑል መካነ ቅዱሳን አቡነ ተክለሃይማኖት ቤተ ክርስቲያን። የዩኔስኮ (UNESCO) ዓለም አቀፍ ቅርስ።">
     <link rel="icon" type="image/svg+xml" href="../../assets/favicon.svg">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Noto+Sans+Ethiopic:wght@300;400;500;600;700;800&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Ethiopic:wght@300;400;500;600;700;800;900&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <style>
         /* ============================================
@@ -30,9 +30,9 @@
             --text-muted: #6b6b6b;
             --white: #ffffff;
 
-            --font-display: 'Noto Sans Ethiopic', 'Cormorant Garamond', Georgia, serif;
-            --font-body: 'Noto Sans Ethiopic', 'Outfit', -apple-system, sans-serif;
-            --font-amharic: 'Noto Sans Ethiopic', sans-serif;
+            --font-ethiopian: 'Noto Sans Ethiopic', 'Outfit', -apple-system, sans-serif;
+            --font-display: 'Noto Sans Ethiopic', Georgia, serif;
+            --font-body: 'Noto Sans Ethiopic', -apple-system, sans-serif;
 
             --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
             --ease-out-back: cubic-bezier(0.34, 1.56, 0.64, 1);
@@ -65,7 +65,7 @@
             border: none;
             background: transparent;
             color: rgba(255, 255, 255, 0.88);
-            font-family: 'Outfit', 'Noto Sans Ethiopic', sans-serif;
+            font-family: var(--font-ethiopian);
             font-size: 0.84rem;
             font-weight: 600;
             cursor: pointer;
@@ -113,7 +113,7 @@
             background: var(--ivory);
             overflow-x: hidden;
             -webkit-font-smoothing: antialiased;
-            line-height: 1.65;
+            line-height: 1.75;
         }
 
         /* ============================================
@@ -174,11 +174,6 @@
             z-index: 2;
         }
 
-        .tibeb-vertical-left,
-        .tibeb-vertical-right {
-            display: none;
-        }
-
         /* ============================================
            SECTION LABELS (SHARED)
            ============================================ */
@@ -186,10 +181,10 @@
             display: inline-flex;
             align-items: center;
             gap: 0.6rem;
-            font-family: var(--font-body);
-            font-size: 0.72rem;
+            font-family: var(--font-ethiopian);
+            font-size: 0.76rem;
             font-weight: 700;
-            letter-spacing: 0.12em;
+            letter-spacing: 0.08em;
             text-transform: uppercase;
             color: var(--gold-warm);
             margin-bottom: 0.85rem;
@@ -208,150 +203,6 @@
 
         .section-label::after {
             transform: rotate(180deg);
-        }
-
-        /* ============================================
-           SACRED STORY SECTION
-           ============================================ */
-        .story-section {
-            background: var(--blue-dark);
-            color: var(--white);
-            padding: 5rem 1.5rem;
-            text-align: center;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .story-section .eth-cross-pattern {
-            position: absolute;
-            inset: 0;
-            opacity: 0.035;
-            background-image: url('../../assets/images/orthodox-cross-outline.svg');
-            background-size: 140px 140px;
-            background-repeat: repeat;
-            pointer-events: none;
-        }
-
-        .story-inner {
-            max-width: 680px;
-            margin: 0 auto;
-            position: relative;
-            z-index: 2;
-        }
-
-        .story-headline {
-            font-family: var(--font-display);
-            font-size: clamp(2rem, 6.5vw, 3.2rem);
-            font-weight: 700;
-            line-height: 1.35;
-            color: var(--white);
-            margin-bottom: 1.6rem;
-        }
-
-        .story-headline em {
-            font-style: normal;
-            background: linear-gradient(135deg, var(--gold-light), var(--gold));
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-        }
-
-        .story-body {
-            font-size: clamp(1.02rem, 2.5vw, 1.15rem);
-            font-weight: 300;
-            line-height: 1.85;
-            color: rgba(255, 255, 255, 0.85);
-            margin-bottom: 0;
-        }
-
-        .story-body p {
-            margin-bottom: 1.25rem;
-        }
-
-        .story-body strong {
-            color: var(--gold-light);
-            font-weight: 600;
-        }
-
-        /* ============================================
-           VIDEO / UNESCO SECTION
-           ============================================ */
-        .video-section {
-            background: linear-gradient(180deg, var(--blue-deep) 0%, var(--blue-dark) 100%);
-            padding: 5rem 1.5rem;
-            text-align: center;
-            position: relative;
-            color: var(--white);
-        }
-
-        .video-inner {
-            max-width: 780px;
-            margin: 0 auto;
-            position: relative;
-            z-index: 2;
-        }
-
-        .video-headline {
-            font-family: var(--font-display);
-            font-size: clamp(1.7rem, 5vw, 2.6rem);
-            font-weight: 700;
-            line-height: 1.35;
-            color: var(--white);
-            margin-bottom: 0.5rem;
-        }
-
-        .video-headline em {
-            font-style: normal;
-            color: var(--gold-light);
-        }
-
-        .video-sub {
-            font-size: 1rem;
-            color: var(--gold-light);
-            margin-bottom: 2rem;
-            line-height: 1.6;
-        }
-
-        .video-frame {
-            background: rgba(0, 0, 0, 0.4);
-            border-radius: 1.25rem;
-            padding: 8px;
-            border: 2px solid rgba(226, 202, 24, 0.35);
-            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
-            margin-bottom: 1.75rem;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .video-wrapper {
-            position: relative;
-            width: 100%;
-            padding-bottom: 56.25%;
-            border-radius: 0.85rem;
-            overflow: hidden;
-            background: #000;
-        }
-
-        .video-wrapper iframe {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            border: 0;
-        }
-
-        .unesco-badge {
-            display: inline-flex;
-            align-items: center;
-            gap: 0.6rem;
-            padding: 0.65rem 1.3rem;
-            background: rgba(226, 202, 24, 0.1);
-            border: 1px solid rgba(226, 202, 24, 0.35);
-            border-radius: 100px;
-            font-size: 0.82rem;
-            color: var(--gold-light);
-            line-height: 1.5;
         }
 
         /* ============================================
@@ -413,19 +264,27 @@
         .hero-content {
             position: relative;
             z-index: 2;
-            max-width: 820px;
+            max-width: 860px;
             margin: 0 auto;
+        }
+
+        .hero-diocese {
+            font-size: 0.82rem;
+            letter-spacing: 0.08em;
+            color: rgba(255, 255, 255, 0.75);
+            margin-bottom: 0.8rem;
+            font-weight: 500;
         }
 
         .hero-badge {
             display: inline-flex;
             align-items: center;
             gap: 0.6rem;
-            padding: 0.55rem 1.25rem;
-            background: rgba(4, 47, 66, 0.7);
+            padding: 0.55rem 1.3rem;
+            background: rgba(4, 47, 66, 0.75);
             border: 1.5px solid rgba(226, 202, 24, 0.5);
             border-radius: 100px;
-            font-size: 0.85rem;
+            font-size: 0.86rem;
             font-weight: 600;
             color: var(--gold-light);
             margin-bottom: 1.8rem;
@@ -435,17 +294,26 @@
         }
 
         .hero-title-wrapper {
-            margin-bottom: 1.5rem;
+            margin-bottom: 1.6rem;
+        }
+
+        .hero-invitation-tag {
+            font-size: 0.95rem;
+            font-weight: 700;
+            letter-spacing: 0.12em;
+            color: var(--gold-warm);
+            margin-bottom: 0.6rem;
+            text-transform: uppercase;
         }
 
         .hero-title {
             font-family: var(--font-display);
-            font-size: clamp(2.4rem, 7.5vw, 4.2rem);
-            font-weight: 700;
-            line-height: 1.25;
+            font-size: clamp(2.3rem, 7vw, 3.8rem);
+            font-weight: 800;
+            line-height: 1.3;
             color: var(--white);
             text-shadow: 0 4px 24px rgba(0, 0, 0, 0.6);
-            letter-spacing: -0.01em;
+            margin-bottom: 0.8rem;
         }
 
         .hero-title em {
@@ -458,22 +326,21 @@
         }
 
         .hero-tagline {
-            font-size: clamp(1.05rem, 2.5vw, 1.3rem);
+            font-size: clamp(1.05rem, 2.5vw, 1.25rem);
             font-weight: 400;
-            color: rgba(255, 255, 255, 0.9);
-            line-height: 1.6;
+            color: rgba(255, 255, 255, 0.92);
+            line-height: 1.65;
             margin-bottom: 1.25rem;
-            max-width: 620px;
+            max-width: 680px;
             margin-left: auto;
             margin-right: auto;
         }
 
         .hero-church-name {
-            font-size: clamp(0.95rem, 2vw, 1.1rem);
+            font-size: clamp(1rem, 2vw, 1.15rem);
             color: var(--gold-light);
-            font-weight: 500;
-            line-height: 1.6;
-            letter-spacing: 0.02em;
+            font-weight: 600;
+            line-height: 1.65;
         }
 
         .hero-scroll-hint {
@@ -483,9 +350,8 @@
             gap: 0.5rem;
             margin-top: 2.5rem;
             color: rgba(255, 255, 255, 0.7);
-            font-size: 0.8rem;
+            font-size: 0.82rem;
             font-weight: 500;
-            letter-spacing: 0.05em;
         }
 
         .scroll-line {
@@ -499,6 +365,151 @@
         @keyframes scrollPulse {
             0%, 100% { transform: translateY(0); opacity: 0.5; }
             50% { transform: translateY(8px); opacity: 1; }
+        }
+
+        /* ============================================
+           SACRED STORY SECTION
+           ============================================ */
+        .story-section {
+            background: var(--blue-dark);
+            color: var(--white);
+            padding: 5rem 1.5rem;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .story-section .eth-cross-pattern {
+            position: absolute;
+            inset: 0;
+            opacity: 0.035;
+            background-image: url('../../assets/images/orthodox-cross-outline.svg');
+            background-size: 140px 140px;
+            background-repeat: repeat;
+            pointer-events: none;
+        }
+
+        .story-inner {
+            max-width: 720px;
+            margin: 0 auto;
+            position: relative;
+            z-index: 2;
+        }
+
+        .story-headline {
+            font-family: var(--font-display);
+            font-size: clamp(2rem, 6vw, 3rem);
+            font-weight: 800;
+            line-height: 1.35;
+            color: var(--white);
+            margin-bottom: 1.8rem;
+        }
+
+        .story-headline em {
+            font-style: normal;
+            background: linear-gradient(135deg, var(--gold-light), var(--gold));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .story-body {
+            font-size: clamp(1.02rem, 2.5vw, 1.15rem);
+            font-weight: 400;
+            line-height: 1.9;
+            color: rgba(255, 255, 255, 0.9);
+            text-align: justify;
+            text-align-last: center;
+        }
+
+        .story-body p {
+            margin-bottom: 1.35rem;
+        }
+
+        .story-body strong {
+            color: var(--gold-light);
+            font-weight: 700;
+        }
+
+        /* ============================================
+           VIDEO / UNESCO SECTION
+           ============================================ */
+        .video-section {
+            background: linear-gradient(180deg, var(--blue-deep) 0%, var(--blue-dark) 100%);
+            padding: 5rem 1.5rem;
+            text-align: center;
+            position: relative;
+            color: var(--white);
+        }
+
+        .video-inner {
+            max-width: 780px;
+            margin: 0 auto;
+            position: relative;
+            z-index: 2;
+        }
+
+        .video-headline {
+            font-family: var(--font-display);
+            font-size: clamp(1.7rem, 5vw, 2.5rem);
+            font-weight: 800;
+            line-height: 1.4;
+            color: var(--white);
+            margin-bottom: 0.5rem;
+        }
+
+        .video-headline em {
+            font-style: normal;
+            color: var(--gold-light);
+        }
+
+        .video-sub {
+            font-size: 1.02rem;
+            color: var(--gold-light);
+            margin-bottom: 2rem;
+            line-height: 1.6;
+        }
+
+        .video-frame {
+            background: rgba(0, 0, 0, 0.4);
+            border-radius: 1.25rem;
+            padding: 8px;
+            border: 2px solid rgba(226, 202, 24, 0.35);
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
+            margin-bottom: 1.75rem;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .video-wrapper {
+            position: relative;
+            width: 100%;
+            padding-bottom: 56.25%;
+            border-radius: 0.85rem;
+            overflow: hidden;
+            background: #000;
+        }
+
+        .video-wrapper iframe {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            border: 0;
+        }
+
+        .unesco-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.6rem;
+            padding: 0.65rem 1.4rem;
+            background: rgba(226, 202, 24, 0.1);
+            border: 1px solid rgba(226, 202, 24, 0.35);
+            border-radius: 100px;
+            font-size: 0.84rem;
+            color: var(--gold-light);
+            line-height: 1.5;
         }
 
         /* ============================================
@@ -519,7 +530,7 @@
         .adaptation-headline {
             font-family: var(--font-display);
             font-size: clamp(1.8rem, 6vw, 3rem);
-            font-weight: 700;
+            font-weight: 800;
             color: var(--blue-deep);
             margin-bottom: 0.75rem;
         }
@@ -530,13 +541,13 @@
         }
 
         .adaptation-sub {
-            font-size: 0.98rem;
+            font-size: 1rem;
             color: var(--text-muted);
             margin-bottom: 2.75rem;
-            max-width: 620px;
+            max-width: 680px;
             margin-left: auto;
             margin-right: auto;
-            line-height: 1.8;
+            line-height: 1.85;
         }
 
         .cards-grid {
@@ -600,15 +611,15 @@
         .card-title {
             font-family: var(--font-display);
             font-size: 1.35rem;
-            font-weight: 700;
+            font-weight: 800;
             color: var(--blue-deep);
             margin-bottom: 0.65rem;
         }
 
         .card-desc {
-            font-size: 0.92rem;
+            font-size: 0.94rem;
             color: var(--text);
-            line-height: 1.75;
+            line-height: 1.8;
         }
 
         /* ============================================
@@ -629,7 +640,7 @@
         .event-headline {
             font-family: var(--font-display);
             font-size: clamp(1.8rem, 5.5vw, 2.9rem);
-            font-weight: 700;
+            font-weight: 800;
             color: var(--blue-deep);
             margin-bottom: 2.5rem;
         }
@@ -672,25 +683,25 @@
         }
 
         .event-card-title {
-            font-size: 0.76rem;
+            font-size: 0.78rem;
             font-weight: 700;
             text-transform: uppercase;
-            letter-spacing: 0.14em;
+            letter-spacing: 0.12em;
             color: var(--gold-warm);
             margin-bottom: 0.5rem;
         }
 
         .event-card-value {
             font-size: 1.15rem;
-            font-weight: 700;
+            font-weight: 800;
             color: var(--blue-dark);
-            line-height: 1.45;
+            line-height: 1.5;
         }
 
         .event-card-value small {
             display: block;
-            font-size: 0.84rem;
-            font-weight: 400;
+            font-size: 0.86rem;
+            font-weight: 500;
             color: var(--text-muted);
             margin-top: 0.35rem;
         }
@@ -721,10 +732,10 @@
         }
 
         .event-welcome-note {
-            font-size: 0.96rem;
+            font-size: 0.98rem;
             color: var(--blue-deep);
             font-weight: 600;
-            line-height: 1.6;
+            line-height: 1.65;
         }
 
         /* ============================================
@@ -744,7 +755,7 @@
         .contact-headline {
             font-family: var(--font-display);
             font-size: clamp(1.8rem, 5vw, 2.6rem);
-            font-weight: 700;
+            font-weight: 800;
             color: var(--blue-deep);
             margin-bottom: 2rem;
         }
@@ -796,16 +807,16 @@
         }
 
         .contact-label {
-            font-size: 0.72rem;
+            font-size: 0.74rem;
             font-weight: 700;
             text-transform: uppercase;
-            letter-spacing: 0.08em;
+            letter-spacing: 0.06em;
             color: var(--text-muted);
             margin-bottom: 0.2rem;
         }
 
         .contact-value {
-            font-size: 0.88rem;
+            font-size: 0.9rem;
             font-weight: 600;
             color: var(--blue-deep);
             word-break: break-all;
@@ -820,7 +831,7 @@
             background: linear-gradient(135deg, var(--blue), var(--blue-deep));
             color: var(--white);
             text-decoration: none;
-            font-size: 0.88rem;
+            font-size: 0.9rem;
             font-weight: 600;
             box-shadow: 0 4px 16px rgba(10, 98, 134, 0.25);
             transition: transform 0.25s ease;
@@ -848,16 +859,16 @@
         .footer-msg {
             font-family: var(--font-display);
             font-size: 1.35rem;
-            font-weight: 600;
+            font-weight: 700;
             color: var(--gold-light);
             margin-bottom: 0.6rem;
         }
 
         .footer-org {
-            font-size: 0.82rem;
-            letter-spacing: 0.06em;
-            color: rgba(255, 255, 255, 0.65);
-            line-height: 1.7;
+            font-size: 0.84rem;
+            letter-spacing: 0.05em;
+            color: rgba(255, 255, 255, 0.7);
+            line-height: 1.75;
         }
 
         /* ============================================
@@ -883,7 +894,7 @@
 <body>
 
     <!-- ==================== LANGUAGE SWITCHER ==================== -->
-    <nav class="lang-switch-fixed" aria-label="Language selection">
+    <nav class="lang-switch-fixed" aria-label="ቋንቋ ይምረጡ / Language selection">
         <a href="../" class="lang-btn"><span aria-hidden="true">🇬🇧</span> English</a>
         <a href="#" class="lang-btn active" aria-current="page"><span aria-hidden="true">🇪🇹</span> አማርኛ</a>
     </nav>
@@ -894,22 +905,26 @@
             <img src="../meskel-hero.jpg" alt="የመስቀል ደመራ ክብረ በዓል" loading="eager">
         </div>
         <div class="hero-content">
+            <div class="hero-diocese">
+                የታላቋ ብሪታንያ እና የሰሜን አየርላንድ ሀገረ ስብከት
+            </div>
             <div class="hero-badge">
                 <span class="eth-cross eth-cross--sm eth-cross--gold">
                     <img src="../../assets/images/orthodox-cross.svg" alt="የተዋሕዶ መስቀል">
                 </span>
-                የዩኔስኮ ዓለም አቀፍ ቅርስ • የኢትዮጵያ አዲስ ዓመት ፳፻፲፱ (2019)
+                የዩኔስኮ (UNESCO) ዓለም አቀፍ ቅርስ • የኢትዮጵያ አዲስ ዓመት ፳፻፲፱ ዓ.ም
             </div>
             <div class="hero-title-wrapper">
-                <h1 class="hero-title">የበዓለ <em>መስቀል</em> ክብረ በዓል</h1>
-                <p class="hero-tagline">በንግሥት ዕሌኒ አማካኝነት የተገኘው የክቡር መስቀሉ መታሰቢያ</p>
+                <div class="hero-invitation-tag">የክብር ግብዣ</div>
+                <h1 class="hero-title">የበዓለ <em>መስቀል ደመራ</em> ክብረ በዓል</h1>
+                <p class="hero-tagline">ቅድስት ንግሥት ዕሌኒ እውነተኛውን የጌታችን የኢየሱስ ክርስቶስን መስቀል ያገኘችበት መታሰቢያ</p>
                 <p class="hero-church-name">
                     የሊቨርፑል መካነ ቅዱሳን አቡነ ተክለሃይማኖት<br>
-                    የኢትዮጵያ ኦርቶዶክስ ተዋሕዶ ቤተክርስቲያን
+                    የኢትዮጵያ ኦርቶዶክስ ተዋሕዶ ቤተ ክርስቲያን
                 </p>
             </div>
             <div class="hero-scroll-hint">
-                <span>ዝርዝር መረጃ ይመልከቱ</span>
+                <span>ስለ በዓሉ ዝርዝር መረጃ ይመልከቱ</span>
                 <div class="scroll-line"></div>
             </div>
         </div>
@@ -922,17 +937,20 @@
         <div class="eth-cross-pattern"></div>
         <div class="story-inner">
             <div class="reveal">
-                <span class="section-label"><span>ስለ በዓሉ ታሪክ</span></span>
+                <span class="section-label"><span>የበዓሉ ታሪካዊ ዳራ</span></span>
             </div>
             <h2 class="story-headline reveal reveal-delay-1">
-                የከበረው <em>መስቀል</em> መገኘት ታሪክ
+                እውነተኛው የጌታ <em>መስቀል</em> እንዴት ተገኘ?
             </h2>
             <div class="story-body reveal reveal-delay-2">
                 <p>
-                    <strong>የመስቀል በዓል</strong> በ፬ኛው (4ኛው) መቶ ክፍለ ዘመን <strong>በንግሥት ዕሌኒ</strong> አማካኝነት እውነተኛው የጌታችን የኢየሱስ ክርስቶስ መስቀል የተገኘበትን ታላቅ ታሪክ የምናስብበት በዓል ነው። ንግሥት ዕሌኒ የዕጣኑ ጢስ ባሳያት መለኮታዊ ምልክት ተመርታ የተቀበረበትን ቅዱስ ቦታ አግኝታለች።
+                    <strong>የመስቀል በዓል</strong> በ፬ኛው መቶ ክፍለ ዘመን <strong>ቅድስት ንግሥት ዕሌኒ</strong> እውነተኛውን የጌታችንና የመድኃኒታችን የኢየሱስ ክርስቶስን መስቀል ለማግኘት ያደረገችውን ታላቅ መንፈሳዊ ጥረትና መስቀሉ የተገኘበትን ታሪክ የምናስብበት ዓመታዊ ክብረ በዓላችን ነው።
+                </p>
+                <p>
+                    በዘመኑ አይሁድ በመስቀሉ የተፈጸሙትን ገቢረ ተአምራት አይተው በቅናት መስቀሉን ቀብረው ለ፫፻ (300) ዓመታት ያህል የከተማውን ቆሻሻ በላዩ ላይ በማከማቸት ትልቅ ተራራ አድርገውት ነበር። ንግሥት ዕሌኒም ደመራ አስደምራ፣ ዕጣን አሳርጋ በጸለየች ጊዜ፤ የዕጣኑ ጢስ ወደ ሰማይ ወጥቶ ተመልሶ መስቀሉ በተቀበረበት ኮረብታ ላይ በማረፍ ያሳያትን መለኮታዊ ምልክት ተከትላ ቦታውን አስቆፍራ የከበረውን መስቀል አግኝታለች።
                 </p>
                 <p style="margin-bottom: 0;">
-                    በኢትዮጵያ አዲስ ዓመት ማግስት የሚከበረው ይህ ጥንታዊ የሰላም፣ የብርሃንና የእርቅ በዓል <strong>በዩኔስኮ (UNESCO)</strong> የሰው ልጅ የማይዳሰስ ዓለም አቀፍ ቅርስ ሆኖ ተመዝግቧል።
+                    በኢትዮጵያ አዲስ ዓመት ማግስት የሚከበረው ይህ ታላቅ የሰላም፣ የብርሃንና የእርቅ በዓል፤ በኢትዮጵያ ኦርቶዶክስ ተዋሕዶ ቤተ ክርስቲያን ባለው ጥልቅ መንፈሳዊና ባሕላዊ እሴት ምክንያት <strong>በዩኔስኮ (UNESCO)</strong> የሰው ልጅ የማይዳሰስ የዓለም ቅርስ ሆኖ ተመዝግቧል።
                 </p>
             </div>
         </div>
@@ -945,10 +963,10 @@
         <div class="video-inner">
             <span class="section-label reveal"><span>ተመልከቱና እወቁ</span></span>
             <h2 class="video-headline reveal reveal-delay-1">
-                የኢትዮጵያ ኦርቶዶክስ ተዋሕዶ ቤተክርስቲያን <em>የመስቀልን በዓል</em> እንዴት እንደምታከብር ይወቁ
+                የኢትዮጵያ ኦርቶዶክስ ተዋሕዶ ቤተ ክርስቲያን <em>የመስቀልን በዓል</em> እንዴት እንደምታከብር ይወቁ
             </h2>
             <p class="video-sub reveal reveal-delay-2">
-                (እውነተኛው የክርስቶስ መስቀል የተገኘበት በዓል መታሰቢያ)
+                (የጌታችን የመድኃኒታችን የኢየሱስ ክርስቶስ መስቀል የተገኘበት በዓል መታሰቢያ)
             </p>
 
             <div class="video-frame reveal reveal-delay-3">
@@ -956,7 +974,7 @@
                     <iframe
                         id="youtubePlayer"
                         src="https://www.youtube-nocookie.com/embed/-28oVN0LAsc?rel=0&modestbranding=1"
-                        title="የኢትዮጵያ ኦርቶዶክስ ተዋሕዶ ቤተክርስቲያን የመስቀልን በዓል እንዴት እንደምታከብር ይወቁ"
+                        title="የኢትዮጵያ ኦርቶዶክስ ተዋሕዶ ቤተ ክርስቲያን የመስቀልን በዓል እንዴት እንደምታከብር ይወቁ"
                         allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                         allowfullscreen
                         loading="lazy">
@@ -967,7 +985,7 @@
             <div class="reveal reveal-delay-4">
                 <div class="unesco-badge">
                     <i class="fas fa-landmark" style="color: var(--gold); font-size: 0.95rem;"></i>
-                    <span>በዩኔስኮ (UNESCO) የሰው ልጅ የማይዳሰስ ቅርስ ወካይ መዝገብ ላይ የተመዘገበ</span>
+                    <span>በዩኔስኮ (UNESCO) የሰው ልጅ የማይዳሰስ ቅርስ ወካይ መዝገብ ላይ የሰፈረ</span>
                 </div>
             </div>
         </div>
@@ -979,13 +997,13 @@
     <section class="adaptation-section">
         <div class="adaptation-inner">
             <div class="reveal">
-                <span class="section-label"><span>የአካባቢያችን ጉባኤ</span></span>
+                <span class="section-label"><span>የአካባቢያችን አከባበር</span></span>
             </div>
             <h2 class="adaptation-headline reveal reveal-delay-1">
                 በዓሉ በ<em>ሊቨርፑል</em> እንዴት ይከበራል?
             </h2>
             <p class="adaptation-sub reveal reveal-delay-2">
-                በኢትዮጵያ የሚከበረው ታላቁ የመስቀል ደመራ በሰፊ ሜዳ ላይ በእሳት እንደሚለኮስ ይታወቃል፤ እኛም በሊቨርፑል አካባቢያችንንና ማህበረሰባችንን ባማከለ መልኩ፣ ደህንነቱ በተጠበቀና መንፈሳዊ ስርዓቱን በጠበቀ ልዩ ክብር እናከብራለን።
+                በኢትዮጵያ በዓለ መስቀል በሰፊ ሜዳ ላይ ታላቅ ደመራ ተደምሮ በእሳት እንደሚለኮስ ይታወቃል፤ እኛም እዚህ በሊቨርፑል ያለንበትን ሁኔታ ባገናዘበ፣ ለአካባቢያችን ማህበረሰብ ደህንነቱ በተጠበቀና ሥርዓተ ቤተ ክርስቲያኑን በጠበቀ ልዩ ክብር እናከብራለን።
             </p>
 
             <div class="cards-grid">
@@ -993,9 +1011,9 @@
                     <div class="card-icon-wrap">
                         <i class="fas fa-fire-burner"></i>
                     </div>
-                    <h3 class="card-title">የተቀደሰ ዕጣን</h3>
+                    <h3 class="card-title">የተቀደሰ ማዕጠንት (ዕጣን)</h3>
                     <p class="card-desc">
-                        ከፍተኛ ጭስ ከማጨስ ይልቅ፣ ንግሥት ዕሌኒ መስቀሉን ያገኘችበትን የዕጣን ጢስ በማሰብ በጽና ማዕጠንት እጅግ ያማረና መዓዛ ያለው የከርቤ ዕጣን እናጥናለን።
+                        ከፍተኛ እሳትና ጭስ ከማንደድ ይልቅ፣ ቅድስት ንግሥት ዕሌኒ መስቀሉ ያለበትን ቦታ ለማግኘት የተጠቀመችበትንና መለኮታዊ ምልክት ያሳያትን የዕጣን ጢስ በማሰብ፣ በጽና ማዕጠንት እጅግ ያማረና መዓዛ ያለው የከርቤ ዕጣን እናጥናለን።
                     </p>
                 </div>
 
@@ -1005,7 +1023,7 @@
                     </div>
                     <h3 class="card-title">መስቀሉና ደመራው</h3>
                     <p class="card-desc">
-                        መስቀሉ የተቀበረበትን ኮረብታ ለማሰብና ያማረውን የአበባና የቅጠል ደመራ በማዘጋጀት ቅዱስ መስቀሉ በደመራው አናት ላይ በክብር ይሰቀላል።
+                        መስቀሉ ለ፫፻ ዓመታት ተቀብሮበት የነበረውንና ተቆፍሮ የወጣበትን የቆሻሻ ተራራ ለማሰብ በተዘጋጀው የቅርንጫፎችና የአረንጓዴ ቅጠል ደመራ መካከል ቅዱስ መስቀሉ በክብር ይሰቀላል።
                     </p>
                 </div>
 
@@ -1013,9 +1031,9 @@
                     <div class="card-icon-wrap">
                         <i class="fas fa-hands-praying"></i>
                     </div>
-                    <h3 class="card-title">ጸሎትና የደስታ ዝማሬ</h3>
+                    <h3 class="card-title">የህብረት ጸሎትና ያሬዳዊ ዝማሬ</h3>
                     <p class="card-desc">
-                        ካህናት፣ ዲያቆናት፣ የሰንበት ትምህርት ቤት ዘማሪያንና ምዕመናን በቤተክርስቲያኑ ፊት ለፊት በመሰብሰብ የቅዱስ ያሬድን ወረብ፣ የህብረት ጸሎትና ያማረ ዝማሬ ያቀርባሉ።
+                        ካህናት፣ ዲያቆናት፣ የሰንበት ትምህርት ቤት ዘማሪያንና መላው ምዕመናን በቤተ ክርስቲያኑ ፊት ለፊት ተሰባስበን የቅዱስ ያሬድን ወረብ፣ የህብረት ጸሎትና ያማረ የምስጋና ዝማሬ በደስታ እናቀርባለን።
                     </p>
                 </div>
             </div>
@@ -1029,7 +1047,7 @@
         <div class="event-details-inner">
             <span class="section-label reveal"><span>የበዓሉ ዝርዝር መረጃ</span></span>
             <h2 class="event-headline reveal reveal-delay-1">
-                ከ<em>ቅዱስ ገብርኤል</em> ህንፃ ፊት ለፊት አብረውን ያክብሩ
+                ከ<em>ሴንት ገብርኤል</em> ሕንጻ ፊት ለፊት አብረውን ያክብሩ
             </h2>
 
             <div class="event-cards">
@@ -1040,7 +1058,7 @@
                     <div class="event-card-title">ቀን</div>
                     <div class="event-card-value">
                         ቅዳሜ
-                        <small>መስከረም ፲፮ ቀን ፳፻፲፱ (26 Sept 2026)</small>
+                        <small>መስከረም ፲፮ ቀን ፳፻፲፱ ዓ.ም (26 Sept 2026)</small>
                     </div>
                 </div>
 
@@ -1061,7 +1079,7 @@
                     </div>
                     <div class="event-card-title">ቦታ</div>
                     <div class="event-card-value">
-                        ሴንት ገብርኤል
+                        ሴንት ገብርኤል ሕንጻ ፊት ለፊት
                         <small>16 Yates St, Liverpool, L8 6RD</small>
                     </div>
                 </div>
@@ -1070,13 +1088,13 @@
             <div class="location-action reveal reveal-delay-4">
                 <a href="https://maps.google.com/?q=16+Yates+Street+Liverpool+L8+6RD" target="_blank" rel="noopener" class="location-pill">
                     <i class="fas fa-map-marker-alt"></i>
-                    <span>በጎግል ካርታ ይመልከቱ (L8 6RD)</span>
+                    <span>በጎግል ካርታ አቅጣጫ ይመልከቱ (L8 6RD)</span>
                 </a>
             </div>
 
             <p class="event-welcome-note reveal reveal-delay-4">
                 <i class="fas fa-heart" style="color: var(--gold); margin-right: 4px;"></i>
-                መግቢያው በነጻ ነው • ምዕመናን፣ ጎረቤቶች፣ ቤተሰቦችና ወዳጆች በሙሉ በታላቅ አክብሮት ተጋብዘዋል!
+                መግቢያው በነጻ ነው • ምዕመናን፣ ወዳጆች፣ ጎረቤቶችና ቤተሰቦች በሙሉ በክብር ተጋብዘዋል!
             </p>
         </div>
     </section>
@@ -1090,7 +1108,7 @@
                 <span class="section-label"><span>ህብረትና አንድነት</span></span>
             </div>
             <h2 class="contact-headline reveal reveal-delay-1">
-                አብረውን ለመገናኘት በደስታ እንጠብቃችኋለን
+                አብረውን እንዲሆኑ በደስታ እንጠብቃችኋለን
             </h2>
 
             <div class="contact-methods reveal reveal-delay-2">
@@ -1099,7 +1117,7 @@
                         <i class="fas fa-phone-alt"></i>
                     </div>
                     <div>
-                        <div class="contact-label">ይደውሉ ወይም መልዕክት ይላኩ</div>
+                        <div class="contact-label">ይደውሉ ወይም መልእክት ይላኩ</div>
                         <div class="contact-value">07951 403936</div>
                     </div>
                 </a>
@@ -1118,7 +1136,7 @@
             <div class="reveal reveal-delay-3">
                 <a href="https://abuneteklehaymanot.org/" target="_blank" rel="noopener" class="website-link">
                     <i class="fas fa-globe"></i>
-                    <span>የቤተክርስቲያኗን ድረ-ገጽ ይጎብኙ</span>
+                    <span>የቤተ ክርስቲያኗን ድረ-ገጽ ይጎብኙ</span>
                     <i class="fas fa-arrow-right" style="font-size: 0.75rem; margin-left: 0.3rem;"></i>
                 </a>
             </div>
@@ -1136,8 +1154,8 @@
         </div>
         <div class="footer-msg">የተቀደሰው መስቀል በረከትና ረድኤት ከሁላችን ጋር ይሁን።</div>
         <div class="footer-org">
-            የሊቨርፑል መካነ ቅዱሳን አቡነ ተክለሃይማኖት<br>
-            የኢትዮጵያ ኦርቶዶክስ ተዋሕዶ ቤተክርስቲያን<br>
+            የሊቨርፑል መካነ ቅዱሳን አቡነ ተክለሃይማኖት የኢትዮጵያ ኦርቶዶክስ ተዋሕዶ ቤተ ክርስቲያን<br>
+            የታላቋ ብሪታንያ እና የሰሜን አየርላንድ ሀገረ ስብከት<br>
             16 Yates Street, Liverpool, L8 6RD
         </div>
     </footer>
