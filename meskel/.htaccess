@@ -1,5 +1,9 @@
 <IfModule mod_rewrite.c>
 RewriteEngine On
-# Ensure /meskel/am and /meskel/am/ cleanly map to am/index.html
-RewriteRule ^am/?$ am/index.html [L,QSA]
+
+# Enforce trailing slash on /meskel/am -> /meskel/am/
+RewriteRule ^am$ am/ [R=301,L]
+
+# Map /meskel/am/ to am/index.html
+RewriteRule ^am/$ am/index.html [L,QSA]
 </IfModule>

@@ -5,6 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>የደመራ እና የመስቀል ክብረ በዓል — የሊቨርፑል መካነ ቅዱሳን አቡነ ተክለሃይማኖት ቤተ ክርስቲያን</title>
     <meta name="description" content="የኢትዮጵያ ኦርቶዶክስ ተዋሕዶ ቤተ ክርስቲያን የበዓለ መስቀል (ደመራ) ታሪካዊ ክብረ በዓል — በሊቨርፑል መካነ ቅዱሳን አቡነ ተክለሃይማኖት ቤተ ክርስቲያን። የዩኔስኮ (UNESCO) ዓለም አቀፍ ቅርስ።">
+    <script>
+        // Ensure trailing slash so all relative asset paths resolve identically
+        if (!window.location.pathname.endsWith('/') && !window.location.pathname.endsWith('.html')) {
+            window.location.replace(window.location.pathname + '/' + window.location.search + window.location.hash);
+        }
+    </script>
     <link rel="icon" type="image/svg+xml" href="../../assets/favicon.svg">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -158,7 +164,7 @@
            ============================================ */
         .tibeb {
             height: 18px;
-            background: url('../Ethiopian_Design.png') repeat-x center;
+            background: url('Ethiopian_Design.png') repeat-x center;
             background-size: auto 100%;
             width: 100%;
             position: relative;
@@ -167,7 +173,7 @@
 
         .tibeb-alt {
             height: 20px;
-            background: url('../Pattern_Two!.jpeg') repeat-x center;
+            background: url('Pattern_Two!.jpeg') repeat-x center;
             background-size: auto 100%;
             width: 100%;
             position: relative;
@@ -256,7 +262,7 @@
             left: 0;
             right: 0;
             height: 6px;
-            background: url('../Ethiopian_Design.png') repeat;
+            background: url('Ethiopian_Design.png') repeat;
             background-size: auto 100%;
             z-index: 4;
         }
@@ -383,7 +389,7 @@
             position: absolute;
             inset: 0;
             opacity: 0.035;
-            background-image: url('../../assets/images/orthodox-cross-outline.svg');
+            background-image: url('orthodox-cross-outline.svg');
             background-size: 140px 140px;
             background-repeat: repeat;
             pointer-events: none;
@@ -902,7 +908,7 @@
     <!-- ==================== HERO ==================== -->
     <header class="hero">
         <div class="hero-bg">
-            <img src="../meskel-hero.jpg" alt="የመስቀል ደመራ ክብረ በዓል" loading="eager">
+            <img src="meskel-hero.jpg" alt="የመስቀል ደመራ ክብረ በዓል" loading="eager" onerror="this.onerror=null; this.src='../meskel-hero.jpg';">
         </div>
         <div class="hero-content">
             <div class="hero-diocese">
@@ -910,7 +916,7 @@
             </div>
             <div class="hero-badge">
                 <span class="eth-cross eth-cross--sm eth-cross--gold">
-                    <img src="../../assets/images/orthodox-cross.svg" alt="የተዋሕዶ መስቀል">
+                    <img src="orthodox-cross.svg" alt="የተዋሕዶ መስቀል" onerror="this.onerror=null; this.src='../../assets/images/orthodox-cross.svg';">
                 </span>
                 የዩኔስኮ (UNESCO) ዓለም አቀፍ ቅርስ • የኢትዮጵያ አዲስ ዓመት ፳፻፲፱ ዓ.ም
             </div>
@@ -1137,7 +1143,7 @@
     <footer class="footer">
         <div class="footer-cross">
             <span class="eth-cross eth-cross--lg eth-cross--gold">
-                <img src="../../assets/images/orthodox-cross.svg" alt="የተዋሕዶ መስቀል">
+                <img src="orthodox-cross.svg" alt="የተዋሕዶ መስቀል" onerror="this.onerror=null; this.src='../../assets/images/orthodox-cross.svg';">
             </span>
         </div>
         <div class="footer-msg">የተቀደሰው መስቀል በረከትና ረድኤት ከሁላችን ጋር ይሁን።</div>
