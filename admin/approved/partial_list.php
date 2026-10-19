@@ -67,6 +67,7 @@ if (empty($approved)) {
         $pledge_donor_phone = (string)($row['donor_phone'] ?? '');
         $pledge_donor_email = (string)($row['donor_email'] ?? '');
         $pledge_registrar = (string)($row['registrar_name'] ?? '');
+        $donor_id = (int)($row['donor_id'] ?? 0);
         
         // Check if pledge was requested from portal or has updates
         $pledge_source = (string)($row['pledge_source'] ?? 'volunteer');
@@ -98,6 +99,7 @@ if (empty($approved)) {
      id="<?php echo $isBatch ? 'batch-' : 'pledge-'; ?><?php echo $pledge_id; ?>"
      role="button" tabindex="0"
      data-pledge-id="<?php echo $pledge_id; ?>"
+     data-donor-id="<?php echo $donor_id; ?>"
      data-type="<?php echo htmlspecialchars($pledge_type, ENT_QUOTES); ?>"
      data-amount="<?php echo $pledge_amount; ?>"
      data-anonymous="<?php echo $pledge_anonymous; ?>"
@@ -168,7 +170,25 @@ if (empty($approved)) {
         
         <div class="donor-section">
             <div class="donor-name">
-                <?php echo htmlspecialchars($displayName); ?>
+                <?php if ($donor_id > 0): ?>
+                    <a href="../donor-management/view-donor.php?id=<?php echo $donor_id; ?>" 
+                       class="text-decoration-none fw-bold text-dark donor-profile-link" 
+                       title="View donor profile (ID #<?php echo $donor_id; ?>)" 
+                       onclick="event.stopPropagation();">
+                        <?php echo htmlspecialchars($displayName); ?>
+                        <i class="fas fa-external-link-alt ms-1 text-primary small" style="font-size: 0.75rem;"></i>
+                    </a>
+                <?php elseif (!empty($displayPhone)): ?>
+                    <a href="../donor-management/view-donor.php?phone=<?php echo urlencode($displayPhone); ?>" 
+                       class="text-decoration-none fw-bold text-dark donor-profile-link" 
+                       title="View donor profile by phone" 
+                       onclick="event.stopPropagation();">
+                        <?php echo htmlspecialchars($displayName); ?>
+                        <i class="fas fa-external-link-alt ms-1 text-primary small" style="font-size: 0.75rem;"></i>
+                    </a>
+                <?php else: ?>
+                    <?php echo htmlspecialchars($displayName); ?>
+                <?php endif; ?>
                 <?php
                     // Check if this is an update request from donor portal (same logic as approvals page)
                     $is_donor_update = ($pledge_source === 'self' || $pledge_source === 'donor_portal');

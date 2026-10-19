@@ -104,6 +104,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['action']) && $_GET['act
             echo json_encode([
                 'success' => true,
                 'batch' => [
+                    'donor_id' => (int)($batch['donor_id'] ?? 0),
                     'donor_name' => $batch['donor_name'] ?? '',
                     'donor_phone' => $batch['donor_phone'] ?? '',
                     'donor_email' => $donorEmail,
@@ -945,10 +946,12 @@ $sql = "
         WHEN b.batch_id IS NOT NULL THEN 1 
         ELSE 0 
     END AS has_updates,
-    dp.label AS package_label
+    dp.label AS package_label,
+    COALESCE(p.donor_id, d.id) AS donor_id
   FROM pledges p
   LEFT JOIN donation_packages dp ON dp.id = p.package_id
   LEFT JOIN users u ON p.created_by_user_id = u.id
+  LEFT JOIN donors d ON d.phone = p.donor_phone
   LEFT JOIN (
     SELECT b1.original_pledge_id, b1.id AS batch_id, b1.batch_type, b1.additional_amount, b1.original_amount
     FROM grid_allocation_batches b1
@@ -990,10 +993,12 @@ UNION ALL
     NULL AS original_amount,
     'volunteer' AS pledge_source,
     0 AS has_updates,
-    dp.label AS package_label
+    dp.label AS package_label,
+    COALESCE(pay.donor_id, d.id) AS donor_id
   FROM payments pay
   LEFT JOIN donation_packages dp ON dp.id = pay.package_id
   LEFT JOIN users u ON pay.received_by_user_id = u.id
+  LEFT JOIN donors d ON d.phone = pay.donor_phone
   WHERE $payment_where_clause)
 UNION ALL
 (SELECT 
@@ -1024,10 +1029,12 @@ UNION ALL
     b.original_amount AS original_amount,
     'self' AS pledge_source,
     0 AS has_updates,
-    NULL AS package_label
+    NULL AS package_label,
+    COALESCE(b.donor_id, p.donor_id, d.id) AS donor_id
   FROM grid_allocation_batches b
   LEFT JOIN pledges p ON b.original_pledge_id = p.id
   LEFT JOIN users u ON b.requested_by_user_id = u.id
+  LEFT JOIN donors d ON d.phone = COALESCE(p.donor_phone, b.donor_phone)
   WHERE b.approval_status = 'approved'
     AND b.batch_type IN ('pledge_update', 'payment_update')
     AND b.original_pledge_id IS NOT NULL
@@ -1470,6 +1477,9 @@ file_put_contents($_debug_log_path, json_encode([
         </div>
       </div>
       <div class="modal-footer">
+        <a href="#" id="batchViewDonorProfileBtn" class="btn btn-primary d-none" target="_blank">
+          <i class="fas fa-user me-1"></i>View Donor Profile
+        </a>
         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
       </div>
     </div>
@@ -1548,6 +1558,9 @@ file_put_contents($_debug_log_path, json_encode([
         </div>
       </div>
       <div class="modal-footer">
+        <a href="#" id="dViewDonorProfileBtn" class="btn btn-primary d-none" target="_blank">
+          <i class="fas fa-user me-1"></i>View Donor Profile
+        </a>
         <button class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
       </div>
     </div>
@@ -1678,6 +1691,21 @@ document.addEventListener('DOMContentLoaded', function() {
               cellsContainer.innerHTML = '<span class="text-muted">No cells allocated</span>';
             }
             
+            // Update View Donor Profile button
+            const batchDonorBtn = document.getElementById('batchViewDonorProfileBtn');
+            if (batchDonorBtn) {
+              const dId = parseInt(batch.donor_id || this.dataset.donorId || 0, 10);
+              if (dId > 0) {
+                batchDonorBtn.href = `../donor-management/view-donor.php?id=${dId}`;
+                batchDonorBtn.classList.remove('d-none');
+              } else if (batch.donor_phone && batch.donor_phone.trim() !== '') {
+                batchDonorBtn.href = `../donor-management/view-donor.php?phone=${encodeURIComponent(batch.donor_phone.trim())}`;
+                batchDonorBtn.classList.remove('d-none');
+              } else {
+                batchDonorBtn.classList.add('d-none');
+              }
+            }
+            
             // Show modal
             const modal = new bootstrap.Modal(document.getElementById('batchDetailsModal'));
             modal.show();
@@ -1693,14 +1721,25 @@ document.addEventListener('DOMContentLoaded', function() {
   });
 });
 
-// Click-to-open details modal for approved cards (like approvals page)
+// Click card: navigate to donor profile page or open details modal
 document.addEventListener('click', function(e){
   const card = e.target.closest('.approval-item');
   if (!card) return;
-  // ignore if clicking on action buttons/forms
-  if (e.target.closest('.approval-actions')) return;
+  // ignore if clicking on action buttons/forms or direct links
+  if (e.target.closest('.approval-actions') || e.target.closest('form') || e.target.closest('button')) return;
+  if (e.target.closest('a')) return;
   // ignore batch items (they have their own handler)
   if (card.classList.contains('batch-item')) return;
+
+  const donorId = parseInt(card.dataset.donorId || 0, 10);
+  if (donorId > 0) {
+    window.location.href = `../donor-management/view-donor.php?id=${donorId}`;
+    return;
+  } else if (card.dataset.donorPhone && card.dataset.donorPhone.trim() !== '') {
+    window.location.href = `../donor-management/view-donor.php?phone=${encodeURIComponent(card.dataset.donorPhone.trim())}`;
+    return;
+  }
+
   const fmt = (n) => new Intl.NumberFormat('en-GB', {minimumFractionDigits: 2, maximumFractionDigits: 2}).format(Number(n)||0);
   const modal = new bootstrap.Modal(document.getElementById('detailsModal'));
   const type = (card.dataset.type||'—').toUpperCase();
@@ -1715,6 +1754,20 @@ document.addEventListener('click', function(e){
   document.getElementById('dDonorName').textContent = card.dataset.donorName||'—';
   document.getElementById('dPhone').textContent = card.dataset.donorPhone||'—';
   document.getElementById('dEmail').textContent = card.dataset.donorEmail||'—';
+  
+  // Update View Donor Profile button in modal
+  const dProfileBtn = document.getElementById('dViewDonorProfileBtn');
+  if (dProfileBtn) {
+    if (donorId > 0) {
+      dProfileBtn.href = `../donor-management/view-donor.php?id=${donorId}`;
+      dProfileBtn.classList.remove('d-none');
+    } else if (card.dataset.donorPhone && card.dataset.donorPhone.trim() !== '') {
+      dProfileBtn.href = `../donor-management/view-donor.php?phone=${encodeURIComponent(card.dataset.donorPhone.trim())}`;
+      dProfileBtn.classList.remove('d-none');
+    } else {
+      dProfileBtn.classList.add('d-none');
+    }
+  }
   if ((card.dataset.type||'').toLowerCase()==='payment' || (card.dataset.type||'').toLowerCase()==='paid') {
     // For payments, show package if available, otherwise method
     const pkg = card.dataset.packageLabel || '';

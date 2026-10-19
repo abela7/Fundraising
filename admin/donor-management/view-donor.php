@@ -30,6 +30,23 @@ require_once __DIR__ . '/../includes/resilient_db_loader.php';
 $db = db();
 $donor_id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
 
+if (!$donor_id && !empty($_GET['phone'])) {
+    $cleanPhone = preg_replace('/[^0-9]/', '', (string)$_GET['phone']);
+    if (substr($cleanPhone, 0, 2) === '44' && strlen($cleanPhone) === 12) {
+        $cleanPhone = '0' . substr($cleanPhone, 2);
+    }
+    $pStmt = $db->prepare("SELECT id FROM donors WHERE phone = ? LIMIT 1");
+    if ($pStmt) {
+        $pStmt->bind_param('s', $cleanPhone);
+        $pStmt->execute();
+        $pRes = $pStmt->get_result();
+        if ($pRow = $pRes->fetch_assoc()) {
+            $donor_id = (int)$pRow['id'];
+        }
+        $pStmt->close();
+    }
+}
+
 if (!$donor_id) {
     header('Location: donors.php');
     exit;
