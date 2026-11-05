@@ -11,6 +11,9 @@ header('Content-Type: application/json');
 
 // Error handling
 set_error_handler(function($severity, $message, $file, $line) {
+    if (!(error_reporting() & $severity)) {
+        return false;
+    }
     throw new ErrorException($message, 0, $severity, $file, $line);
 });
 

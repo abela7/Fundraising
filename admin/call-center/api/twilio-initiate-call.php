@@ -10,6 +10,9 @@ declare(strict_types=1);
 // Output buffering and error handling
 ob_start();
 set_error_handler(function($errno, $errstr, $errfile, $errline) {
+    if (!(error_reporting() & $errno)) {
+        return false;
+    }
     throw new ErrorException($errstr, 0, $errno, $errfile, $errline);
 });
 
